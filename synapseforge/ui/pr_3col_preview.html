@@ -357,20 +357,20 @@
 
           <!-- Apple Segmented Tab Switcher for Room Center -->
           <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/[0.08] text-xs">
-            <button onclick="switchCenterTab('chat')" id="tab-center-chat" class="segmented-btn active flex-1 py-1 font-medium text-white text-center">
+            <button onclick="switchCenterTab('chat')" id="tab-center-chat" class="segmented-btn flex-1 py-1 font-medium text-white text-center">
               💬 实时对齐聊天
             </button>
             <button onclick="switchCenterTab('tasks')" id="tab-center-tasks" class="segmented-btn flex-1 py-1 font-medium text-white/60 hover:text-white text-center">
               📋 任务认领看板 (4)
             </button>
-            <button onclick="switchCenterTab('prs')" id="tab-center-prs" class="segmented-btn flex-1 py-1 font-medium text-white/60 hover:text-white text-center">
+            <button onclick="switchCenterTab('prs')" id="tab-center-prs" class="segmented-btn active flex-1 py-1 font-medium text-white/60 hover:text-white text-center">
               🔀 PR 审查网关 (2)
             </button>
           </div>
         </div>
 
         <!-- Center View 1: 实时对齐聊天与事件流 (Chat & Event Stream) -->
-        <div id="center-view-chat" class="flex-1 flex flex-col min-h-0">
+        <div id="center-view-chat" class="hidden flex-1 flex flex-col min-h-0">
           <!-- Chat Message Feed -->
           <div class="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs">
             
@@ -508,7 +508,7 @@
         </div>
 
         <!-- Center View 3: GitHub PR 审查网关 (PR Review Gateway) -->
-        <div id="center-view-prs" class="hidden flex-1 p-3 overflow-y-auto space-y-3">
+        <div id="center-view-prs" class="flex-1 p-3 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
             <span class="text-xs font-bold text-white">GitHub PR 审查矩阵</span>
             <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-mono">2 Open PRs</span>
