@@ -77,10 +77,27 @@ TYPST_ACADEMIC_TEMPLATE = """// SynapseForge Publication-Grade PDF Layout
 
 
 class PDFTool:
-    """Publication-grade Chinese PDF compiler using Typst and pure KaiTi typography."""
+    """Publication-grade Chinese PDF compiler using Typst and pure KaiTi typography across Windows, macOS, and Linux."""
 
     def __init__(self, typst_bin: Optional[str] = None):
-        self.typst_bin = typst_bin or shutil.which("typst") or "/usr/bin/typst"
+        self.typst_bin = typst_bin or self._find_typst_bin()
+
+    def _find_typst_bin(self) -> str:
+        which_path = shutil.which("typst")
+        if which_path:
+            return which_path
+
+        candidates = [
+            "/usr/bin/typst",
+            "/usr/local/bin/typst",
+            "/opt/homebrew/bin/typst",
+            str(Path.home() / ".cargo" / "bin" / "typst"),
+            str(Path.home() / ".cargo" / "bin" / "typst.exe"),
+        ]
+        for c in candidates:
+            if Path(c).exists():
+                return c
+        return "typst"
 
     def is_available(self) -> bool:
         return Path(self.typst_bin).exists() or shutil.which("typst") is not None

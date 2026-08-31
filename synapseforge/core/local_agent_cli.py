@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -95,9 +96,29 @@ class LocalAgentCLIManager:
         return {"ok": True, "agent_name": name, "binary": binary, "args_pattern": args_pattern}
 
     def detect_available_clis(self) -> List[Dict[str, Any]]:
-        """Scans the host system to find all installed and configured Agent CLIs."""
+        """Scans the host system across Windows, macOS, and Linux to find all installed Agent CLIs."""
         all_specs = dict(DEFAULT_LOCAL_AGENTS)
         all_specs.update(self._load_custom_registry())
+
+        # Cross-platform search paths
+        candidate_dirs = [
+            Path.home() / ".local" / "bin",
+            Path("/usr/local/bin"),
+            Path("/usr/bin"),
+            Path("/opt/homebrew/bin"),  # macOS Homebrew (Apple Silicon)
+            Path("/usr/local/Cellar"),  # macOS Homebrew (Intel)
+        ]
+        if sys.platform == "win32":
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            appdata = os.environ.get("APPDATA", "")
+            userprofile = os.environ.get("USERPROFILE", "")
+            if local_appdata:
+                candidate_dirs.append(Path(local_appdata) / "Programs")
+                candidate_dirs.append(Path(local_appdata) / "Microsoft" / "WindowsApps")
+            if appdata:
+                candidate_dirs.append(Path(appdata) / "npm")
+            if userprofile:
+                candidate_dirs.append(Path(userprofile) / ".local" / "bin")
 
         detected = []
         for name, spec in all_specs.items():
@@ -105,12 +126,20 @@ class LocalAgentCLIManager:
             resolved = shutil.which(bin_name)
             is_present = resolved is not None
 
-            # Also check user local bin
+            # Cross-platform fallback check
             if not is_present:
-                local_candidate = Path.home() / ".local" / "bin" / bin_name
-                if local_candidate.exists() and os.access(str(local_candidate), os.X_OK):
-                    resolved = str(local_candidate)
-                    is_present = True
+                extensions = ["", ".exe", ".cmd", ".bat"] if sys.platform == "win32" else [""]
+                for cdir in candidate_dirs:
+                    if not cdir.exists():
+                        continue
+                    for ext in extensions:
+                        candidate = cdir / f"{bin_name}{ext}"
+                        if candidate.exists() and (sys.platform == "win32" or os.access(str(candidate), os.X_OK)):
+                            resolved = str(candidate)
+                            is_present = True
+                            break
+                    if is_present:
+                        break
 
             detected.append({
                 "agent_name": name,
@@ -119,6 +148,7 @@ class LocalAgentCLIManager:
                 "args_pattern": spec["args_pattern"],
                 "installed": is_present,
                 "executable_path": resolved,
+                "platform": sys.platform,
             })
         return detected
 

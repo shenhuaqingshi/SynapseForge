@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -40,19 +41,39 @@ class MeshTopology:
 
 
 class TailscaleMeshManager:
-    """Manages decentralized node discovery and encrypted P2P WireGuard transport via Tailscale."""
+    """Manages decentralized node discovery and encrypted P2P WireGuard transport via Tailscale across Windows, macOS, and Linux."""
 
     def __init__(self, tailnet_name: str = "synapseforge.ts.net", port: int = 8765, custom_nodes: Optional[List[Dict[str, Any]]] = None):
         self.tailnet_name = tailnet_name
         self.port = port
-        self.has_tailscale_cli = shutil.which("tailscale") is not None
+        self.tailscale_bin = self._find_tailscale_bin()
+        self.has_tailscale_cli = self.tailscale_bin is not None
         self.custom_nodes = custom_nodes or []
+
+    def _find_tailscale_bin(self) -> Optional[str]:
+        """Finds Tailscale CLI binary across Windows, macOS, and Linux."""
+        which_path = shutil.which("tailscale")
+        if which_path:
+            return which_path
+
+        candidates = [
+            "/usr/bin/tailscale",
+            "/usr/local/bin/tailscale",
+            "/opt/homebrew/bin/tailscale",
+            "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+            r"C:\Program Files\Tailscale\tailscale.exe",
+            r"C:\Program Files (x86)\Tailscale\tailscale.exe",
+        ]
+        for c in candidates:
+            if Path(c).exists():
+                return str(c)
+        return None
 
     def get_mesh_status(self) -> MeshTopology:
         """Discovers nodes via Tailscale CLI or returns configured cross-regional mesh."""
-        if self.has_tailscale_cli:
+        if self.has_tailscale_cli and self.tailscale_bin:
             try:
-                out = subprocess.check_output(["tailscale", "status", "--json"], text=True, stderr=subprocess.DEVNULL)
+                out = subprocess.check_output([self.tailscale_bin, "status", "--json"], text=True, stderr=subprocess.DEVNULL)
                 data = json.loads(out)
                 return self._parse_tailscale_json(data)
             except Exception:

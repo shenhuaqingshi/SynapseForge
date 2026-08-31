@@ -1,17 +1,32 @@
 """
 Atomic Section File Locking and Auto-Unlock Context Manager for SynapseForge.
 Guarantees strict exclusivity when an AI Agent modifies a document section.
-Automatically unlocks the file upon completion or exception.
+Cross-Platform Support for Windows (msvcrt), macOS (fcntl), and Linux (fcntl).
 """
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+# Cross-platform OS lock imports
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    fcntl = None  # type: ignore
+    HAS_FCNTL = False
+
+try:
+    import msvcrt
+    HAS_MSVCRT = True
+except ImportError:
+    msvcrt = None  # type: ignore
+    HAS_MSVCRT = False
 
 
 class SectionLockedError(Exception):
@@ -21,11 +36,11 @@ class SectionLockedError(Exception):
 
 class AutoSectionLock:
     """
-    Context manager for atomic section file locking.
+    Context manager for atomic section file locking across Windows, macOS, and Linux.
     
     Usage:
         with AutoSectionLock("sec_04_consensus", "Drafter-Narrative") as lock:
-            lock.write_draft("# New Section Draft\\n\\n...")
+            lock.write_draft("# New Section Draft\n\n...")
             # Auto-unlocked upon exiting context!
     """
 
@@ -47,10 +62,10 @@ class AutoSectionLock:
         self._file_handle = None
 
     def acquire(self) -> bool:
-        """Atomically acquires the section lock. Raises SectionLockedError if held by another agent."""
+        """Atomically acquires the section lock across Windows, macOS, and Linux."""
         now = time.time()
 
-        # Check if lock file exists and is still valid
+        # 1. Check logical JSON lease
         if self.lock_file_path.exists():
             try:
                 data = json.loads(self.lock_file_path.read_text(encoding="utf-8"))
@@ -66,22 +81,36 @@ class AutoSectionLock:
             except (json.JSONDecodeError, KeyError):
                 pass  # Corrupted lock file, will overwrite
 
-        # Create/open lock file with exclusive OS file lock
+        # 2. Open lock file with exclusive OS file lock
         self._file_handle = open(self.lock_file_path, "w+", encoding="utf-8")
-        try:
-            fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (BlockingIOError, OSError):
-            self._file_handle.close()
-            self._file_handle = None
-            raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the OS level.")
 
-        # Write lock metadata
+        # POSIX (Linux / macOS)
+        if HAS_FCNTL and fcntl is not None:
+            try:
+                fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (BlockingIOError, OSError):
+                self._file_handle.close()
+                self._file_handle = None
+                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the OS level.")
+
+        # Windows (msvcrt)
+        elif HAS_MSVCRT and msvcrt is not None:
+            try:
+                self._file_handle.seek(0)
+                msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except (BlockingIOError, OSError, IOError):
+                self._file_handle.close()
+                self._file_handle = None
+                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the Windows OS level.")
+
+        # 3. Write lock metadata
         metadata = {
             "section_id": self.section_id,
             "agent_name": self.agent_name,
             "locked_at": now,
             "expires_at": now + self.timeout_seconds,
             "pid": os.getpid(),
+            "platform": sys.platform,
         }
         self._file_handle.seek(0)
         self._file_handle.truncate()
@@ -94,7 +123,11 @@ class AutoSectionLock:
         """Releases the section lock and cleans up lock file."""
         if self._file_handle is not None:
             try:
-                fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_UN)
+                if HAS_FCNTL and fcntl is not None:
+                    fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_UN)
+                elif HAS_MSVCRT and msvcrt is not None:
+                    self._file_handle.seek(0)
+                    msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_UNLCK, 1)
                 self._file_handle.close()
             except Exception:
                 pass
@@ -113,64 +146,43 @@ class AutoSectionLock:
 
     def write_draft(self, content: str, target_file_path: Optional[Path] = None) -> Dict[str, Any]:
         """Safely writes drafted content to section file under lock."""
-        if not target_file_path:
-            sec_dir = self.workspace_root / "sections"
-            # Find matching section file
-            for p in sec_dir.glob("*.md"):
-                if p.stem.startswith(self.section_id.replace("sec_", "")) or self.section_id in p.stem:
-                    target_file_path = p
-                    break
-            if not target_file_path:
-                target_file_path = sec_dir / f"{self.section_id}.md"
+        sec_dir = self.workspace_root / "sections"
+        sec_dir.mkdir(parents=True, exist_ok=True)
 
-        target_file_path.parent.mkdir(parents=True, exist_ok=True)
-        target_file_path.write_text(content, encoding="utf-8")
+        if target_file_path:
+            p = Path(target_file_path)
+        else:
+            # Find matching file in sections/
+            matches = list(sec_dir.glob(f"*{self.section_id}*.md"))
+            p = matches[0] if matches else (sec_dir / f"{self.section_id}.md")
 
+        p.write_text(content, encoding="utf-8")
         return {
             "ok": True,
             "section_id": self.section_id,
-            "agent": self.agent_name,
-            "file": str(target_file_path.relative_to(self.workspace_root)),
-            "words": len(content.split()),
+            "target_file": str(p),
+            "bytes_written": len(content.encode("utf-8")),
+            "agent_name": self.agent_name,
         }
 
-    def __enter__(self):
+    def __enter__(self) -> AutoSectionLock:
         self.acquire()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.release()
-        return False  # Do not suppress exceptions
 
 
 class SectionLockManager:
-    """Manager for querying, inspecting, and breaking locks."""
+    """Utility class to inspect, query, and manage active section locks across Windows, macOS, and Linux."""
 
     def __init__(self, workspace_root: Optional[Path] = None):
         self.workspace_root = workspace_root or Path.cwd()
         self.locks_dir = self.workspace_root / ".synapse" / "locks"
         self.locks_dir.mkdir(parents=True, exist_ok=True)
 
-    def list_active_locks(self) -> List[Dict[str, Any]]:
-        """Returns all currently active unexpired section locks."""
-        now = time.time()
-        active = []
-        for p in sorted(self.locks_dir.glob("*.lock")):
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                expires_at = data.get("expires_at", 0)
-                if expires_at > now:
-                    data["remaining_seconds"] = int(expires_at - now)
-                    active.append(data)
-                else:
-                    # Clean up expired stale lock
-                    p.unlink(missing_ok=True)
-            except Exception:
-                pass
-        return active
-
     def is_locked(self, section_id: str) -> Optional[Dict[str, Any]]:
-        """Checks if a section is currently locked."""
+        """Returns lock metadata if section is actively locked, or None."""
         lock_file = self.locks_dir / f"{section_id}.lock"
         if not lock_file.exists():
             return None
@@ -180,15 +192,24 @@ class SectionLockManager:
             if data.get("expires_at", 0) > time.time():
                 return data
             else:
+                # Expired lock
                 lock_file.unlink(missing_ok=True)
                 return None
         except Exception:
             return None
 
-    def force_unlock(self, section_id: str) -> bool:
-        """Force releases a section lock (for administrator or emergency recovery)."""
-        lock_file = self.locks_dir / f"{section_id}.lock"
-        if lock_file.exists():
-            lock_file.unlink(missing_ok=True)
-            return True
-        return False
+    def list_active_locks(self) -> List[Dict[str, Any]]:
+        """Lists all currently active non-expired section locks."""
+        active = []
+        now = time.time()
+        for p in self.locks_dir.glob("*.lock"):
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                if data.get("expires_at", 0) > now:
+                    data["remaining_seconds"] = int(data["expires_at"] - now)
+                    active.append(data)
+                else:
+                    p.unlink(missing_ok=True)
+            except Exception:
+                pass
+        return active
