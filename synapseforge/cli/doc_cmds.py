@@ -23,7 +23,7 @@ def handle_doc_get(args):
     target_sec = None
 
     for s in config.sections:
-        if s.id == args.section or s.file.endswith(args.section) or s.file == args.section:
+        if s.id == args.section or Path(s.file).stem == args.section or s.file == args.section or s.file == f"{args.section}.md":
             target_file = Path.cwd() / s.file
             target_sec = s
             break

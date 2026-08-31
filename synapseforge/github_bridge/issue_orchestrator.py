@@ -51,7 +51,15 @@ class IssueTaskOrchestrator:
 
         # Claim section in state ledger
         branch_name = f"{self.config.gitops.branch_prefix}{sec_id}"
-        self.state_manager.claim_section(sec_id, actor=sender)
+        claimed = self.state_manager.claim_section(sec_id, actor=sender)
+        if not claimed:
+            # Lease held by another actor: do not overwrite status or save()
+            holder = self.state_manager.state.active_locks.get(sec_id, "unknown")
+            return {
+                "status": "locked",
+                "section_id": sec_id,
+                "holder": holder,
+            }
         sec_state = self.state_manager.state.sections[sec_id]
         sec_state.branch_name = branch_name
         sec_state.status = SectionStatus.DRAFTING

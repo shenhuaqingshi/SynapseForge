@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from synapseforge.config import ProjectConfig, load_config
+from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.renderers.html_renderer import HTMLRenderer
 from synapseforge.renderers.typst_renderer import TypstRenderer
 
@@ -72,8 +73,8 @@ class PublicationPipeline:
             shutil.copytree(assets_src, assets_dst)
             generated.append(f"{self.config.render.output_dir}/assets/")
 
-        # Compute word count
-        words = len(master_markdown.split())
+        # Compute word count (CJK-aware: Chinese characters + Western words)
+        words = MarkdownASTParser.count_words(master_markdown)
 
         return BuildResult(
             success=True,

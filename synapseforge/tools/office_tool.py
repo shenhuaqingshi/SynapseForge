@@ -18,10 +18,10 @@ class OfficeTool:
     """CLI and programmatic interface to Office document tooling."""
 
     def __init__(self, officecli_path: Optional[str] = None):
-        self.officecli_bin = officecli_path or shutil.which("officecli") or "/home/box/.local/bin/officecli"
+        self.officecli_bin = officecli_path or shutil.which("officecli") or "officecli"
 
     def is_available(self) -> bool:
-        return Path(self.officecli_bin).exists() or shutil.which("officecli") is not None
+        return shutil.which(self.officecli_bin) is not None or Path(self.officecli_bin).is_file()
 
     def run_raw(self, args: List[str]) -> Dict[str, Any]:
         """Runs raw officecli command and returns structured result."""
@@ -43,6 +43,8 @@ class OfficeTool:
         output_docx.parent.mkdir(parents=True, exist_ok=True)
         if shutil.which("pandoc"):
             cmd = ["pandoc", str(markdown_path), "-o", str(output_docx)]
+            if title:
+                cmd += ["--metadata", f"title={title}"]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0:
                 return {
