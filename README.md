@@ -276,6 +276,7 @@ SynapseForge/
 │   └── CODEOWNERS                        # Section & domain reviewer mapping
 ├── synapseforge/
 │   ├── core/                             # AST parser, state machine, team bus, vault, AST conflict resolver, engine
+│   ├── report/                           # Report-Spec publication generator, audit engine, system prompts
 │   ├── mcp/                              # Stdio MCP server for host Agent CLI rooms
 │   ├── security/                         # Redaction, AES crypto vault, HMAC ACL
 │   ├── network/                          # Tailscale WireGuard P2P mesh & room sync
@@ -283,10 +284,12 @@ SynapseForge/
 │   ├── linters/                          # Anti-AI, Coherence, Style, and BibTeX citation linters
 │   ├── github_bridge/                    # GitHub API client, PR review bot, issue dispatcher
 │   ├── renderers/                        # Publication pipeline (HTML, Typst, Markdown)
+│   ├── tools/                            # Scientific Plot, OfficeCLI, and Typst PDF tools
+│   ├── ui/                               # Apple Obsidian minimalist web studio interface
 │   └── cli/                              # Rich command-line interface
 ├── sections/                             # Showcase whitepaper modular chapters
 ├── examples/                             # Full end-to-end showcase project
-├── tests/                                # Comprehensive pytest unit & integration test suite
+├── tests/                                # Comprehensive pytest unit & integration test suite (99 tests)
 ├── docs/                                 # Whitepaper architecture & specification guides
 ├── bibliography.bib                      # Verified BibTeX academic references
 ├── synapseforge.yaml                     # Swarm & document configuration
@@ -300,7 +303,7 @@ SynapseForge/
 
 ```bash
 PYTHONPATH=. pytest -v tests/
-# 64/64 Unit & Integration Tests Passing 100%
+# 99/99 Unit & Integration Tests Passing 100% (Green CI)
 ```
 
 ---
