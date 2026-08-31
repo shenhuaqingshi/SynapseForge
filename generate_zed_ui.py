@@ -5,8 +5,8 @@ synapseforge/ui/index.html. At runtime the page prefers the live daemon APIs
 (/api/sections, /api/doc/save, /api/prompts, /api/pdf/build) and gracefully
 falls back to the embedded snapshot when opened as a static file.
 
-Design language: strictly black & white, KaiTi (Chinese) + Times New Roman
-(Western), publication-grade typography, minimal chrome.
+Design language: strictly black & white, Western serif typography
+(Times New Roman / Georgia), publication-grade, minimal chrome.
 """
 
 import json
@@ -47,7 +47,7 @@ html_template = r"""<!DOCTYPE html>
     * { box-sizing: border-box; }
 
     body {
-      font-family: "Times New Roman", "KaiTi", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
+      font-family: "Times New Roman", Georgia, serif;
       background: var(--paper);
       color: var(--ink);
       -webkit-font-smoothing: antialiased;
@@ -110,7 +110,7 @@ html_template = r"""<!DOCTYPE html>
     .booktabs td { padding: 7px 14px; }
     .booktabs tbody tr + tr td { border-top: 0.5px solid var(--hairline); }
 
-    /* Preview typography — KaiTi body, Times headings */
+    /* Preview typography — Western serif throughout */
     #publication-preview h1 {
       font-size: 21px; font-weight: bold; text-align: center;
       margin: 6px 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--ink);
