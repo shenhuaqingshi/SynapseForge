@@ -18,6 +18,7 @@ def test_office_tool_inspect(tmp_path):
 
 
 def test_sci_plot_tool_nature_curve(tmp_path):
+    pytest.importorskip("matplotlib")
     tool = SciPlotTool(default_style="nature", dpi=150)
     out_png = tmp_path / "curve.png"
     
@@ -35,6 +36,8 @@ def test_sci_plot_tool_nature_curve(tmp_path):
 
 def test_pdf_tool_typst_compilation(tmp_path):
     tool = PDFTool()
+    if not tool.is_available():
+        pytest.skip("Typst binary not installed on host")
     md_file = tmp_path / "doc.md"
     md_file.write_text("# 摘要与方法\n\n本文提出了全新的分布式智能体共识机制。\n", encoding="utf-8")
     out_pdf = tmp_path / "doc.pdf"
