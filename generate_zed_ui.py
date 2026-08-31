@@ -146,6 +146,10 @@ ui_code = """<!DOCTYPE html>
           <span id="network-badge-text" class="font-mono">Mesh Connected (Room #1)</span>
         </div>
         
+        <button onclick="openPromptModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 text-xs px-2.5 py-1 rounded-md transition font-medium border border-white/[0.08]">
+          ⚙️ 自定义提示词
+        </button>
+
         <button onclick="triggerAgentDraft()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1 rounded-md transition font-medium">
           Ask Agent
         </button>
@@ -156,12 +160,12 @@ ui_code = """<!DOCTYPE html>
     <div class="flex-1 flex overflow-hidden">
 
       <!-- ======================================================== -->
-      <!-- COLUMN 1: MINIMAL NAVIGATOR (Sections & Zed Channels)    -->
+      <!-- COLUMN 1: MINIMAL NAVIGATOR (Sections & User Prompts)   -->
       <!-- ======================================================== -->
       <aside class="w-56 bg-[#101116] border-r border-white/[0.05] flex flex-col shrink-0 overflow-hidden text-xs">
         
         <!-- Document Sections -->
-        <div class="h-[52%] flex flex-col border-b border-white/[0.05] overflow-hidden p-2">
+        <div class="h-[50%] flex flex-col border-b border-white/[0.05] overflow-hidden p-2">
           <div class="px-2 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
             <span>Sections</span>
             <span class="text-[9px] text-zinc-600">AST DAG</span>
@@ -200,46 +204,48 @@ ui_code = """<!DOCTYPE html>
           </div>
         </div>
 
-        <!-- Zed Swarm Agent Roles & Presence Roster -->
+        <!-- User-Defined Custom Agent Roster -->
         <div class="flex-1 flex flex-col p-2 overflow-hidden">
           <div class="px-2 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Swarm Fleet</span>
-            <span class="text-[9px] text-zinc-600">Roles</span>
+            <span>User Prompts</span>
+            <button onclick="openPromptModal()" class="text-[10px] text-blue-400 hover:text-blue-300 font-normal">
+              + 自定义
+            </button>
           </div>
 
           <div class="flex-1 overflow-y-auto space-y-1.5 mt-1 px-1">
             
-            <div onclick="toggleFollow('drafter')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-purple-500/30 cursor-pointer transition">
+            <div onclick="openPromptModal('drafter')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-purple-500/30 cursor-pointer transition">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
                   <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-                  <span>Drafter Agent</span>
+                  <span>Drafter (自定义)</span>
                 </div>
-                <span class="text-[9px] text-purple-400 font-mono">Writing</span>
+                <span class="text-[9px] text-purple-400 font-mono">prompts/</span>
               </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">Prose & KaTeX Math (Zero AI flavor)</p>
+              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户预设的起草风格与论证提示词</p>
             </div>
 
-            <div onclick="toggleFollow('critic')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-amber-500/30 cursor-pointer transition">
+            <div onclick="openPromptModal('critic')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-amber-500/30 cursor-pointer transition">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
                   <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                  <span>Critic Agent</span>
+                  <span>Critic (自定义)</span>
                 </div>
-                <span class="text-[9px] text-amber-400 font-mono">Auditing</span>
+                <span class="text-[9px] text-amber-400 font-mono">prompts/</span>
               </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">Adversarial Review & Quality Gates</p>
+              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户配置的审稿门禁规则与检查项</p>
             </div>
 
-            <div onclick="toggleFollow('harmonizer')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-emerald-500/30 cursor-pointer transition">
+            <div onclick="openPromptModal('harmonizer')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-emerald-500/30 cursor-pointer transition">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
                   <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>Harmonizer</span>
+                  <span>Harmonizer (自定义)</span>
                 </div>
-                <span class="text-[9px] text-emerald-400 font-mono">Idle</span>
+                <span class="text-[9px] text-emerald-400 font-mono">prompts/</span>
               </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">Multi-Variant AST Synthesis</p>
+              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户定制的多方案融合原则</p>
             </div>
 
           </div>
@@ -264,7 +270,7 @@ ui_code = """<!DOCTYPE html>
           <div class="space-y-1">
             <div class="text-zinc-500 text-[10px]">Session Manager • System</div>
             <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-zinc-400 text-[11px] leading-relaxed">
-              Tailscale mesh connected. Auto-lock context initialized. Double-buffered session active.
+              Tailscale mesh connected. User custom prompts loaded from ./prompts/ directory.
             </div>
           </div>
 
@@ -296,7 +302,7 @@ ui_code = """<!DOCTYPE html>
               <span>Drafter Agent</span>
             </div>
             <div class="p-2.5 rounded-lg bg-purple-950/20 border border-purple-500/20 text-zinc-300 leading-relaxed text-xs">
-              Formally derived AST convergence bound in Section 2. KaTeX preview synchronized.
+              Applying user-defined prompt rules from prompts/drafter.md. KaTeX preview synchronized.
             </div>
           </div>
 
@@ -332,7 +338,7 @@ ui_code = """<!DOCTYPE html>
             <span class="text-zinc-600 font-mono">|</span>
             <span class="text-zinc-400 text-[11px]" id="word-count-badge">447 words</span>
             <span class="text-zinc-600 font-mono">|</span>
-            <span class="text-emerald-400 text-[11px] font-mono">100% Anti-AI Clean</span>
+            <span class="text-emerald-400 text-[11px] font-mono">User Prompts Active</span>
           </div>
 
           <!-- Zed Multi-Cursor Live Indicator -->
@@ -378,6 +384,61 @@ ui_code = """<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- USER CUSTOM PROMPT PRESET MODAL -->
+  <div id="prompt-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#12141a] border border-white/[0.08] rounded-xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden text-xs">
+      
+      <!-- Modal Header -->
+      <div class="h-10 px-4 bg-[#161821] border-b border-white/[0.06] flex items-center justify-between">
+        <span class="font-semibold text-zinc-200 text-sm">⚙️ 自定义 Agent 提示词预设 (User Prompt Presets)</span>
+        <button onclick="closePromptModal()" class="text-zinc-500 hover:text-zinc-300 p-1">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-zinc-400 text-[11px] mb-1">Agent 角色标识 (Role ID)</label>
+            <input id="modal-role-id" type="text" placeholder="e.g. drafter / my_philosopher" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-zinc-400 text-[11px] mb-1">显示名称 (Display Name)</label>
+            <input id="modal-display-name" type="text" placeholder="e.g. 学术起草专家" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 text-[11px] mb-1">推荐调用大模型 (Model Routing)</label>
+          <select id="modal-model" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none">
+            <option value="deepseek-v3">DeepSeek-V3 (学术长文叙事最佳)</option>
+            <option value="deepseek-reasoner">DeepSeek-R1 (深度逻辑推理 & 定理证明)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash (高速检索与代码生成)</option>
+            <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (结构审校与综合)</option>
+            <option value="ollama/qwen2.5:72b">Local Ollama / Qwen 2.5 (离线私有化)</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-zinc-400 text-[11px]">系统提示词内容 (Markdown 格式，保存至 prompts/ 目录)</label>
+            <span class="text-[10px] text-zinc-500">支持自由定义人设、写作规则、禁用词与数学符号要求</span>
+          </div>
+          <textarea id="modal-prompt-content" rows="10" placeholder="# Role: Custom Agent&#10;&#10;## Writing Guidelines&#10;1. Use formal tone...&#10;2. Enforce LaTeX formulas..." class="w-full bg-[#0c0d10] border border-white/[0.08] rounded p-3 font-mono text-zinc-200 text-xs focus:outline-none focus:border-blue-500 resize-none leading-relaxed"></textarea>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="h-12 px-4 bg-[#161821] border-t border-white/[0.06] flex items-center justify-between">
+        <span class="text-[10px] text-zinc-500">提示词将自动同步并在所有协作节点间生效</span>
+        <div class="flex items-center space-x-2">
+          <button onclick="closePromptModal()" class="px-3 py-1.5 rounded hover:bg-white/[0.05] text-zinc-400 transition">取消</button>
+          <button onclick="saveUserCustomPrompt()" class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition">保存提示词预设</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- SCRIPT ENGINE -->
   <script>
     const SECTIONS = {
@@ -409,6 +470,86 @@ ui_code = """<!DOCTYPE html>
 
     let currentSection = 'sec_02';
     let followingTarget = null;
+
+    // User Prompts Cache
+    const USER_PROMPT_PRESETS = {
+      drafter: {
+        id: "drafter",
+        name: "Drafter Agent (学术起草专家)",
+        model: "deepseek-v3",
+        prompt: `# Role: Senior Academic Drafter\\n\\n## Writing Principles\\n1. Zero AI Clichés\\n2. Dense Narrative Prose (150-300 words per paragraph)\\n3. KaTeX Equations & Booktabs Tables`
+      },
+      critic: {
+        id: "critic",
+        name: "Critic Agent (严苛审稿专家)",
+        model: "deepseek-reasoner",
+        prompt: `# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag hollow phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds`
+      },
+      harmonizer: {
+        id: "harmonizer",
+        name: "Harmonizer Agent (多方案调和官)",
+        model: "deepseek-v3",
+        prompt: `# Role: Multi-Variant Harmonizer\\n\\n## Principles\\n1. Reconcile tone differences\\n2. Fuse mathematical and empirical variants\\n3. Deduplicate bibliography keys`
+      }
+    };
+
+    function openPromptModal(roleId) {
+      const modal = document.getElementById('prompt-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      if (roleId && USER_PROMPT_PRESETS[roleId]) {
+        const item = USER_PROMPT_PRESETS[roleId];
+        document.getElementById('modal-role-id').value = item.id;
+        document.getElementById('modal-display-name').value = item.name;
+        document.getElementById('modal-model').value = item.model;
+        document.getElementById('modal-prompt-content').value = item.prompt.replace(/\\\\n/g, '\\n');
+      } else {
+        document.getElementById('modal-role-id').value = '';
+        document.getElementById('modal-display-name').value = '';
+        document.getElementById('modal-prompt-content').value = '';
+      }
+    }
+
+    function closePromptModal() {
+      const modal = document.getElementById('prompt-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveUserCustomPrompt() {
+      const roleId = document.getElementById('modal-role-id').value.trim();
+      const displayName = document.getElementById('modal-display-name').value.trim();
+      const model = document.getElementById('modal-model').value;
+      const promptContent = document.getElementById('modal-prompt-content').value;
+
+      if (!roleId) {
+        alert('请输入 Role ID');
+        return;
+      }
+
+      USER_PROMPT_PRESETS[roleId] = {
+        id: roleId,
+        name: displayName || roleId,
+        model: model,
+        prompt: promptContent
+      };
+
+      // POST to /api/prompts
+      fetch('/api/prompts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          role_id: roleId,
+          display_name: displayName,
+          model: model,
+          prompt_content: promptContent
+        })
+      }).catch(() => {});
+
+      closePromptModal();
+      showNetworkToast(`✓ 已成功保存用户自定义提示词 prompts/\${roleId}.md`);
+    }
 
     function parseMarkdownToHTML(md) {
       if (!md) return '';
@@ -725,4 +866,4 @@ ui_code = """<!DOCTYPE html>
 with open('synapseforge/ui/index.html', 'w', encoding='utf-8') as f:
     f.write(ui_code)
 
-print('Generated Zed-style collaborative Apple UI with Following Mode & Presence Deck: SUCCESS')
+print('Generated UI with User Custom Prompt Presets Modal: SUCCESS')

@@ -39,6 +39,7 @@ from synapseforge.core.llm_router import LLMRouter
 from synapseforge.core.notifier import NotificationDispatcher
 from synapseforge.core.scorecard import QualityScorecard
 from synapseforge.core.snapshot import SnapshotManager
+from synapseforge.core.user_prompts import UserPromptManager
 from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
@@ -686,6 +687,73 @@ def cmd_notify(args):
             print(f"{Color.RED}✖ Notification failed: {res.get('error')}{Color.RESET}")
 
 
+def cmd_user_prompts(args):
+    mgr = UserPromptManager()
+    action = getattr(args, "prompt_action", "list")
+
+    if action == "list":
+        prompts = mgr.list_prompts()
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "prompts": prompts}, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}User-Defined Custom Agent Prompts ({len(prompts)} Personas):{Color.RESET}")
+            print(f"{'Role ID':<15} | {'Display Name':<25} | {'File Path':<30} | {'Model':<15}")
+            print("-" * 90)
+            for p in prompts:
+                print(f"{p['role_id']:<15} | {p['display_name']:<25} | {p['prompt_file']:<30} | {p.get('model', 'default'):<15}")
+            print()
+
+    elif action == "set":
+        prompt_content = ""
+        if args.file:
+            p_path = Path(args.file)
+            if not p_path.exists():
+                print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+                return
+            prompt_content = p_path.read_text(encoding="utf-8")
+        elif args.prompt:
+            prompt_content = args.prompt
+        else:
+            print(json.dumps({"ok": False, "error": "Either --file or --prompt must be provided"}))
+            return
+
+        res = mgr.set_prompt(
+            role_id=args.role,
+            prompt_content=prompt_content,
+            display_name=getattr(args, "name", None),
+            description=getattr(args, "desc", None),
+            model=getattr(args, "model", None),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Successfully saved user custom prompt for role '{res['role_id']}' at '{res['prompt_file']}' ({res['length_characters']} chars){Color.RESET}")
+
+    elif action == "get":
+        prompt = mgr.get_prompt(args.role)
+        if prompt is not None:
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": True, "role_id": args.role, "prompt": prompt}, indent=2, ensure_ascii=False))
+            else:
+                print(f"\n{Color.CYAN}--- Custom Prompt for '{args.role}' ---{Color.RESET}\n")
+                print(prompt)
+        else:
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": False, "error": f"Prompt for role '{args.role}' not found"}, indent=2))
+            else:
+                print(f"{Color.RED}✖ No custom prompt found for role '{args.role}'. Create one with 'synapseforge prompt set --role {args.role} --file <path>'{Color.RESET}")
+
+    elif action == "delete":
+        deleted = mgr.delete_prompt(args.role)
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": deleted, "role_id": args.role}, indent=2))
+        else:
+            if deleted:
+                print(f"{Color.GREEN}✓ Deleted custom prompt for role '{args.role}'{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Role '{args.role}' did not exist{Color.RESET}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -1067,6 +1135,38 @@ def main():
     p_notif.add_argument("--email", default="361487867@qq.com", help="Recipient email")
     p_notif.add_argument("--json", action="store_true", default=True)
     p_notif.set_defaults(func=cmd_notify)
+
+    # ==========================================
+    # USER-DEFINED CUSTOM PROMPT & PERSONA MANAGER
+    # ==========================================
+    p_pmt = subparsers.add_parser("prompt", help="User-defined custom agent prompts & personas manager")
+    p_pmt.add_argument("--json", action="store_true", default=True)
+    p_pmt.set_defaults(func=cmd_user_prompts)
+    pmt_subs = p_pmt.add_subparsers(dest="prompt_action", help="Prompt actions")
+
+    p_pmt_list = pmt_subs.add_parser("list", help="List all user-defined custom agent prompts")
+    p_pmt_list.add_argument("--json", action="store_true", default=True)
+    p_pmt_list.set_defaults(func=cmd_user_prompts)
+
+    p_pmt_set = pmt_subs.add_parser("set", help="Create or update user custom agent prompt")
+    p_pmt_set.add_argument("--role", required=True, help="Custom role identifier (e.g. quantum_theorist)")
+    p_pmt_set.add_argument("--file", default=None, help="Path to markdown prompt file")
+    p_pmt_set.add_argument("--prompt", default=None, help="Prompt text string")
+    p_pmt_set.add_argument("--name", default=None, help="Display name")
+    p_pmt_set.add_argument("--desc", default=None, help="Role description")
+    p_pmt_set.add_argument("--model", default=None, help="Preferred LLM model")
+    p_pmt_set.add_argument("--json", action="store_true", default=True)
+    p_pmt_set.set_defaults(func=cmd_user_prompts)
+
+    p_pmt_get = pmt_subs.add_parser("get", help="Get user custom agent prompt")
+    p_pmt_get.add_argument("--role", required=True, help="Role ID")
+    p_pmt_get.add_argument("--json", action="store_true", default=True)
+    p_pmt_get.set_defaults(func=cmd_user_prompts)
+
+    p_pmt_del = pmt_subs.add_parser("delete", help="Delete a user custom agent prompt")
+    p_pmt_del.add_argument("--role", required=True, help="Role ID")
+    p_pmt_del.add_argument("--json", action="store_true", default=True)
+    p_pmt_del.set_defaults(func=cmd_user_prompts)
 
     args = parser.parse_args()
     if not args.command:

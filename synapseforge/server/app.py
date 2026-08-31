@@ -69,6 +69,12 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._handle_api_get_session()
             return
 
+        elif path == "/api/prompts":
+            from synapseforge.core.user_prompts import UserPromptManager
+            mgr = UserPromptManager(self.root_dir)
+            self._send_json({"ok": True, "prompts": mgr.list_prompts()})
+            return
+
         elif path.startswith("/assets/") or path.startswith("/dist/"):
             super().do_GET()
             return
@@ -88,6 +94,17 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/session":
             self._handle_api_save_session(data)
+        elif path == "/api/prompts":
+            from synapseforge.core.user_prompts import UserPromptManager
+            mgr = UserPromptManager(self.root_dir)
+            res = mgr.set_prompt(
+                role_id=data.get("role_id", "custom_agent"),
+                prompt_content=data.get("prompt_content", ""),
+                display_name=data.get("display_name"),
+                description=data.get("description"),
+                model=data.get("model"),
+            )
+            self._send_json(res)
         elif path == "/api/doc/save":
             self._handle_api_save(data)
         elif path == "/api/agent/dispatch":
