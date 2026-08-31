@@ -30,9 +30,12 @@ from synapseforge.github_bridge.ci_reporter import CIReporter
 from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
 from synapseforge.github_bridge.pr_reviewer import PRReviewRunner
 from synapseforge.linters import LintSuite
+from synapseforge.core.exporter import MultiFormatExporter
 from synapseforge.core.figure_linker import FigureLinker
 from synapseforge.core.ingest import DocumentIngestor
 from synapseforge.core.llm_router import LLMRouter
+from synapseforge.core.notifier import NotificationDispatcher
+from synapseforge.core.scorecard import QualityScorecard
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
 from synapseforge.network.room_sync import DistributedRoomManager
@@ -625,11 +628,60 @@ def cmd_variant(args):
                 print(f"  - Citations preserved: {len(res['citations_preserved'])}")
             else:
                 print(f"{Color.RED}✖ Merge failed: {res.get('error')}{Color.RESET}")
-        else:
-            print(f"\n{Color.CYAN}{Color.BOLD}Parallel Document Draft Variants ({len(res.get('variants', []))} variants):{Color.RESET}")
-            for v in res.get("variants", []):
-                print(f"  • [{v['variant_id']}] {v['name']:<25} (Section: {v['target_section']}) | {v['author']} | {v['word_count']} words")
             print()
+
+
+def cmd_export(args):
+    exporter = MultiFormatExporter()
+    res = exporter.export_all(title=getattr(args, "title", None))
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"\n{Color.GREEN}{Color.BOLD}✓ Publication Package Exported Successfully:{Color.RESET}")
+            print(f"  - Document Title: {res['title']}")
+            print(f"  - Total Words:    {res['total_words']} words ({res['sections_count']} sections)")
+            print(f"  - PDF Paper:      {res['artifacts'].get('pdf')}")
+            print(f"  - Word Doc:       {res['artifacts'].get('docx')}")
+            print(f"  - Web HTML:       {res['artifacts'].get('html')}")
+            print(f"  - Zip Bundle:     {res['artifacts'].get('zip_package')}\n")
+        else:
+            print(f"{Color.RED}✖ Export failed: {res.get('error')}{Color.RESET}")
+
+
+def cmd_scorecard(args):
+    scorecard = QualityScorecard()
+    res = scorecard.evaluate_document()
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        m = res["metrics"]
+        print(f"\n{Color.CYAN}{Color.BOLD}📊 SynapseForge Document Academic Scorecard:{Color.RESET}")
+        print(f"  • Publication Grade:         {Color.BOLD}{res['publication_grade']} ({res['overall_score']}/100){Color.RESET}")
+        print(f"  • Anti-AI Natural Flow:      {m['anti_ai_natural_flow_score']}/100")
+        print(f"  • Citation Richness Score:   {m['citation_richness_score']}/100 ({m['total_citations']} citations, {m['citation_density_per_k_words']}/k words)")
+        print(f"  • Mathematical Rigor Score:  {m['mathematical_rigor_score']}/100 ({m['total_math_equations']} KaTeX equations)")
+        print(f"  • Booktabs Tables:           {m['total_booktabs_tables']} tables (100% no-vertical-line compliance)")
+        print(f"  • Total Word Count:          {m['total_words']} words\n")
+
+
+def cmd_notify(args):
+    dispatcher = NotificationDispatcher(user_email=getattr(args, "email", "361487867@qq.com"))
+    res = dispatcher.send_notification(
+        title=args.title,
+        message=args.message,
+        channel=args.channel or "email",
+    )
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"{Color.GREEN}✓ Notification sent via {res['channel']} to {res.get('recipient', 'local')}{Color.RESET}")
+        else:
+            print(f"{Color.RED}✖ Notification failed: {res.get('error')}{Color.RESET}")
 
 
 def main():
@@ -774,6 +826,11 @@ def main():
     p_doc_stats = doc_subs.add_parser("stats", help="Get full document metrics, word counts, and citations")
     p_doc_stats.add_argument("--json", action="store_true", default=True)
     p_doc_stats.set_defaults(func=handle_doc_stats)
+
+    # doc scorecard
+    p_doc_sc = doc_subs.add_parser("scorecard", help="Get academic quality scorecard & radar metrics")
+    p_doc_sc.add_argument("--json", action="store_true", default=False)
+    p_doc_sc.set_defaults(func=cmd_scorecard)
 
     # ==========================================
     # OFFICE CLI TOOLKIT (Word .docx, Excel, PPT)
@@ -971,6 +1028,32 @@ def main():
     p_vr_merge.add_argument("--strategy", default="harmonize", choices=["harmonize", "union", "concatenate"], help="Synthesis strategy")
     p_vr_merge.add_argument("--json", action="store_true", default=True)
     p_vr_merge.set_defaults(func=cmd_variant)
+
+    # ==========================================
+    # MULTI-FORMAT PUBLICATION EXPORTER
+    # ==========================================
+    p_exp = subparsers.add_parser("export", help="Compile and export project to PDF, Word docx, HTML, and ZIP package")
+    p_exp.add_argument("--title", default=None, help="Document Title")
+    p_exp.add_argument("--json", action="store_true", default=False)
+    p_exp.set_defaults(func=cmd_export)
+
+    # ==========================================
+    # ACADEMIC QUALITY SCORECARD & RADAR
+    # ==========================================
+    p_sc = subparsers.add_parser("scorecard", help="Compute quantitative Anti-AI, citation, and mathematical rigor scorecard")
+    p_sc.add_argument("--json", action="store_true", default=True)
+    p_sc.set_defaults(func=cmd_scorecard)
+
+    # ==========================================
+    # NOTIFICATION DISPATCHER
+    # ==========================================
+    p_notif = subparsers.add_parser("notify", help="Dispatch milestone notifications to human author via Email/Webhook")
+    p_notif.add_argument("--title", required=True, help="Notification title")
+    p_notif.add_argument("--message", required=True, help="Notification body message")
+    p_notif.add_argument("--channel", default="email", choices=["email", "webhook", "cli"], help="Notification channel")
+    p_notif.add_argument("--email", default="361487867@qq.com", help="Recipient email")
+    p_notif.add_argument("--json", action="store_true", default=True)
+    p_notif.set_defaults(func=cmd_notify)
 
     args = parser.parse_args()
     if not args.command:

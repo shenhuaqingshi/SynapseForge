@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -60,24 +61,86 @@ TYPST_ACADEMIC_TEMPLATE = """// SynapseForge Publication-Grade PDF Layout
   text(size: 14.5pt, weight: "bold", stroke: 0.08pt + rgb("#000000"), font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#it.body]
 )
 
-// 三线表规范 (Booktabs: 顶线/底线粗，中线细，无竖线)
+// 出版级三线表 (Booktabs)
 #show table: set table(
   stroke: none,
   fill: none,
 )
+
+#show table.cell: it => {
+  set text(size: 11pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))
+  it
+}
 
 {{CONTENT}}
 """
 
 
 class PDFTool:
-    """Publication-grade PDF compilation engine."""
+    """Publication-grade Chinese PDF compiler using Typst and pure KaiTi typography."""
 
     def __init__(self, typst_bin: Optional[str] = None):
-        self.typst_bin = typst_bin or shutil.which("typst") or "/usr/local/bin/typst"
+        self.typst_bin = typst_bin or shutil.which("typst") or "/usr/bin/typst"
 
     def is_available(self) -> bool:
         return Path(self.typst_bin).exists() or shutil.which("typst") is not None
+
+    def _convert_latex_math_to_typst(self, md: str) -> str:
+        """Sanitizes LaTeX math formulas into Typst compatible math syntax."""
+        # Convert display math blocks $$ ... $$ to Typst block math
+        def repl_display(match):
+            m = match.group(1).strip()
+            m = m.replace(r'\left(', '(').replace(r'\right)', ')')
+            m = m.replace(r'\left[', '[').replace(r'\right]', ']')
+            m = m.replace(r'\left\{', '(').replace(r'\right\}', ')')
+            m = m.replace(r'\left', '').replace(r'\right', '')
+            m = m.replace(r'\dots', 'dots').replace(r'\cdots', 'dots')
+            m = re.sub(r'\\mathcal\{([^}]+)\}', r'cal(\1)', m)
+            m = re.sub(r'\\mathbb\{([^}]+)\}', r'bb(\1)', m)
+            m = re.sub(r'\\mathbf\{([^}]+)\}', r'bold(\1)', m)
+            m = re.sub(r'\\text\{([^}]+)\}', r'"\1"', m)
+            m = m.replace(r'\cap', r'inter')
+            m = m.replace(r'\cup', r'union')
+            m = m.replace(r'\subseteq', r'subset.eq')
+            m = m.replace(r'\le', r'<=')
+            m = m.replace(r'\ge', r'>=')
+            m = m.replace(r'\ln', r'ln')
+            m = m.replace(r'\max', r'max')
+            m = m.replace(r'\sum', r'sum')
+            m = m.replace(r'\epsilon', r'epsilon')
+            m = m.replace(r'\tau', r'tau')
+            m = m.replace(r'\mu', r'mu')
+            m = m.replace(r'\lambda', r'lambda')
+            m = m.replace(r'\prec', r'prec')
+            m = m.replace(r'\cdot', 'dot.c').replace('cdot', 'dot.c')
+            m = m.replace(r'\{', r'(').replace(r'\}', r')')
+            m = re.sub(r'\\([a-zA-Z]+)', r'\1', m)
+            return f"\n$ {m} $\n"
+
+        md = re.sub(r'\$\$([\s\S]*?)\$\$', repl_display, md)
+
+        # Inline math $ ... $
+        def repl_inline(match):
+            m = match.group(1).strip()
+            m = m.replace(r'\left(', '(').replace(r'\right)', ')')
+            m = m.replace(r'\left[', '[').replace(r'\right]', ']')
+            m = m.replace(r'\left\{', '(').replace(r'\right\}', ')')
+            m = m.replace(r'\left', '').replace(r'\right', '')
+            m = m.replace(r'\dots', 'dots').replace(r'\cdots', 'dots')
+            m = re.sub(r'\\mathcal\{([^}]+)\}', r'cal(\1)', m)
+            m = re.sub(r'\\mathbb\{([^}]+)\}', r'bb(\1)', m)
+            m = re.sub(r'\\mathbf\{([^}]+)\}', r'bold(\1)', m)
+            m = re.sub(r'\\text\{([^}]+)\}', r'"\1"', m)
+            m = m.replace(r'\le', r'<=').replace(r'\ge', r'>=')
+            m = m.replace(r'\cap', r'inter')
+            m = m.replace(r'\prec', r'prec')
+            m = m.replace(r'\cdot', 'dot.c').replace('cdot', 'dot.c')
+            m = m.replace(r'\{', r'(').replace(r'\}', r')')
+            m = re.sub(r'\\([a-zA-Z]+)', r'\1', m)
+            return f"$ {m} $"
+
+        md = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+)\$(?!\$)', repl_inline, md)
+        return md
 
     def compile_markdown_to_pdf(
         self,
@@ -93,9 +156,19 @@ class PDFTool:
         raw_md = markdown_path.read_text(encoding="utf-8")
 
         # Convert simple markdown headers/body into typst syntax
-        typst_content = raw_md.replace("### ", "=== ")
+        typst_content = self._convert_latex_math_to_typst(raw_md)
+        typst_content = typst_content.replace("### ", "=== ")
         typst_content = typst_content.replace("## ", "== ")
         typst_content = typst_content.replace("# ", "= ")
+
+        # If bibliography exists, link it; otherwise replace `@citekey` with `[citekey]`
+        bib_file = Path.cwd() / "bibliography.bib"
+        if bib_file.exists():
+            # Copy bib file next to output typ file
+            shutil.copy(bib_file, output_pdf.parent / "bibliography.bib")
+            typst_content += '\n\n#bibliography("bibliography.bib", title: "参考文献", style: "ieee")\n'
+        else:
+            typst_content = re.sub(r'@([a-zA-Z0-9_\-]+)', r'[\1]', typst_content)
 
         full_typst = TYPST_ACADEMIC_TEMPLATE.replace("{{HEADER_TITLE}}", title).replace("{{CONTENT}}", typst_content)
         
@@ -116,15 +189,4 @@ class PDFTool:
             else:
                 return {"ok": False, "error": res.stderr, "engine": "typst"}
 
-        # Fallback to Pandoc if typst is missing
-        if shutil.which("pandoc"):
-            cmd = ["pandoc", str(markdown_path), "-o", str(output_pdf), "--pdf-engine=xelatex"]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            return {
-                "ok": res.returncode == 0,
-                "output_pdf": str(output_pdf),
-                "engine": "pandoc-xelatex",
-                "error": res.stderr if res.returncode != 0 else None,
-            }
-
-        return {"ok": False, "error": "Neither typst nor pandoc-xelatex available"}
+        return {"ok": False, "error": "Typst compiler not available"}
