@@ -419,6 +419,25 @@ def cmd_pdf(args):
             print(f"{Color.RED}✖ PDF generation failed: {res.get('error')}{Color.RESET}")
 
 
+def cmd_serve(args):
+    """Starts the remote web studio and REST API daemon for remote human control."""
+    from synapseforge.server.app import start_server
+    host = args.host
+    port = args.port
+    print(f"\n{Color.CYAN}{Color.BOLD}🚀 Starting SynapseForge Remote Web Studio Daemon...{Color.RESET}")
+    print(f"  - Local Access:     http://127.0.0.1:{port}")
+    print(f"  - Tailscale Access: http://0.0.0.0:{port} (accessible via your Tailscale node IP / MagicDNS)")
+    print(f"  - REST API:         http://127.0.0.1:{port}/api/status")
+    print(f"{Color.GREEN}✓ Remote Web Daemon active. Open in browser from any remote device.{Color.RESET}\n")
+
+    httpd = start_server(host=host, port=port)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print(f"\n{Color.YELLOW}Shutting down server...{Color.RESET}")
+        httpd.server_close()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -427,6 +446,12 @@ def main():
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON format for AI agents")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
+
+    # serve
+    p_serve = subparsers.add_parser("serve", help="Start remote web studio & REST control daemon")
+    p_serve.add_argument("--port", type=int, default=8765, help="HTTP port (default 8765)")
+    p_serve.add_argument("--host", default="0.0.0.0", help="Binding host (default 0.0.0.0)")
+    p_serve.set_defaults(func=cmd_serve)
 
     # init
     p_init = subparsers.add_parser("init", help="Initialize a new SynapseForge repository")
