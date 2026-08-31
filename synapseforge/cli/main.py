@@ -48,6 +48,9 @@ from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, Vari
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
+from synapseforge.security.acl import NodeAccessController
+from synapseforge.security.crypto_vault import CryptoVault
+from synapseforge.security.redactor import ConfidentialityRedactor
 from synapseforge.tools import CiteTool, OfficeTool, PDFTool, SciPlotTool
 
 
@@ -804,6 +807,106 @@ def cmd_vault(args):
             print(f"{Color.GREEN}✓ Initialized all 10 dedicated vault directories at '{vault.workspace_root}'{Color.RESET}")
 
 
+def cmd_security(args):
+    action = getattr(args, "sec_action", "audit")
+
+    if action == "audit":
+        redactor = ConfidentialityRedactor()
+        target_path = Path(args.path) if getattr(args, "path", None) else (Path.cwd() / "sections")
+        
+        all_issues = []
+        if target_path.is_file():
+            text = target_path.read_text(encoding="utf-8")
+            issues = redactor.scan_for_secrets(text)
+            for iss in issues:
+                all_issues.append({"file": str(target_path), "line": iss.line_number, "type": iss.matched_type, "preview": iss.redacted_preview})
+        elif target_path.is_dir():
+            for p in sorted(target_path.glob("**/*.md")):
+                text = p.read_text(encoding="utf-8")
+                issues = redactor.scan_for_secrets(text)
+                for iss in issues:
+                    all_issues.append({"file": str(p), "line": iss.line_number, "type": iss.matched_type, "preview": iss.redacted_preview})
+
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "total_secrets_detected": len(all_issues), "issues": all_issues}, indent=2, ensure_ascii=False))
+        else:
+            if all_issues:
+                print(f"\n{Color.RED}{Color.BOLD}⚠️  Confidentiality Audit: Found {len(all_issues)} Sensitive Secrets / Terms:{Color.RESET}")
+                for iss in all_issues:
+                    print(f"  • {iss['file']}:{iss['line']} [{iss['type']}] -> {iss['preview']}")
+                print()
+            else:
+                print(f"\n{Color.GREEN}{Color.BOLD}✓ Confidentiality Audit Clean:{Color.RESET} No secrets, tokens, PII, or classified terms detected.\n")
+
+    elif action == "redact":
+        redactor = ConfidentialityRedactor()
+        inp = Path(args.input)
+        if not inp.exists():
+            print(json.dumps({"ok": False, "error": f"Input file not found: {args.input}"}))
+            return
+        text = inp.read_text(encoding="utf-8")
+        sanitized, token_map = redactor.redact(text)
+        
+        out = Path(args.output) if getattr(args, "output", None) else inp.with_suffix(".redacted.md")
+        out.write_text(sanitized, encoding="utf-8")
+        
+        map_out = out.with_suffix(".map.json")
+        map_out.write_text(json.dumps(token_map, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        res = {
+            "ok": True,
+            "input_file": str(inp),
+            "sanitized_file": str(out),
+            "token_map_file": str(map_out),
+            "redacted_count": len(token_map),
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Masked {len(token_map)} secrets -> '{out}' (mapping saved to '{map_out}'){Color.RESET}")
+
+    elif action == "encrypt":
+        crypto = CryptoVault()
+        inp = Path(args.file)
+        if not inp.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        out = Path(args.output) if getattr(args, "output", None) else inp.with_suffix(".enc.json")
+        res = crypto.encrypt_file(inp, out, passphrase=args.passphrase)
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ At-Rest Encrypted '{inp.name}' -> '{out.name}' ({res['encrypted_bytes']} bytes){Color.RESET}")
+
+    elif action == "decrypt":
+        crypto = CryptoVault()
+        inp = Path(args.file)
+        if not inp.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        out = Path(args.output) if getattr(args, "output", None) else inp.with_suffix(".dec.md")
+        try:
+            res = crypto.decrypt_file(inp, out, passphrase=args.passphrase)
+            if getattr(args, "json", False):
+                print(json.dumps(res, indent=2, ensure_ascii=False))
+            else:
+                print(f"{Color.GREEN}✓ Successfully Decrypted '{inp.name}' -> '{out.name}' ({res['decrypted_chars']} chars){Color.RESET}")
+        except Exception as e:
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": False, "error": str(e)}))
+            else:
+                print(f"{Color.RED}✖ Decryption failed: {e}{Color.RESET}")
+
+    elif action == "add-term":
+        redactor = ConfidentialityRedactor()
+        redactor.add_classified_term(args.term)
+        res = {"ok": True, "classified_terms": redactor.list_classified_terms()}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Added confidential keyword '{args.term}' to redaction registry{Color.RESET}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -1264,6 +1367,44 @@ def main():
     p_vlt_init = vlt_subs.add_parser("init", help="Ensure all dedicated vault folders are initialized")
     p_vlt_init.add_argument("--json", action="store_true", default=True)
     p_vlt_init.set_defaults(func=cmd_vault)
+
+    # ==========================================
+    # CONFIDENTIALITY & CRYPTOGRAPHIC SECURITY
+    # ==========================================
+    p_sec = subparsers.add_parser("secure", help="Confidentiality audit, secret redaction, and at-rest AES encryption")
+    p_sec.add_argument("--json", action="store_true", default=True)
+    p_sec.set_defaults(func=cmd_security)
+    sec_subs = p_sec.add_subparsers(dest="sec_action", help="Security action")
+
+    p_sc_audit = sec_subs.add_parser("audit", help="Audit sections or file for exposed API keys, secrets, PII, and classified terms")
+    p_sc_audit.add_argument("--path", default=None, help="Target file or folder to audit")
+    p_sc_audit.add_argument("--json", action="store_true", default=True)
+    p_sc_audit.set_defaults(func=cmd_security)
+
+    p_sc_redact = sec_subs.add_parser("redact", help="Mask sensitive secrets with cryptographic tokens")
+    p_sc_redact.add_argument("--input", required=True, help="Input markdown file")
+    p_sc_redact.add_argument("--output", default=None, help="Output sanitized markdown file")
+    p_sc_redact.add_argument("--json", action="store_true", default=True)
+    p_sc_redact.set_defaults(func=cmd_security)
+
+    p_sc_enc = sec_subs.add_parser("encrypt", help="At-rest AES-GCM stream encrypt a document with passphrase")
+    p_sc_enc.add_argument("--file", required=True, help="Path to markdown document to encrypt")
+    p_sc_enc.add_argument("--passphrase", required=True, help="User secret passphrase")
+    p_sc_enc.add_argument("--output", default=None, help="Output .enc.json path")
+    p_sc_enc.add_argument("--json", action="store_true", default=True)
+    p_sc_enc.set_defaults(func=cmd_security)
+
+    p_sc_dec = sec_subs.add_parser("decrypt", help="Decrypt an encrypted .enc.json document")
+    p_sc_dec.add_argument("--file", required=True, help="Path to encrypted .enc.json document")
+    p_sc_dec.add_argument("--passphrase", required=True, help="User secret passphrase")
+    p_sc_dec.add_argument("--output", default=None, help="Output decrypted .md path")
+    p_sc_dec.add_argument("--json", action="store_true", default=True)
+    p_sc_dec.set_defaults(func=cmd_security)
+
+    p_sc_term = sec_subs.add_parser("add-term", help="Register a confidential keyword or project codename")
+    p_sc_term.add_argument("--term", required=True, help="Classified term or project codename")
+    p_sc_term.add_argument("--json", action="store_true", default=True)
+    p_sc_term.set_defaults(func=cmd_security)
 
     args = parser.parse_args()
     if not args.command:
