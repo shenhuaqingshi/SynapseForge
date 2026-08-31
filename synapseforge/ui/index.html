@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge Studio - Apple Design & Tailscale Mesh Edition</title>
+  <title>SynapseForge Studio - Multi-Node Distributed Shared Room Edition</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome -->
@@ -117,10 +117,10 @@
   <!-- macOS MAIN WINDOW CHROME -->
   <div class="w-full h-full max-w-[1760px] max-h-[1040px] rounded-[18px] apple-glass shadow-2xl flex flex-col overflow-hidden border border-white/10 relative">
 
-    <!-- macOS TOP TITLEBAR with Tailscale Mesh Badge -->
+    <!-- macOS TOP TITLEBAR with Multi-Node Shared Room Switcher -->
     <header class="h-11 bg-black/40 border-b border-white/[0.08] px-4 flex items-center justify-between shrink-0 z-40">
       
-      <!-- Traffic lights & Room Info -->
+      <!-- Left: Traffic lights & Multi-Node Shared Room Selector -->
       <div class="flex items-center space-x-3.5">
         <div class="flex items-center space-x-2">
           <span class="traffic-dot traffic-close cursor-pointer"></span>
@@ -130,19 +130,18 @@
 
         <div class="h-4 w-px bg-white/10"></div>
 
-        <!-- Room Selector Chip -->
+        <!-- Distributed Shared Room Chip with Multi-Node Sync Count -->
         <div onclick="openModal('modal-create-room')" class="flex items-center space-x-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-3 py-1 rounded-full cursor-pointer transition">
           <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span class="text-xs font-semibold text-white/90">🏢 协作房间: #agi-distributed-whitepaper</span>
-          <span class="text-[10px] text-blue-300 px-1.5 py-0.2 rounded bg-blue-500/20 font-mono">Owner: @xb</span>
+          <span class="text-xs font-semibold text-white/90">🏢 共享房间: #agi-distributed-whitepaper</span>
+          <span class="text-[10px] text-emerald-300 px-1.5 py-0.2 rounded bg-emerald-500/20 font-mono">4/4 节点全量同步 [✓]</span>
           <i class="fa-solid fa-chevron-down text-[9px] text-white/40"></i>
         </div>
 
         <!-- Tailscale Mesh Network Badge -->
         <div class="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs text-emerald-300 font-mono">
-          <i class="fa-solid fa-shield-halved text-[10px] text-emerald-400"></i>
-          <span>Tailscale WireGuard P2P (synapseforge.ts.net)</span>
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <i class="fa-solid fa-network-wired text-[10px] text-emerald-400"></i>
+          <span>Tailscale Mesh (4 Nodes)</span>
         </div>
       </div>
 
@@ -150,25 +149,29 @@
       <div class="flex items-center space-x-2 text-xs text-white/50">
         <span class="text-white/70 font-medium">【左】文件与智能体</span>
         <span>➔</span>
-        <span class="text-blue-400 font-medium">【中】房间交互与任务认领</span>
+        <span class="text-blue-400 font-medium">【中】共享房间交互与任务</span>
         <span>➔</span>
-        <span class="text-emerald-400 font-medium">【右】实时文档协作</span>
+        <span class="text-emerald-400 font-medium">【右】全节点实时文档同步</span>
       </div>
 
       <!-- Right Actions & Online Halo -->
       <div class="flex items-center space-x-3">
-        <!-- Live Presence Avatars -->
+        <!-- Live Multi-Node Presence Avatars -->
         <div class="flex items-center -space-x-1.5">
-          <div class="w-6 h-6 rounded-full bg-blue-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="xb (Project Owner, Beijing UTC+8 - 100.64.0.1)">xb</div>
-          <div class="w-6 h-6 rounded-full bg-amber-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Elena_V (London UTC+0 - 100.64.0.2)">EL</div>
-          <div class="w-6 h-6 rounded-full bg-emerald-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Dr_Chen (Tokyo UTC+9 - 100.64.0.3)">DC</div>
-          <div class="w-6 h-6 rounded-full bg-purple-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🤖 Drafter-Narrative (100.64.0.10)">🤖</div>
-          <div class="w-6 h-6 rounded-full bg-rose-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🛡️ Critic-Adversarial (100.64.0.10)">🛡️</div>
+          <div class="w-6 h-6 rounded-full bg-blue-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="node-beijing (xb, 100.64.0.1)">BJ</div>
+          <div class="w-6 h-6 rounded-full bg-amber-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="node-london (Elena_V, 100.64.0.2)">LD</div>
+          <div class="w-6 h-6 rounded-full bg-emerald-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="node-tokyo (Dr_Chen, 100.64.0.3)">TK</div>
+          <div class="w-6 h-6 rounded-full bg-purple-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="agent-swarm-node (100.64.0.10)">🤖</div>
         </div>
+
+        <button onclick="openModal('modal-create-room')" class="text-xs bg-white/[0.08] hover:bg-white/[0.14] text-white px-2.5 py-1 rounded-lg border border-white/[0.1] transition flex items-center space-x-1">
+          <i class="fa-solid fa-plus text-[10px] text-emerald-400"></i>
+          <span>新建共享房间</span>
+        </button>
 
         <button onclick="openModal('modal-invite')" class="text-xs bg-white/[0.08] hover:bg-white/[0.14] text-white px-2.5 py-1 rounded-lg border border-white/[0.1] transition flex items-center space-x-1">
           <i class="fa-solid fa-user-plus text-[10px] text-blue-400"></i>
-          <span>邀请成员</span>
+          <span>邀请节点</span>
         </button>
 
         <button onclick="openModal('modal-publish-task')" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium px-3 py-1 rounded-lg shadow transition flex items-center space-x-1">
@@ -182,16 +185,16 @@
     <div class="flex-1 flex overflow-hidden">
 
       <!-- ======================================================== -->
-      <!-- 1. LEFT PANEL: 文件夹区 + 智能体集群区 + Tailscale 节点遥测 -->
+      <!-- 1. LEFT PANEL: 文件夹区 + 智能体集群区 + 节点同步矩阵 -->
       <!-- ======================================================== -->
       <aside class="w-72 bg-black/40 border-r border-white/[0.08] flex flex-col shrink-0 overflow-hidden">
         
-        <!-- Top Section: 文件夹与文件区 (File Explorer) -->
+        <!-- Top: 文件夹与文件区 (File Explorer) -->
         <div class="h-[40%] flex flex-col border-b border-white/[0.08] overflow-hidden">
           <div class="px-3.5 py-2 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
             <span class="flex items-center space-x-1.5 text-white/80">
               <i class="fa-solid fa-folder-tree text-blue-400"></i>
-              <span>文件夹与文件区</span>
+              <span>项目文件与章节</span>
             </span>
             <span class="text-[10px] text-white/30 font-mono">6 files</span>
           </div>
@@ -233,8 +236,8 @@
           </div>
         </div>
 
-        <!-- Middle Section: 智能体集群区 (Agent Swarm Area) -->
-        <div class="h-[36%] flex flex-col border-b border-white/[0.08] overflow-hidden bg-black/20">
+        <!-- Middle: 智能体集群区 (Agent Swarm Area) -->
+        <div class="h-[34%] flex flex-col border-b border-white/[0.08] overflow-hidden bg-black/20">
           <div class="px-3.5 py-2 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
             <span class="flex items-center space-x-1.5 text-purple-300">
               <i class="fa-solid fa-robot text-purple-400"></i>
@@ -265,46 +268,35 @@
                 <div class="text-[10px] text-white/50 truncate">审查 PR #14 事实引用</div>
               </div>
             </div>
-
-            <div class="apple-card p-2 border-teal-500/20 bg-teal-950/10 flex items-center space-x-2">
-              <div class="w-6 h-6 rounded-md bg-teal-600/20 flex items-center justify-center text-xs">✨</div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="font-medium text-white truncate">Harmonizer-Voice</span>
-                  <span class="text-[9px] text-teal-300 font-mono">Idle</span>
-                </div>
-                <div class="text-[10px] text-white/50 truncate">就绪接管 sec_06</div>
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- Bottom Section: Tailscale P2P Mesh 节点遥测区 (Tailscale P2P Nodes) -->
-        <div class="h-[24%] flex flex-col overflow-hidden bg-black/40 p-2.5 space-y-1.5 text-[10px]">
+        <!-- Bottom: 节点房间共享与同步状态 (Multi-Node Room Replication Matrix) -->
+        <div class="h-[26%] flex flex-col overflow-hidden bg-black/40 p-2.5 space-y-1.5 text-[10px]">
           <div class="flex items-center justify-between text-white/60 font-semibold uppercase tracking-wider">
             <span class="flex items-center space-x-1 text-emerald-400">
-              <i class="fa-solid fa-network-wired"></i>
-              <span>Tailscale P2P 节点</span>
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>各节点房间共享状态</span>
             </span>
-            <span class="text-white/40 font-mono">Direct UDP</span>
+            <span class="text-emerald-400 font-mono">全互联 (P2P)</span>
           </div>
 
           <div class="space-y-1 font-mono text-white/70 overflow-y-auto">
             <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
-              <span>node-beijing (100.64.0.1)</span>
-              <span class="text-emerald-400 font-bold">2.4ms</span>
+              <span>node-beijing (Leader)</span>
+              <span class="text-emerald-400 font-bold">已同步 ✓</span>
             </div>
             <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
-              <span>node-london (100.64.0.2)</span>
-              <span class="text-blue-400 font-bold">84.2ms</span>
+              <span>node-london (Co-Author)</span>
+              <span class="text-emerald-400 font-bold">已同步 ✓</span>
             </div>
             <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
-              <span>node-tokyo (100.64.0.3)</span>
-              <span class="text-emerald-400 font-bold">38.6ms</span>
+              <span>node-tokyo (Reviewer)</span>
+              <span class="text-emerald-400 font-bold">已同步 ✓</span>
             </div>
             <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
-              <span>agent-swarm (100.64.0.10)</span>
-              <span class="text-purple-400 font-bold">118ms</span>
+              <span>agent-swarm (Cluster)</span>
+              <span class="text-emerald-400 font-bold">已同步 ✓</span>
             </div>
           </div>
         </div>
@@ -312,7 +304,7 @@
       </aside>
 
       <!-- ======================================================== -->
-      <!-- 2. CENTER PANEL: 房间交互区 (对齐聊天、任务认领、PR 审查) -->
+      <!-- 2. CENTER PANEL: 共享房间交互区 (对齐聊天、任务认领、PR 审查) -->
       <!-- ======================================================== -->
       <section class="w-[490px] border-r border-white/[0.08] bg-[#0c0e18]/80 flex flex-col shrink-0 overflow-hidden">
         
@@ -321,14 +313,14 @@
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-white flex items-center space-x-1.5">
               <i class="fa-solid fa-comments text-blue-400"></i>
-              <span>房间交互区 (Room Interaction)</span>
+              <span>共享房间交互区 (#agi-distributed-whitepaper)</span>
             </span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">Tailscale Mesh Active</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">CRDT Version 4</span>
           </div>
 
           <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/[0.08] text-xs">
             <button onclick="switchCenterTab('chat')" id="tab-center-chat" class="segmented-btn active flex-1 py-1 font-medium text-white text-center">
-              💬 实时对齐聊天
+              💬 节点对齐聊天
             </button>
             <button onclick="switchCenterTab('tasks')" id="tab-center-tasks" class="segmented-btn flex-1 py-1 font-medium text-white/60 hover:text-white text-center">
               📋 任务认领看板 (4)
@@ -339,50 +331,46 @@
           </div>
         </div>
 
-        <!-- Center View 1: 实时对齐聊天与事件流 -->
+        <!-- Center View 1: 节点对齐聊天与事件流 -->
         <div id="center-view-chat" class="flex-1 flex flex-col min-h-0">
           <div class="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs">
             
-            <!-- Message 1 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
-                <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white">xb</div>
-                <span class="font-bold text-blue-300 text-xs">@xb (Project Owner)</span>
+                <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white">BJ</div>
+                <span class="font-bold text-blue-300 text-xs">@xb (Beijing Node - Leader)</span>
                 <span class="text-[10px] text-white/30">16:10</span>
               </div>
               <div class="apple-card p-2.5 text-white/90 text-xs ml-7 leading-relaxed">
-                欢迎大家加入本白皮书协作房间！已通过 Tailscale WireGuard 建立北京-伦敦-东京-硅谷 P2P 全互联网络。第 4 章由 🤖 Drafter 和 @Elena_V 联合起草。
+                本共享房间已在所有 4 个 Tailscale 节点上完成全量 P2P 副本同步。第 4 章由 🤖 Drafter 和 @Elena_V 联合起草。
               </div>
             </div>
 
-            <!-- Message 2 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center text-[9px] text-white">🤖</div>
-                <span class="font-bold text-purple-300 text-xs">Drafter-Narrative [Agent]</span>
+                <span class="font-bold text-purple-300 text-xs">Drafter-Narrative [Silicon Valley Node]</span>
                 <span class="text-[10px] text-white/30">16:12</span>
               </div>
               <div class="apple-card p-2.5 border-purple-500/30 bg-purple-950/20 text-white/90 text-xs ml-7 space-y-2">
-                <p>已锁定章节 <code class="text-blue-300 font-mono">04_conflict_resolution.md</code> 写入租约。正在通过 Tailscale Direct UDP 管道以 85 tok/s 进行两阶段自适应共识算法的流式推演。</p>
+                <p>在共享房间中锁定章节 <code class="text-blue-300 font-mono">04_conflict_resolution.md</code> 租约。正在通过 Tailscale Direct UDP 向所有节点广播实时 Token 流。</p>
                 <div class="w-full bg-white/[0.08] h-1 rounded-full overflow-hidden">
                   <div class="bg-purple-500 h-full rounded-full animate-pulse" style="width: 82%"></div>
                 </div>
               </div>
             </div>
 
-            <!-- Message 3 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
-                <div class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-[9px] font-bold text-white">EL</div>
-                <span class="font-bold text-amber-300 text-xs">@Elena_V (London)</span>
+                <div class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-[9px] font-bold text-white">LD</div>
+                <span class="font-bold text-amber-300 text-xs">@Elena_V (London Node)</span>
                 <span class="text-[10px] text-white/30">16:14</span>
               </div>
               <div class="apple-card p-2.5 text-white/90 text-xs ml-7 leading-relaxed">
-                Tailscale connection to Tokyo & Beijing is ultra low latency (84ms). The CRDT proof in Section 2 is verified!
+                London replica received the latest AST document state. The CRDT proof in Section 2 matches perfectly.
               </div>
             </div>
 
-            <!-- Message 4 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-rose-600 flex items-center justify-center text-[9px] text-white">🛡️</div>
@@ -408,7 +396,7 @@
 
           <div class="p-2.5 border-t border-white/[0.08] bg-black/40">
             <div class="flex items-center bg-white/[0.06] rounded-xl px-3 py-2 border border-white/[0.08]">
-              <input type="text" placeholder="输入消息对齐，或键入 @Agent 派发指令..." class="bg-transparent text-xs text-white placeholder-white/30 focus:outline-none flex-1">
+              <input type="text" placeholder="向各节点广播房间消息，或输入 @Agent 派发任务..." class="bg-transparent text-xs text-white placeholder-white/30 focus:outline-none flex-1">
               <button class="text-blue-400 hover:text-blue-300 text-xs ml-2"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
           </div>
@@ -417,7 +405,7 @@
         <!-- Center View 2: 任务发布与实时认领看板 -->
         <div id="center-view-tasks" class="hidden flex-1 p-3 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
-            <span class="text-xs font-bold text-white">实时任务分发列表 (Task Queue)</span>
+            <span class="text-xs font-bold text-white">共享房间任务分发池 (Task Queue)</span>
             <button onclick="openModal('modal-publish-task')" class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded-md font-medium shadow">
               + 发布新任务
             </button>
@@ -494,7 +482,7 @@
           <div class="flex items-center space-x-3">
             <span class="text-white/40 flex items-center space-x-1">
               <i class="fa-solid fa-file-contract text-emerald-400"></i>
-              <span>实时文档区:</span>
+              <span>共享文档:</span>
             </span>
             <span class="font-semibold text-white/95">04_conflict_resolution_and_consensus.md</span>
             <span class="text-[10px] px-2 py-0.5 bg-blue-500/15 text-blue-300 rounded-md border border-blue-500/20 font-mono">Branch: synapse/sec-04-consensus</span>
@@ -507,7 +495,7 @@
               <span class="text-white/20">|</span>
               <span class="text-blue-300 font-mono">430 字</span>
               <span class="text-white/20">|</span>
-              <span class="text-purple-300 font-mono">Tailscale P2P Sync</span>
+              <span class="text-purple-300 font-mono">All 4 Nodes Synced</span>
             </div>
 
             <button class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-lg font-medium shadow transition flex items-center space-x-1">
@@ -523,10 +511,10 @@
           <!-- Left Half: Markdown Source with Live Cursors -->
           <div class="w-1/2 border-r border-white/[0.06] flex flex-col font-mono text-xs overflow-hidden bg-black/20">
             <div class="h-7 bg-white/[0.02] px-3 flex items-center justify-between text-[10px] text-white/40 border-b border-white/[0.04]">
-              <span>MARKDOWN SOURCE (实时编辑)</span>
+              <span>MARKDOWN SOURCE (各节点实时双向同步)</span>
               <span class="text-emerald-400 flex items-center space-x-1 font-sans">
                 <i class="fa-solid fa-circle-check text-[9px]"></i>
-                <span>AST 状态一致</span>
+                <span>AST 状态全局一致</span>
               </span>
             </div>
 
@@ -536,7 +524,7 @@
               <!-- Paragraph 1 with Elena Presence Marker -->
               <div class="relative pl-3.5 border-l-2 border-amber-500/80 bg-amber-500/[0.04] p-2.5 rounded-r-lg">
                 <div class="absolute -top-2.5 right-2 bg-amber-500 text-slate-950 font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm font-sans">
-                  👤 Elena_V (Reviewing London 100.64.0.2)
+                  👤 Elena_V (London Node 100.64.0.2)
                 </div>
                 <p class="text-white/80">在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
               </div>
@@ -544,7 +532,7 @@
               <!-- Paragraph 2 with Drafter Live Streaming Cursor -->
               <div class="relative pl-3.5 border-l-2 border-purple-500/80 bg-purple-500/[0.04] p-2.5 rounded-r-lg">
                 <div class="absolute -top-2.5 right-2 bg-purple-600 text-white font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm flex items-center space-x-1 font-sans">
-                  <span>🤖 Drafter-Narrative (Streaming 85 tok/s via WireGuard)</span>
+                  <span>🤖 Drafter-Narrative (Streaming 85 tok/s via WireGuard P2P)</span>
                 </div>
                 <p class="text-white/80">第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。<span class="inline-block w-1.5 h-3.5 bg-purple-400 animate-pulse ml-0.5 align-middle"></span></p>
               </div>
@@ -622,30 +610,56 @@
 
   </div>
 
-  <!-- MODALS -->
+  <!-- MODAL: CREATE DISTRIBUTED SHARED ROOM -->
   <div id="modal-create-room" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
+    <div class="apple-glass rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 border border-white/20">
       <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
         <h3 class="font-bold text-sm text-white flex items-center space-x-2">
-          <span>创建新协作房间 (Create Room)</span>
+          <span>跨节点共享房间管理 (Distributed Shared Rooms)</span>
         </h3>
         <button onclick="closeModal('modal-create-room')" class="text-white/40 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
 
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="block font-medium text-white/70 mb-1">房间名称 (Room Slug)</label>
-          <input type="text" value="sci-fi-universe-lore-bible" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none font-mono">
+      <!-- Discovered Shared Rooms List -->
+      <div class="space-y-2 text-xs">
+        <div class="font-semibold text-white/80">当前 Tailnet 发现的共享房间：</div>
+        <div class="space-y-1.5 font-mono">
+          <div class="bg-blue-600/20 border border-blue-500/40 p-2.5 rounded-xl flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">#agi-distributed-whitepaper (当前活跃)</div>
+              <div class="text-[10px] text-white/50">4 节点全量同步 (北京, 伦敦, 东京, 硅谷)</div>
+            </div>
+            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded text-[10px]">Active</span>
+          </div>
+
+          <div class="bg-white/[0.04] border border-white/[0.08] p-2.5 rounded-xl flex items-center justify-between hover:bg-white/[0.08] cursor-pointer">
+            <div>
+              <div class="font-bold text-white">#quantum-error-mitigation-spec</div>
+              <div class="text-[10px] text-white/50">3 节点同步 • 论文草案</div>
+            </div>
+            <button class="px-2 py-0.5 bg-white/[0.08] text-white rounded text-[10px] hover:bg-blue-600">切换加入</button>
+          </div>
         </div>
+      </div>
+
+      <!-- Create New Room Form -->
+      <div class="pt-3 border-t border-white/[0.08] space-y-3 text-xs">
+        <div class="font-semibold text-white/80">创建并向各节点广播新共享房间：</div>
         <div>
-          <label class="block font-medium text-white/70 mb-1">Tailnet 网络拓扑</label>
-          <input type="text" value="synapseforge.ts.net (WireGuard P2P)" readonly class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl p-2.5 text-emerald-400 font-mono text-[11px]">
+          <label class="block font-medium text-white/70 mb-1">新房间标识 (Slug / Name)</label>
+          <input type="text" value="embodied-robotics-crdt-spec" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2 text-white font-mono focus:border-blue-500 focus:outline-none">
+        </div>
+        <div class="flex items-center space-x-2 text-[11px] text-emerald-400 font-mono">
+          <i class="fa-solid fa-check"></i>
+          <span>自动向 node-beijing, node-london, node-tokyo, agent-swarm 广播创建</span>
         </div>
       </div>
 
       <div class="flex items-center justify-end space-x-2 pt-3 border-t border-white/[0.08]">
-        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-white/[0.08] text-white/70 rounded-xl text-xs hover:bg-white/[0.12]">Cancel</button>
-        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-500 shadow">Create & Launch</button>
+        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-white/[0.08] text-white/70 rounded-xl text-xs hover:bg-white/[0.12]">Close</button>
+        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl text-xs font-medium hover:from-blue-600 hover:to-indigo-700 shadow">
+          Create & Broadcast Room
+        </button>
       </div>
     </div>
   </div>
@@ -654,7 +668,7 @@
     <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
       <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
         <h3 class="font-bold text-sm text-white flex items-center space-x-2">
-          <span>邀请协作者加入房间 (Invite Collaborators)</span>
+          <span>邀请节点加入共享房间 (Invite Nodes)</span>
         </h3>
         <button onclick="closeModal('modal-invite')" class="text-white/40 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
@@ -662,7 +676,7 @@
       <div class="space-y-3 text-xs">
         <div>
           <label class="block font-medium text-white/70 mb-1">Tailscale MagicDNS / 邮箱</label>
-          <input type="text" placeholder="e.g. node-london.synapseforge.ts.net, 361487867@qq.com" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
+          <input type="text" placeholder="e.g. node-frankfurt.synapseforge.ts.net, 361487867@qq.com" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
         </div>
       </div>
 

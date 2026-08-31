@@ -19,6 +19,7 @@ from synapseforge.github_bridge.ci_reporter import CIReporter
 from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
 from synapseforge.github_bridge.pr_reviewer import PRReviewRunner
 from synapseforge.linters import LintSuite
+from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
 
@@ -59,117 +60,7 @@ def cmd_init(args):
     (root / "sections").mkdir(parents=True, exist_ok=True)
     (root / "assets").mkdir(parents=True, exist_ok=True)
     (root / "dist").mkdir(parents=True, exist_ok=True)
-
-    sample_config = """# SynapseForge Project Configuration
-name: "distributed-agent-consensus-whitepaper"
-version: "1.0.0"
-document_title: "Distributed Multi-Agent Consensus and Autonomous Knowledge Synthesis in Cross-Regional Environments"
-document_type: "whitepaper"
-language: "zh-CN"
-authors:
-  - "SynapseForge Autonomous Swarm"
-  - "Human Co-Author Matrix"
-
-tailscale:
-  enabled: true
-  tailnet: "synapseforge.ts.net"
-  mesh_port: 8765
-  p2p_direct_udp: true
-  auto_discovery: true
-
-glossary:
-  AST 3-way reconciliation: "基于抽象语法树的文档级无损三方冲突消除算法"
-  GitOps-as-State: "以 Git 提交与 Pull Request 作为 Agent 群体状态机与共识网关的协作范式"
-  Anti-AI Flavor: "彻底去除机械套话与分点狂热症的学术专业散文体规范"
-
-sections:
-  - id: "sec_01_abstract"
-    title: "摘要与引言：分布式协作悖论"
-    file: "sections/01_abstract_introduction.md"
-    assigned_role: "drafter"
-    assigned_human: "lead-author"
-    dependencies: []
-    word_count_target: 800
-
-  - id: "sec_02_theory"
-    title: "理论基石与形式化建模"
-    file: "sections/02_theoretical_foundations.md"
-    assigned_role: "drafter"
-    dependencies: ["sec_01_abstract"]
-    word_count_target: 1200
-
-  - id: "sec_03_architecture"
-    title: "系统架构与 GitOps 状态机"
-    file: "sections/03_system_architecture.md"
-    assigned_role: "drafter"
-    dependencies: ["sec_02_theory"]
-    word_count_target: 1500
-
-  - id: "sec_04_conflict_consensus"
-    title: "跨区域冲突消解与异步共识协议"
-    file: "sections/04_conflict_resolution_and_consensus.md"
-    assigned_role: "drafter"
-    dependencies: ["sec_03_architecture"]
-    word_count_target: 1200
-
-  - id: "sec_05_empirical_benchmarks"
-    title: "实证基准测试与系统评估"
-    file: "sections/05_empirical_benchmarks.md"
-    assigned_role: "drafter"
-    dependencies: ["sec_04_conflict_consensus"]
-    word_count_target: 1000
-
-  - id: "sec_06_conclusion"
-    title: "结论、工程局限与未来演进"
-    file: "sections/06_conclusion_and_roadmap.md"
-    assigned_role: "harmonizer"
-    dependencies: ["sec_05_empirical_benchmarks"]
-    word_count_target: 500
-
-swarm:
-  - role: "architect"
-    name: "Architect-Prime"
-    model: "inherit"
-  - role: "drafter"
-    name: "Drafter-Narrative"
-    model: "inherit"
-  - role: "critic"
-    name: "Critic-Adversarial"
-    model: "inherit"
-  - role: "harmonizer"
-    name: "Harmonizer-Voice"
-    model: "inherit"
-  - role: "visualizer"
-    name: "Visualizer-Artisan"
-    model: "inherit"
-
-quality_gates:
-  anti_ai:
-    enabled: true
-    ban_cliches: true
-    ban_formulaic_lists: true
-    require_narrative_prose: true
-  coherence:
-    enabled: true
-    enforce_glossary: true
-    check_cross_references: true
-  style:
-    enabled: true
-    enforce_cjk_latin_spacing: true
-    enforce_booktabs_tables: true
-  citations:
-    enabled: true
-    bib_file: "bibliography.bib"
-
-render:
-  formats: ["html", "typst", "markdown"]
-  output_dir: "dist"
-  theme: "academic_clean"
-  cjk_font: "KaiTi"
-  latin_font: "Times New Roman"
-"""
-    with open(config_file, "w", encoding="utf-8") as f:
-        f.write(sample_config)
+    (root / ".synapse" / "rooms").mkdir(parents=True, exist_ok=True)
 
     print(f"{Color.GREEN}✓ Initialized SynapseForge project at: {root}{Color.RESET}")
 
@@ -304,6 +195,39 @@ def cmd_mesh(args):
     print("-" * 98 + "\n")
 
 
+def cmd_room(args):
+    """Manages distributed shared rooms across Tailscale mesh nodes."""
+    room_mgr = DistributedRoomManager()
+    
+    if args.room_action == "list" or not args.room_action:
+        rooms = room_mgr.list_rooms()
+        print(f"\n{Color.CYAN}{Color.BOLD}🏢 Decentralized Shared Rooms across Tailscale Mesh:{Color.RESET}")
+        print(f"{'Slug / ID':<30} | {'Room Name':<28} | {'Synced Nodes':<14} | {'Members':<8} | {'Owner'}")
+        print("-" * 96)
+        for r in rooms:
+            nodes_str = f"{len(r.synced_nodes)} Nodes [✓]"
+            print(f"{r.slug:<30} | {r.name:<28} | {Color.GREEN}{nodes_str:<14}{Color.RESET} | {len(r.members):<8} | @{r.owner_name}")
+        print("-" * 96 + "\n")
+
+    elif args.room_action == "create":
+        name = args.name
+        title = args.title or name
+        doc_type = args.type or "academic_whitepaper"
+        room = room_mgr.create_shared_room(name=name, document_title=title, document_type=doc_type)
+        print(f"\n{Color.GREEN}{Color.BOLD}✓ Shared Room Successfully Created & Replicated across Tailscale Mesh!{Color.RESET}")
+        print(f"  - Room Slug: {room.slug}")
+        print(f"  - Room ID: {room.room_id}")
+        print(f"  - Synchronized Nodes: {', '.join(room.synced_nodes)}")
+        print(f"  - Members Enrolled: {len(room.members)}\n")
+
+    elif args.room_action == "join":
+        room = room_mgr.join_shared_room(args.room_id, member_name=args.user or "xb")
+        if room:
+            print(f"{Color.GREEN}✓ Node successfully joined shared room '{room.name}' (Version {room.state_version}){Color.RESET}")
+        else:
+            print(f"{Color.RED}✖ Room '{args.room_id}' not found.{Color.RESET}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -355,6 +279,16 @@ def main():
     # mesh
     p_mesh = subparsers.add_parser("mesh", help="Inspect Tailscale WireGuard P2P mesh network status")
     p_mesh.set_defaults(func=cmd_mesh)
+
+    # room
+    p_room = subparsers.add_parser("room", help="Manage multi-node shared collaborative rooms")
+    p_room.add_argument("room_action", nargs="?", default="list", choices=["list", "create", "join"], help="Action: list, create, join")
+    p_room.add_argument("--name", default="Distributed Whitepaper Room", help="Room name for create")
+    p_room.add_argument("--title", default=None, help="Document title")
+    p_room.add_argument("--type", default="academic_whitepaper", help="Document type")
+    p_room.add_argument("--room-id", default="", help="Room ID or slug to join")
+    p_room.add_argument("--user", default="xb", help="User name joining")
+    p_room.set_defaults(func=cmd_room)
 
     args = parser.parse_args()
     if not args.command:
