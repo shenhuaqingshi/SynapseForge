@@ -1,0 +1,130 @@
+"""
+Publication PDF Compiler Tool for SynapseForge.
+Complying with `publication-pdf-layout` standards: Pure KaiTi (Chinese) + Times New Roman (Western),
+comfortable 14pt body font, 1.48 line-height, booktabs tables, deep-black bold headings.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+
+TYPST_ACADEMIC_TEMPLATE = """// SynapseForge Publication-Grade PDF Layout
+#set page(
+  paper: "a4",
+  margin: (x: 2.0cm, top: 2.4cm, bottom: 2.4cm),
+  fill: rgb("#ffffff"),
+  header: align(right)[#text(size: 10pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"), fill: rgb("#666666"))[{{HEADER_TITLE}}]],
+  footer: align(center)[#context text(size: 10pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#counter(page).display()]],
+)
+
+// 正文设定：楷体 + Times，14pt舒适出版级字号
+#set text(
+  font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"),
+  size: 14pt,
+  lang: "zh",
+  fill: rgb("#111111"),
+  stroke: 0.015pt + rgb("#111111"),
+)
+
+#set par(
+  leading: 0.88em,
+  first-line-indent: (amount: 2em, all: true),
+  justify: true,
+)
+
+// 强力深黑加粗 (weight: bold + stroke: 0.09pt)
+#show strong: it => text(weight: "bold", stroke: 0.09pt + rgb("#000000"), font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#it.body]
+
+// 各级标题阶梯加粗
+#show heading.where(level: 1): it => block(
+  above: 1.8em,
+  below: 1.2em,
+  text(size: 18.5pt, weight: "bold", stroke: 0.12pt + rgb("#000000"), font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#it.body]
+)
+
+#show heading.where(level: 2): it => block(
+  above: 1.4em,
+  below: 0.9em,
+  text(size: 16.5pt, weight: "bold", stroke: 0.10pt + rgb("#000000"), font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#it.body]
+)
+
+#show heading.where(level: 3): it => block(
+  above: 1.1em,
+  below: 0.6em,
+  text(size: 14.5pt, weight: "bold", stroke: 0.08pt + rgb("#000000"), font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#it.body]
+)
+
+// 三线表规范 (Booktabs: 顶线/底线粗，中线细，无竖线)
+#show table: set table(
+  stroke: none,
+  fill: none,
+)
+
+{{CONTENT}}
+"""
+
+
+class PDFTool:
+    """Publication-grade PDF compilation engine."""
+
+    def __init__(self, typst_bin: Optional[str] = None):
+        self.typst_bin = typst_bin or shutil.which("typst") or "/usr/local/bin/typst"
+
+    def is_available(self) -> bool:
+        return Path(self.typst_bin).exists() or shutil.which("typst") is not None
+
+    def compile_markdown_to_pdf(
+        self,
+        markdown_path: Path,
+        output_pdf: Path,
+        title: str = "SynapseForge Academic Report",
+    ) -> Dict[str, Any]:
+        """Compiles Markdown into publication-grade Chinese/English PDF using Typst."""
+        if not markdown_path.exists():
+            return {"ok": False, "error": f"Input markdown {markdown_path} not found"}
+
+        output_pdf.parent.mkdir(parents=True, exist_ok=True)
+        raw_md = markdown_path.read_text(encoding="utf-8")
+
+        # Convert simple markdown headers/body into typst syntax
+        typst_content = raw_md.replace("### ", "=== ")
+        typst_content = typst_content.replace("## ", "== ")
+        typst_content = typst_content.replace("# ", "= ")
+
+        full_typst = TYPST_ACADEMIC_TEMPLATE.replace("{{HEADER_TITLE}}", title).replace("{{CONTENT}}", typst_content)
+        
+        temp_typst = output_pdf.with_suffix(".typ")
+        temp_typst.write_text(full_typst, encoding="utf-8")
+
+        if self.is_available():
+            cmd = [self.typst_bin, "compile", str(temp_typst), str(output_pdf)]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode == 0:
+                return {
+                    "ok": True,
+                    "output_pdf": str(output_pdf),
+                    "engine": "typst",
+                    "page_standard": "A4 / 14pt KaiTi + Times / Booktabs",
+                    "file_size": output_pdf.stat().st_size if output_pdf.exists() else 0,
+                }
+            else:
+                return {"ok": False, "error": res.stderr, "engine": "typst"}
+
+        # Fallback to Pandoc if typst is missing
+        if shutil.which("pandoc"):
+            cmd = ["pandoc", str(markdown_path), "-o", str(output_pdf), "--pdf-engine=xelatex"]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            return {
+                "ok": res.returncode == 0,
+                "output_pdf": str(output_pdf),
+                "engine": "pandoc-xelatex",
+                "error": res.stderr if res.returncode != 0 else None,
+            }
+
+        return {"ok": False, "error": "Neither typst nor pandoc-xelatex available"}

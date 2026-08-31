@@ -33,6 +33,7 @@ from synapseforge.linters import LintSuite
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
+from synapseforge.tools import OfficeTool, PDFTool, SciPlotTool
 
 
 # ANSI Terminal Colors
@@ -344,6 +345,80 @@ def cmd_room(args):
             print(f"{Color.RED}✖ Room '{args.room_id}' not found.{Color.RESET}")
 
 
+def cmd_office(args):
+    tool = OfficeTool()
+    if args.office_action == "create-docx":
+        input_path = Path(args.input)
+        output_path = Path(args.output)
+        res = tool.create_docx_from_markdown(input_path, output_path, title=args.title)
+    elif args.office_action == "inspect":
+        res = tool.inspect_file(Path(args.file))
+    elif args.office_action == "run":
+        res = tool.run_raw(args.extra_args)
+    else:
+        res = {"ok": tool.is_available(), "officecli_bin": tool.officecli_bin}
+    
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"{Color.GREEN}✓ Office operation completed successfully:{Color.RESET}")
+            for k, v in res.items():
+                print(f"  - {k}: {v}")
+        else:
+            print(f"{Color.RED}✖ Office operation failed: {res.get('error', res)}{Color.RESET}")
+
+
+def cmd_plot(args):
+    tool = SciPlotTool(default_style=getattr(args, "style", "nature"), dpi=getattr(args, "dpi", 300))
+    if args.plot_action == "curve":
+        data = {}
+        if args.data:
+            p = Path(args.data)
+            if p.exists():
+                data = json.loads(p.read_text(encoding="utf-8"))
+        res = tool.plot_benchmark_curve(
+            data=data,
+            output_path=Path(args.output),
+            title=getattr(args, "title", ""),
+            x_label=getattr(args, "xlabel", "Concurrency (Agents)"),
+            y_label=getattr(args, "ylabel", "Reconciliation Latency (ms)"),
+            style=getattr(args, "style", "nature"),
+        )
+    elif args.plot_action == "run":
+        res = tool.run_plot_script(Path(args.script))
+    else:
+        res = {"ok": True, "styles": ["nature", "science", "ieee"], "dpi": 300}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"{Color.GREEN}✓ Scientific figure generated:{Color.RESET}")
+            for k, v in res.items():
+                print(f"  - {k}: {v}")
+        else:
+            print(f"{Color.RED}✖ Plot failed: {res.get('error', res)}{Color.RESET}")
+
+
+def cmd_pdf(args):
+    tool = PDFTool()
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    res = tool.compile_markdown_to_pdf(input_path, output_path, title=getattr(args, "title", "SynapseForge Document"))
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"{Color.GREEN}✓ Publication PDF generated successfully:{Color.RESET}")
+            print(f"  - PDF File: {res['output_pdf']}")
+            print(f"  - Engine: {res['engine']}")
+            print(f"  - Standards: {res.get('page_standard')}")
+        else:
+            print(f"{Color.RED}✖ PDF generation failed: {res.get('error')}{Color.RESET}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -480,6 +555,70 @@ def main():
     p_doc_stats = doc_subs.add_parser("stats", help="Get full document metrics, word counts, and citations")
     p_doc_stats.add_argument("--json", action="store_true", default=True)
     p_doc_stats.set_defaults(func=handle_doc_stats)
+
+    # ==========================================
+    # OFFICE CLI TOOLKIT (Word .docx, Excel, PPT)
+    # ==========================================
+    p_office = subparsers.add_parser("office", help="Office document creation and inspection toolkit")
+    p_office.add_argument("--json", action="store_true", default=True)
+    p_office.set_defaults(func=cmd_office)
+    p_office_subs = p_office.add_subparsers(dest="office_action", help="Office action")
+    
+    p_off_docx = p_office_subs.add_parser("create-docx", help="Convert Markdown or template to styled Word .docx")
+    p_off_docx.add_argument("--input", required=True, help="Input markdown file path")
+    p_off_docx.add_argument("--output", required=True, help="Output docx file path")
+    p_off_docx.add_argument("--title", default="Document", help="Document title")
+    p_off_docx.add_argument("--json", action="store_true", default=True)
+    p_off_docx.set_defaults(func=cmd_office)
+
+    p_off_insp = p_office_subs.add_parser("inspect", help="Inspect Office document structure and metadata")
+    p_off_insp.add_argument("--file", required=True, help="Path to .docx, .xlsx, or .pptx file")
+    p_off_insp.add_argument("--json", action="store_true", default=True)
+    p_off_insp.set_defaults(func=cmd_office)
+
+    p_off_run = p_office_subs.add_parser("run", help="Run raw officecli command")
+    p_off_run.add_argument("extra_args", nargs=argparse.REMAINDER, help="Arguments passed to officecli")
+    p_off_run.add_argument("--json", action="store_true", default=True)
+    p_off_run.set_defaults(func=cmd_office)
+
+    # ==========================================
+    # SCIENTIFIC PLOT TOOLKIT (Nature/Science/IEEE)
+    # ==========================================
+    p_plot = subparsers.add_parser("plot", help="Publication-grade scientific figure generator (Nature/Science/IEEE)")
+    p_plot.add_argument("--json", action="store_true", default=True)
+    p_plot.set_defaults(func=cmd_plot)
+    p_plot_subs = p_plot.add_subparsers(dest="plot_action", help="Plot action")
+
+    p_plt_curve = p_plot_subs.add_parser("curve", help="Plot multi-series benchmark or experimental curve")
+    p_plt_curve.add_argument("--data", default=None, help="JSON or CSV file with series data")
+    p_plt_curve.add_argument("--output", default="assets/benchmark_curve.png", help="Output PNG path")
+    p_plt_curve.add_argument("--title", default="", help="Chart title")
+    p_plt_curve.add_argument("--xlabel", default="Concurrency (Agents)", help="X-axis label")
+    p_plt_curve.add_argument("--ylabel", default="Reconciliation Latency (ms)", help="Y-axis label")
+    p_plt_curve.add_argument("--style", default="nature", choices=["nature", "science", "ieee"], help="Publication style palette")
+    p_plt_curve.add_argument("--dpi", type=int, default=300, help="Resolution DPI")
+    p_plt_curve.add_argument("--json", action="store_true", default=True)
+    p_plt_curve.set_defaults(func=cmd_plot)
+
+    p_plt_run = p_plot_subs.add_parser("run", help="Execute custom Python scientific plotting script")
+    p_plt_run.add_argument("--script", required=True, help="Path to python script")
+    p_plt_run.add_argument("--json", action="store_true", default=True)
+    p_plt_run.set_defaults(func=cmd_plot)
+
+    # ==========================================
+    # PUBLICATION PDF TOOLKIT (KaiTi + Times, 14pt)
+    # ==========================================
+    p_pdf = subparsers.add_parser("pdf", help="Publication-grade PDF compilation engine")
+    p_pdf.add_argument("--json", action="store_true", default=True)
+    p_pdf.set_defaults(func=cmd_pdf)
+    p_pdf_subs = p_pdf.add_subparsers(dest="pdf_action", help="PDF action")
+
+    p_pdf_compile = p_pdf_subs.add_parser("compile", help="Compile Markdown to publication PDF")
+    p_pdf_compile.add_argument("--input", required=True, help="Input Markdown file path")
+    p_pdf_compile.add_argument("--output", default="dist/publication_report.pdf", help="Output PDF path")
+    p_pdf_compile.add_argument("--title", default="SynapseForge Publication Report", help="Document Header Title")
+    p_pdf_compile.add_argument("--json", action="store_true", default=True)
+    p_pdf_compile.set_defaults(func=cmd_pdf)
 
     args = parser.parse_args()
     if not args.command:
