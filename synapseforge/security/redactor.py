@@ -24,7 +24,7 @@ SECRET_PATTERNS = [
     (r'(?i)(?:password|secret|token|api_key)\s*[:=]\s*["\']([^"\'\s]{8,})["\']', "GENERIC_SECRET"),
     (r'\b1[3-9]\d{9}\b', "PHONE_NUMBER_CN"),
     (r'\b\d{17}[\dXx]\b', "NATIONAL_ID_CN"),
-    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b', "EMAIL_ADDRESS"),
+    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}\b', "EMAIL_ADDRESS"),
 ]
 
 
@@ -103,15 +103,8 @@ class ConfidentialityRedactor:
         sanitized = text
         token_map: Dict[str, str] = {}
 
-        # 1. Custom Classified terms first
-        custom_terms = self._load_custom_keywords()
-        for term in custom_terms:
-            if term and term in sanitized:
-                token = f"⟦SEC_TERM_{hashlib.sha256(term.encode()).hexdigest()[:8]}⟧"
-                token_map[token] = term
-                sanitized = sanitized.replace(term, token)
-
-        # 2. Regex Patterns
+        # 1. Regex Patterns (structured secrets first, so custom terms embedded
+        # inside a secret cannot break the pattern match)
         for pattern, p_name in SECRET_PATTERNS:
             def repl(match):
                 original = match.group(0)
@@ -120,6 +113,14 @@ class ConfidentialityRedactor:
                 return token
 
             sanitized = re.sub(pattern, repl, sanitized)
+
+        # 2. Custom Classified terms (token delimiters ⟦ ⟧ never match the secret regexes)
+        custom_terms = self._load_custom_keywords()
+        for term in custom_terms:
+            if term and term in sanitized:
+                token = f"⟦SEC_TERM_{hashlib.sha256(term.encode()).hexdigest()[:8]}⟧"
+                token_map[token] = term
+                sanitized = sanitized.replace(term, token)
 
         return sanitized, token_map
 

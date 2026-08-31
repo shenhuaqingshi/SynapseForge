@@ -229,9 +229,7 @@ class MarkdownASTParser:
                 quote_lines = [line]
                 start_line = i + 1
                 i += 1
-                while i < n and (lines[i].strip().startswith(">") or (lines[i].strip() and not lines[i].startswith("#"))):
-                    if not lines[i].strip():
-                        break
+                while i < n and lines[i].strip().startswith(">"):
                     quote_lines.append(lines[i])
                     i += 1
                 raw_quote = "\n".join(quote_lines)
@@ -323,7 +321,7 @@ class MarkdownASTParser:
     def extract_citations(text: str) -> List[str]:
         """Extract citation keys in @citationKey or [^citationKey] formats."""
         keys = set()
-        for match in re.finditer(r'@([a-zA-Z0-9_:\-]+)', text):
+        for match in re.finditer(r'(?<![\w.@])@([a-zA-Z0-9_:\-]+)', text):
             keys.add(match.group(1))
         for match in re.finditer(r'\[\^([a-zA-Z0-9_:\-]+)\]', text):
             keys.add(match.group(1))

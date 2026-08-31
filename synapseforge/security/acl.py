@@ -9,6 +9,8 @@ import base64
 import hashlib
 import hmac
 import json
+import os
+import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,8 +39,9 @@ class NodeAccessController:
         self.secret_file.parent.mkdir(parents=True, exist_ok=True)
         if self.secret_file.exists():
             return self.secret_file.read_text(encoding="utf-8").strip()
-        key = base64.b64encode(hashlib.sha256(str(time.time()).encode()).digest()).decode("utf-8")
+        key = secrets.token_urlsafe(32)
         self.secret_file.write_text(key, encoding="utf-8")
+        os.chmod(self.secret_file, 0o600)
         return key
 
     def generate_token(
