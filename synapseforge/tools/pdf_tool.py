@@ -178,12 +178,15 @@ class PDFTool:
         typst_content = typst_content.replace("## ", "== ")
         typst_content = typst_content.replace("# ", "= ")
 
-        # If bibliography exists, link it; otherwise replace `@citekey` with `[citekey]`
+        # If bibliography exists and document has citations, link it
+        has_citations = bool(re.search(r'@[a-zA-Z0-9_\-]+', raw_md))
         bib_file = Path.cwd() / "bibliography.bib"
-        if bib_file.exists():
-            # Copy bib file next to output typ file
-            shutil.copy(bib_file, output_pdf.parent / "bibliography.bib")
-            typst_content += '\n\n#bibliography("bibliography.bib", title: "参考文献", style: "ieee")\n'
+        if has_citations and bib_file.exists():
+            try:
+                shutil.copy(bib_file, output_pdf.parent / "bibliography.bib")
+                typst_content += '\n\n#bibliography("bibliography.bib", title: "参考文献", style: "ieee")\n'
+            except Exception:
+                pass
         else:
             typst_content = re.sub(r'@([a-zA-Z0-9_\-]+)', r'[\1]', typst_content)
 
@@ -193,7 +196,8 @@ class PDFTool:
         temp_typst.write_text(full_typst, encoding="utf-8")
 
         if self.is_available():
-            cmd = [self.typst_bin, "compile", str(temp_typst), str(output_pdf)]
+            root_dir = str(output_pdf.parent.resolve())
+            cmd = [self.typst_bin, "compile", "--root", root_dir, str(temp_typst), str(output_pdf)]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0:
                 return {
@@ -204,6 +208,17 @@ class PDFTool:
                     "file_size": output_pdf.stat().st_size if output_pdf.exists() else 0,
                 }
             else:
-                return {"ok": False, "error": res.stderr, "engine": "typst"}
+                # Fallback without --root
+                fallback_cmd = [self.typst_bin, "compile", str(temp_typst), str(output_pdf)]
+                fb_res = subprocess.run(fallback_cmd, capture_output=True, text=True)
+                if fb_res.returncode == 0:
+                    return {
+                        "ok": True,
+                        "output_pdf": str(output_pdf),
+                        "engine": "typst",
+                        "page_standard": "A4 / 14pt KaiTi + Times / Booktabs",
+                        "file_size": output_pdf.stat().st_size if output_pdf.exists() else 0,
+                    }
+                return {"ok": False, "error": res.stderr or fb_res.stderr, "engine": "typst"}
 
         return {"ok": False, "error": "Typst compiler not available"}
