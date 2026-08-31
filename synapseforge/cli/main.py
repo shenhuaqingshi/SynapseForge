@@ -30,10 +30,11 @@ from synapseforge.github_bridge.ci_reporter import CIReporter
 from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
 from synapseforge.github_bridge.pr_reviewer import PRReviewRunner
 from synapseforge.linters import LintSuite
+from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
-from synapseforge.tools import OfficeTool, PDFTool, SciPlotTool
+from synapseforge.tools import CiteTool, OfficeTool, PDFTool, SciPlotTool
 
 
 # ANSI Terminal Colors
@@ -438,6 +439,68 @@ def cmd_serve(args):
         httpd.server_close()
 
 
+def cmd_cite(args):
+    cite = CiteTool()
+    if args.cite_action == "list" or not args.cite_action:
+        res = {"ok": True, "citations": cite.list_citations()}
+    elif args.cite_action == "add":
+        res = cite.add_bibtex_entry(
+            key=args.key,
+            entry_type=args.type or "article",
+            title=args.title,
+            author=args.author,
+            year=args.year,
+            journal_or_book=args.journal or "",
+        )
+    else:
+        res = {"ok": False, "error": f"Unknown cite action: {args.cite_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if args.cite_action == "add":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Added citation '@{args.key}' to bibliography.bib{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Error: {res.get('error')}{Color.RESET}")
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}BibTeX Bibliography Citations ({len(res['citations'])} entries):{Color.RESET}")
+            for c in res["citations"]:
+                print(f"  • @{c['key']:<22} | {c['author']:<20} | {c['year']} | {c['title']}")
+            print()
+
+
+def cmd_snapshot(args):
+    snap = SnapshotManager()
+    if args.snap_action == "create":
+        res = snap.create_checkpoint(message=args.message, section_id=args.section, author=args.author or "Human")
+    elif args.snap_action == "list" or not args.snap_action:
+        res = {"ok": True, "history": snap.list_history(section_id=args.section, limit=args.limit or 10)}
+    elif args.snap_action == "rollback":
+        res = snap.rollback(commit_hash=args.commit, file_path=args.file)
+    else:
+        res = {"ok": False, "error": f"Unknown snapshot action: {args.snap_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if args.snap_action == "create":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Checkpoint created: {res.get('commit_hash')} - {res.get('message')}{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Failed to create checkpoint: {res.get('error')}{Color.RESET}")
+        elif args.snap_action == "rollback":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Rollback to {args.commit} successful for {res.get('target')}{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Rollback failed: {res.get('error')}{Color.RESET}")
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}Git Snapshot Checkpoints History:{Color.RESET}")
+            for h in res.get("history", []):
+                print(f"  • [{h['commit_hash']}] {h['author']:<15} | {h['message']}")
+            print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -644,6 +707,55 @@ def main():
     p_pdf_compile.add_argument("--title", default="SynapseForge Publication Report", help="Document Header Title")
     p_pdf_compile.add_argument("--json", action="store_true", default=True)
     p_pdf_compile.set_defaults(func=cmd_pdf)
+
+    # ==========================================
+    # CITE & BIBLIOGRAPHY TOOLKIT
+    # ==========================================
+    p_cite = subparsers.add_parser("cite", help="BibTeX citations lookup and management")
+    p_cite.add_argument("--json", action="store_true", default=True)
+    p_cite.set_defaults(func=cmd_cite)
+    p_cite_subs = p_cite.add_subparsers(dest="cite_action", help="Cite action")
+
+    p_ct_list = p_cite_subs.add_parser("list", help="List all BibTeX entries in bibliography.bib")
+    p_ct_list.add_argument("--json", action="store_true", default=True)
+    p_ct_list.set_defaults(func=cmd_cite)
+
+    p_ct_add = p_cite_subs.add_parser("add", help="Add new citation to bibliography.bib")
+    p_ct_add.add_argument("--key", required=True, help="Citation key (e.g. lamport1998)")
+    p_ct_add.add_argument("--title", required=True, help="Paper or book title")
+    p_ct_add.add_argument("--author", required=True, help="Author names")
+    p_ct_add.add_argument("--year", default="2026", help="Publication year")
+    p_ct_add.add_argument("--journal", default="", help="Journal or venue name")
+    p_ct_add.add_argument("--type", default="article", help="Entry type")
+    p_ct_add.add_argument("--json", action="store_true", default=True)
+    p_ct_add.set_defaults(func=cmd_cite)
+
+    # ==========================================
+    # SNAPSHOT & ROLLBACK TOOLKIT
+    # ==========================================
+    p_snap = subparsers.add_parser("snapshot", help="Git-backed document checkpointing and rollback")
+    p_snap.add_argument("--json", action="store_true", default=True)
+    p_snap.set_defaults(func=cmd_snapshot)
+    p_snap_subs = p_snap.add_subparsers(dest="snap_action", help="Snapshot action")
+
+    p_sn_create = p_snap_subs.add_parser("create", help="Create an atomic checkpoint commit")
+    p_sn_create.add_argument("--message", "-m", required=True, help="Commit description")
+    p_sn_create.add_argument("--section", default=None, help="Specific section ID")
+    p_sn_create.add_argument("--author", default="Human", help="Author name")
+    p_sn_create.add_argument("--json", action="store_true", default=True)
+    p_sn_create.set_defaults(func=cmd_snapshot)
+
+    p_sn_list = p_snap_subs.add_parser("list", help="List checkpoint history")
+    p_sn_list.add_argument("--section", default=None, help="Filter by section ID")
+    p_sn_list.add_argument("--limit", type=int, default=10, help="Max entries")
+    p_sn_list.add_argument("--json", action="store_true", default=True)
+    p_sn_list.set_defaults(func=cmd_snapshot)
+
+    p_sn_roll = p_snap_subs.add_parser("rollback", help="Roll back document or section to a checkpoint hash")
+    p_sn_roll.add_argument("--commit", required=True, help="Commit hash (e.g. a1b2c3d or HEAD~1)")
+    p_sn_roll.add_argument("--file", default=None, help="Optional specific file path")
+    p_sn_roll.add_argument("--json", action="store_true", default=True)
+    p_sn_roll.set_defaults(func=cmd_snapshot)
 
     args = parser.parse_args()
     if not args.command:

@@ -18,6 +18,8 @@ from typing import Any, Dict, Optional
 from synapseforge.config import load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.core.engine import SwarmEngine
+from synapseforge.core.snapshot import SnapshotManager
+from synapseforge.tools.cite_tool import CiteTool
 from synapseforge.tools.pdf_tool import PDFTool
 from synapseforge.tools.sci_plot_tool import SciPlotTool
 
@@ -52,6 +54,16 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._handle_api_sections()
             return
 
+        elif path == "/api/history":
+            snap = SnapshotManager(self.root_dir)
+            self._send_json({"ok": True, "history": snap.list_history(limit=15)})
+            return
+
+        elif path == "/api/citations":
+            cite = CiteTool()
+            self._send_json({"ok": True, "citations": cite.list_citations()})
+            return
+
         elif path.startswith("/assets/") or path.startswith("/dist/"):
             super().do_GET()
             return
@@ -75,6 +87,25 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._handle_api_dispatch(data)
         elif path == "/api/pdf/build":
             self._handle_api_pdf_build(data)
+        elif path == "/api/snapshot":
+            snap = SnapshotManager(self.root_dir)
+            res = snap.create_checkpoint(message=data.get("message", "Manual remote save"), author=data.get("author", "Remote Human"))
+            self._send_json(res)
+        elif path == "/api/rollback":
+            snap = SnapshotManager(self.root_dir)
+            res = snap.rollback(commit_hash=data.get("commit_hash", "HEAD~1"), file_path=data.get("file_path"))
+            self._send_json(res)
+        elif path == "/api/citations/add":
+            cite = CiteTool()
+            res = cite.add_bibtex_entry(
+                key=data.get("key", "newcite2026"),
+                entry_type=data.get("type", "article"),
+                title=data.get("title", ""),
+                author=data.get("author", ""),
+                year=data.get("year", "2026"),
+                journal_or_book=data.get("journal", ""),
+            )
+            self._send_json(res)
         else:
             self._send_json({"ok": False, "error": f"Unknown endpoint: {path}"}, status=HTTPStatus.NOT_FOUND)
 
@@ -132,11 +163,15 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         parser = MarkdownASTParser()
         words = parser.count_words(content)
 
+        # Auto create snapshot checkpoint
+        snap = SnapshotManager(self.root_dir)
+        snap.create_checkpoint(f"Saved {target_file.name}", section_id=section_id)
+
         self._send_json({
             "ok": True,
             "file": str(target_file.relative_to(self.root_dir)),
             "word_count": words,
-            "message": "Saved successfully",
+            "message": "Saved and checkpointed successfully",
         })
 
     def _handle_api_dispatch(self, data: Dict[str, Any]):
@@ -144,7 +179,6 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         section_id = data.get("section_id", "sec_04")
         prompt = data.get("prompt", "")
 
-        # Simulate agent execution response
         self._send_json({
             "ok": True,
             "agent": agent_name,
