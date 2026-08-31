@@ -1,994 +1,928 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge Studio - Real-Time Multi-Agent & Human Collaborative Writing</title>
+  <title>SynapseForge Studio - Apple Design Edition</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons & FontAwesome for crisp SF-style iconography -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&family=SF+Pro+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+    :root {
+      --sf-bg: #090a0f;
+      --sf-surface: rgba(22, 25, 38, 0.72);
+      --sf-sidebar: rgba(15, 17, 26, 0.78);
+      --sf-border: rgba(255, 255, 255, 0.08);
+      --sf-border-active: rgba(255, 255, 255, 0.18);
+      --sf-blue: #0A84FF;
+      --sf-purple: #BF5AF2;
+      --sf-green: #30D158;
+      --sf-orange: #FF9F0A;
+      --sf-red: #FF453A;
+      --sf-teal: #64D2FF;
+      --sf-indigo: #5E5CE6;
+    }
+
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #0b0f19;
-      color: #f1f5f9;
-      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: radial-gradient(circle at 50% 0%, #151928 0%, #08090d 100%);
+      color: #f5f5f7;
+      letter-spacing: -0.012em;
+      overflow: hidden;
     }
+
     .font-mono {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     }
+
     .font-academic {
-      font-family: 'Noto Serif SC', 'KaiTi', 'STKaiti', serif;
+      font-family: "Noto Serif SC", "STKaiti", "KaiTi", "Times New Roman", Georgia, serif;
     }
-    /* Custom Scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+
+    /* Apple Frosted Glass / Vibrancy */
+    .apple-glass {
+      background: var(--sf-surface);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--sf-border);
     }
-    ::-webkit-scrollbar-track {
-      background: #111827;
+
+    .apple-glass-sidebar {
+      background: var(--sf-sidebar);
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      border-right: 1px solid var(--sf-border);
     }
-    ::-webkit-scrollbar-thumb {
-      background: #374151;
-      border-radius: 3px;
+
+    .apple-card {
+      background: rgba(26, 29, 44, 0.55);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--sf-border);
+      border-radius: 14px;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #4b5563;
+    .apple-card:hover {
+      background: rgba(32, 36, 56, 0.75);
+      border-color: var(--sf-border-active);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
     }
-    .pulse-glow {
-      animation: pulseGlow 2s infinite;
+
+    /* macOS Segmented Picker */
+    .segmented-control {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 3px;
     }
-    @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
-      50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.8); }
+    .segmented-btn {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 7px;
     }
+    .segmented-btn.active {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    /* Apple Books Table */
     .booktabs-table {
-      border-top: 2px solid #334155;
-      border-bottom: 2px solid #334155;
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1.5px solid #1e293b;
+      border-bottom: 1.5px solid #1e293b;
     }
     .booktabs-table th {
-      border-bottom: 1.5px solid #334155;
+      border-bottom: 1px solid #1e293b;
+      padding: 9px 12px;
+      font-weight: 600;
     }
     .booktabs-table td {
-      border-top: 1px solid #1e293b;
+      border-top: 0.5px solid #e2e8f0;
+      padding: 8px 12px;
     }
+
+    /* macOS Scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.32);
+    }
+
+    /* Traffic Lights */
+    .traffic-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      transition: opacity 0.15s;
+    }
+    .traffic-close { background: #FF5F56; border: 0.5px solid #E0443E; }
+    .traffic-min { background: #FFBD2E; border: 0.5px solid #DEA123; }
+    .traffic-max { background: #27C93F; border: 0.5px solid #1AAB29; }
   </style>
 </head>
-<body class="h-screen flex flex-col bg-[#0b0f19] text-slate-200">
+<body class="h-screen w-screen flex items-center justify-center p-3 select-none">
 
-  <!-- TOP HEADER / NAV -->
-  <header class="h-14 border-b border-slate-800 bg-[#0f172a]/95 backdrop-blur px-4 flex items-center justify-between shrink-0 z-30">
-    <!-- Left: Brand & Room Selector -->
-    <div class="flex items-center space-x-3">
-      <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-          <i class="fa-solid fa-brain text-sm"></i>
+  <!-- macOS WINDOW CHROME CONTAINER -->
+  <div class="w-full h-full max-w-[1720px] max-h-[1020px] rounded-[18px] apple-glass shadow-2xl flex flex-col overflow-hidden border border-white/10 relative">
+
+    <!-- macOS UNIFIED TITLEBAR & TOOLBAR -->
+    <header class="h-12 bg-black/40 border-b border-white/[0.08] px-4 flex items-center justify-between shrink-0 z-40">
+      
+      <!-- Left: Traffic Lights & Room Selector -->
+      <div class="flex items-center space-x-4">
+        <!-- Traffic lights -->
+        <div class="flex items-center space-x-2 pr-2">
+          <span class="traffic-dot traffic-close cursor-pointer hover:opacity-80"></span>
+          <span class="traffic-dot traffic-min cursor-pointer hover:opacity-80"></span>
+          <span class="traffic-dot traffic-max cursor-pointer hover:opacity-80"></span>
         </div>
-        <span class="font-extrabold text-base tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300 bg-clip-text text-transparent">SynapseForge</span>
-        <span class="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 font-mono">v0.1.0</span>
-      </div>
 
-      <div class="h-5 w-px bg-slate-700 mx-2"></div>
-
-      <!-- Current Room Dropdown -->
-      <div class="flex items-center space-x-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 px-3 py-1.5 rounded-lg cursor-pointer transition">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span class="w-2 h-2 rounded-full bg-emerald-500 -ml-3"></span>
-        <span class="font-medium text-xs text-slate-200">🏢 Room: <strong class="text-blue-300">#agi-distributed-whitepaper</strong></span>
-        <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700/40">Owner: @xb</span>
-        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
-      </div>
-
-      <button onclick="openModal('modal-create-room')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-700 transition flex items-center space-x-1.5">
-        <i class="fa-solid fa-plus text-[11px] text-blue-400"></i>
-        <span>New Room</span>
-      </button>
-    </div>
-
-    <!-- Center: Collaboration Mode Switcher -->
-    <div class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-800">
-      <button onclick="switchTab('editor')" id="tab-btn-editor" class="px-3 py-1 text-xs rounded-md font-medium text-white bg-blue-600 shadow flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-pen text-[11px]"></i>
-        <span>Document Editor</span>
-      </button>
-      <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="px-3 py-1 text-xs rounded-md font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-table-columns text-[11px]"></i>
-        <span>Task Board (实时认领)</span>
-        <span class="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 text-[10px] rounded-full">4</span>
-      </button>
-      <button onclick="switchTab('prs')" id="tab-btn-prs" class="px-3 py-1 text-xs rounded-md font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-code-pull-request text-[11px]"></i>
-        <span>GitHub PR & Review</span>
-        <span class="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 text-[10px] rounded-full">2</span>
-      </button>
-      <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="px-3 py-1 text-xs rounded-md font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-chart-network text-[11px]"></i>
-        <span>Swarm Analytics</span>
-      </button>
-    </div>
-
-    <!-- Right: Active Swarm Members & Actions -->
-    <div class="flex items-center space-x-3">
-      <!-- Human & Agent Avatars -->
-      <div class="flex items-center -space-x-2 overflow-hidden py-1">
-        <div class="w-7 h-7 rounded-full bg-blue-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow" title="xb (Project Owner, Beijing UTC+8)">xb</div>
-        <div class="w-7 h-7 rounded-full bg-amber-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow" title="Elena_V (London UTC+0)">EL</div>
-        <div class="w-7 h-7 rounded-full bg-emerald-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow" title="Dr_Chen (Tokyo UTC+9)">DC</div>
-        <div class="w-7 h-7 rounded-full bg-purple-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow flex items-center justify-center" title="🤖 Drafter-Narrative Agent">
-          <i class="fa-solid fa-robot text-[10px]"></i>
-        </div>
-        <div class="w-7 h-7 rounded-full bg-rose-600 border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow flex items-center justify-center" title="🤖 Critic-Adversarial Agent">
-          <i class="fa-solid fa-shield-halved text-[10px]"></i>
-        </div>
-        <div class="w-7 h-7 rounded-full bg-teal-600 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold text-white shadow flex items-center justify-center" title="🤖 Harmonizer-Voice Agent">
-          <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+        <!-- Room Indicator Chip -->
+        <div onclick="openModal('modal-create-room')" class="flex items-center space-x-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-3 py-1 rounded-full cursor-pointer transition">
+          <div class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse"></div>
+          <span class="text-xs font-semibold text-white/90">🏢 #agi-distributed-whitepaper</span>
+          <span class="text-[10px] text-white/50 px-1.5 py-0.2 rounded bg-white/[0.08] font-mono">Owner: @xb</span>
+          <i class="fa-solid fa-chevron-down text-[9px] text-white/40"></i>
         </div>
       </div>
 
-      <button onclick="openModal('modal-invite')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm font-medium transition flex items-center space-x-1.5">
-        <i class="fa-solid fa-user-plus text-[11px]"></i>
-        <span>Invite</span>
-      </button>
-
-      <button onclick="openModal('modal-publish-task')" class="bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white text-xs px-3 py-1.5 rounded-lg shadow-md font-medium transition flex items-center space-x-1.5">
-        <i class="fa-solid fa-bullhorn text-[11px]"></i>
-        <span>Dispatch Task</span>
-      </button>
-
-      <div class="h-5 w-px bg-slate-700"></div>
-
-      <button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-700 transition" title="Export PDF/HTML">
-        <i class="fa-solid fa-download text-xs text-blue-400 mr-1"></i>
-        <span>Export</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- MAIN APP CONTAINER -->
-  <div class="flex-1 flex overflow-hidden">
-
-    <!-- LEFT SIDEBAR: File Tree & Section DAG -->
-    <aside class="w-64 border-r border-slate-800 bg-[#0f172a]/60 flex flex-col shrink-0">
-      <!-- Workspace Header -->
-      <div class="p-3 border-b border-slate-800 flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <i class="fa-solid fa-folder-tree text-blue-400 text-xs"></i>
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">File Explorer</span>
-        </div>
-        <div class="flex items-center space-x-1 text-slate-400">
-          <button class="hover:text-white p-1 rounded hover:bg-slate-800" title="New Section File"><i class="fa-solid fa-file-circle-plus text-xs"></i></button>
-          <button class="hover:text-white p-1 rounded hover:bg-slate-800" title="Refresh Tree"><i class="fa-solid fa-rotate text-xs"></i></button>
-        </div>
+      <!-- Center: macOS Segmented Control Tab Switcher -->
+      <div class="segmented-control flex items-center space-x-1">
+        <button onclick="switchTab('editor')" id="tab-btn-editor" class="segmented-btn active px-3.5 py-1 text-xs font-medium text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-feather-pointed text-[11px] text-blue-400"></i>
+          <span>Document Studio</span>
+        </button>
+        <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="segmented-btn px-3.5 py-1 text-xs font-medium text-white/60 hover:text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-rectangle-list text-[11px]"></i>
+          <span>Task Board (实时认领)</span>
+          <span class="text-[10px] px-1.5 py-0.2 bg-blue-500/20 text-blue-300 rounded-full font-mono">4</span>
+        </button>
+        <button onclick="switchTab('prs')" id="tab-btn-prs" class="segmented-btn px-3.5 py-1 text-xs font-medium text-white/60 hover:text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-code-pull-request text-[11px]"></i>
+          <span>GitHub PR & Review</span>
+          <span class="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded-full font-mono">2</span>
+        </button>
+        <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="segmented-btn px-3.5 py-1 text-xs font-medium text-white/60 hover:text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-chart-pie text-[11px]"></i>
+          <span>Swarm Telemetry</span>
+        </button>
       </div>
 
-      <!-- File List -->
-      <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-        
-        <!-- Folder: sections/ -->
-        <div>
-          <div class="flex items-center space-x-1.5 text-slate-300 hover:text-white px-2 py-1 rounded cursor-pointer group">
-            <i class="fa-solid fa-folder-open text-blue-400 text-xs"></i>
-            <span class="font-medium">sections/</span>
-            <span class="ml-auto text-[10px] text-slate-500 group-hover:text-slate-400">6 files</span>
-          </div>
-
-          <div class="pl-4 space-y-0.5 mt-0.5 border-l border-slate-800/80 ml-2.5">
-            <div onclick="selectFile('sec_01')" class="file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-sky-400 text-xs"></i>
-                <span class="truncate">01_abstract_introduction.md</span>
-              </div>
-              <span class="text-[10px] text-slate-500">439w</span>
-            </div>
-
-            <div onclick="selectFile('sec_02')" class="file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-sky-400 text-xs"></i>
-                <span class="truncate">02_theoretical_foundations.md</span>
-              </div>
-              <span class="text-[10px] text-slate-500">447w</span>
-            </div>
-
-            <div onclick="selectFile('sec_03')" class="file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-sky-400 text-xs"></i>
-                <span class="truncate">03_system_architecture.md</span>
-              </div>
-              <span class="text-[10px] text-slate-500">493w</span>
-            </div>
-
-            <!-- Active Selected File -->
-            <div onclick="selectFile('sec_04')" class="file-item active flex items-center justify-between px-2 py-1.5 rounded cursor-pointer bg-blue-600/20 text-blue-300 border border-blue-500/30">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-blue-400 text-xs"></i>
-                <span class="truncate font-semibold">04_conflict_resolution.md</span>
-              </div>
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Active Drafting"></span>
-            </div>
-
-            <div onclick="selectFile('sec_05')" class="file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-sky-400 text-xs"></i>
-                <span class="truncate">05_empirical_benchmarks.md</span>
-              </div>
-              <span class="text-[10px] text-slate-500">439w</span>
-            </div>
-
-            <div onclick="selectFile('sec_06')" class="file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
-              <div class="flex items-center space-x-1.5 truncate">
-                <i class="fa-brands fa-markdown text-sky-400 text-xs"></i>
-                <span class="truncate">06_conclusion_roadmap.md</span>
-              </div>
-              <span class="text-[10px] text-slate-500">238w</span>
-            </div>
-          </div>
+      <!-- Right: Swarm Avatars & Actions -->
+      <div class="flex items-center space-x-3">
+        <!-- Live Presence Avatars with Halo -->
+        <div class="flex items-center -space-x-1.5">
+          <div class="w-6 h-6 rounded-full bg-blue-500 border border-white/30 flex items-center justify-center text-[10px] font-bold text-white shadow" title="xb (Owner, Beijing UTC+8)">xb</div>
+          <div class="w-6 h-6 rounded-full bg-amber-500 border border-white/30 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Elena_V (London UTC+0)">EL</div>
+          <div class="w-6 h-6 rounded-full bg-emerald-500 border border-white/30 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Dr_Chen (Tokyo UTC+9)">DC</div>
+          <div class="w-6 h-6 rounded-full bg-purple-600 border border-white/30 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🤖 Drafter-Narrative (Streaming)">🤖</div>
+          <div class="w-6 h-6 rounded-full bg-rose-600 border border-white/30 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🤖 Critic-Adversarial (Reviewing)">🛡️</div>
         </div>
 
-        <!-- Folder: assets/ -->
-        <div>
-          <div class="flex items-center space-x-1.5 text-slate-300 hover:text-white px-2 py-1 rounded cursor-pointer group">
-            <i class="fa-solid fa-folder text-amber-400 text-xs"></i>
-            <span class="font-medium">assets/</span>
-          </div>
-          <div class="pl-4 space-y-0.5 mt-0.5 border-l border-slate-800/80 ml-2.5">
-            <div class="flex items-center space-x-1.5 px-2 py-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer">
-              <i class="fa-solid fa-image text-emerald-400 text-xs"></i>
-              <span class="truncate">architecture_diagram.svg</span>
-            </div>
-          </div>
-        </div>
+        <button onclick="openModal('modal-invite')" class="text-xs bg-white/[0.08] hover:bg-white/[0.14] text-white px-2.5 py-1 rounded-lg border border-white/[0.1] transition flex items-center space-x-1">
+          <i class="fa-solid fa-user-plus text-[10px] text-blue-400"></i>
+          <span>Invite</span>
+        </button>
 
-        <!-- Root config files -->
-        <div class="pt-2 border-t border-slate-800/60 space-y-0.5">
-          <div class="flex items-center space-x-1.5 px-2 py-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer">
-            <i class="fa-solid fa-book-bookmark text-indigo-400 text-xs"></i>
-            <span>bibliography.bib</span>
-          </div>
-          <div class="flex items-center space-x-1.5 px-2 py-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer">
-            <i class="fa-solid fa-gear text-teal-400 text-xs"></i>
-            <span>synapseforge.yaml</span>
-          </div>
-          <div class="flex items-center space-x-1.5 px-2 py-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer">
-            <i class="fa-brands fa-readme text-orange-400 text-xs"></i>
-            <span>README.md</span>
-          </div>
-        </div>
-
+        <button onclick="openModal('modal-publish-task')" class="text-xs bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium px-3 py-1 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-sparkles text-[10px]"></i>
+          <span>+ Dispatch Task</span>
+        </button>
       </div>
+    </header>
 
-      <!-- Bottom: Swarm Health & Word Metrics -->
-      <div class="p-3 bg-slate-900/80 border-t border-slate-800 space-y-2">
-        <div class="flex items-center justify-between text-xs">
-          <span class="text-slate-400 font-medium">Document Words</span>
-          <span class="font-bold text-slate-200 font-mono">2,486 / 5,000</span>
-        </div>
-        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-          <div class="bg-gradient-to-r from-blue-500 to-teal-400 h-full rounded-full" style="width: 49.7%"></div>
-        </div>
+    <!-- WORKSPACE BODY (3-Column layout) -->
+    <div class="flex-1 flex overflow-hidden">
 
-        <div class="pt-1 flex items-center justify-between text-[11px] text-slate-400">
-          <span class="flex items-center space-x-1">
-            <i class="fa-solid fa-shield-check text-emerald-400"></i>
-            <span>Anti-AI: 100% Clean</span>
+      <!-- COLUMN 1: macOS Finder / Xcode style File Explorer & Outline -->
+      <aside class="w-64 apple-glass-sidebar flex flex-col shrink-0">
+        <div class="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold tracking-wider uppercase">
+          <span class="flex items-center space-x-1.5 text-white/70">
+            <i class="fa-solid fa-folder-tree text-blue-400 text-xs"></i>
+            <span>Project Explorer</span>
           </span>
-          <span class="text-emerald-400 font-semibold font-mono">Zero Cliché</span>
+          <button class="hover:text-white transition"><i class="fa-solid fa-plus text-[11px]"></i></button>
         </div>
-      </div>
-    </aside>
 
-    <!-- CENTER WORKSPACE: Switchable Content Area -->
-    <main class="flex-1 flex flex-col bg-[#0b0f19] overflow-hidden relative">
+        <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+          <!-- Folder: sections -->
+          <div class="space-y-0.5">
+            <div class="flex items-center space-x-1.5 px-2 py-1 text-white/80 font-medium cursor-pointer hover:text-white">
+              <i class="fa-solid fa-chevron-down text-[9px] text-white/40"></i>
+              <i class="fa-solid fa-folder text-blue-400"></i>
+              <span>sections</span>
+              <span class="ml-auto text-[10px] text-white/40 font-mono">6</span>
+            </div>
 
-      <!-- VIEW 1: DOCUMENT EDITOR & LIVE COLLABORATION -->
-      <div id="view-editor" class="flex-1 flex flex-col h-full">
-        <!-- Editor Sub-Header -->
-        <div class="h-10 border-b border-slate-800 bg-[#0f172a]/80 px-4 flex items-center justify-between text-xs shrink-0">
-          <div class="flex items-center space-x-2">
-            <span class="text-slate-400">Section:</span>
-            <span class="font-bold text-slate-200 flex items-center space-x-1.5">
-              <span>04_conflict_resolution_and_consensus.md</span>
-              <span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded border border-blue-500/30">Branch: synapse/sec-04-consensus</span>
+            <div class="pl-4 space-y-0.5 border-l border-white/[0.06] ml-3.5">
+              <div onclick="selectFile('sec_01')" class="file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
+                  <span class="truncate">01_abstract.md</span>
+                </div>
+                <span class="text-[10px] text-white/30 font-mono">439w</span>
+              </div>
+
+              <div onclick="selectFile('sec_02')" class="file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
+                  <span class="truncate">02_theory.md</span>
+                </div>
+                <span class="text-[10px] text-white/30 font-mono">447w</span>
+              </div>
+
+              <div onclick="selectFile('sec_03')" class="file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
+                  <span class="truncate">03_architecture.md</span>
+                </div>
+                <span class="text-[10px] text-white/30 font-mono">493w</span>
+              </div>
+
+              <!-- Active selected file -->
+              <div onclick="selectFile('sec_04')" class="file-node active flex items-center justify-between px-2 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-pen text-blue-400 text-[11px]"></i>
+                  <span class="truncate font-semibold">04_consensus.md</span>
+                </div>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+
+              <div onclick="selectFile('sec_05')" class="file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
+                  <span class="truncate">05_benchmarks.md</span>
+                </div>
+                <span class="text-[10px] text-white/30 font-mono">439w</span>
+              </div>
+
+              <div onclick="selectFile('sec_06')" class="file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <div class="flex items-center space-x-1.5 truncate">
+                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
+                  <span class="truncate">06_conclusion.md</span>
+                </div>
+                <span class="text-[10px] text-white/30 font-mono">238w</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Other files -->
+          <div class="pt-2 border-t border-white/[0.06] space-y-0.5">
+            <div class="flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+              <i class="fa-solid fa-bookmark text-indigo-400 text-[11px]"></i>
+              <span>bibliography.bib</span>
+            </div>
+            <div class="flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+              <i class="fa-solid fa-sliders text-teal-400 text-[11px]"></i>
+              <span>synapseforge.yaml</span>
+            </div>
+            <div class="flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+              <i class="fa-solid fa-circle-info text-amber-400 text-[11px]"></i>
+              <span>README.md</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom: Dynamic Island Document Health Badge -->
+        <div class="p-3 bg-black/40 border-t border-white/[0.06] space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-white/60">
+            <span>Swarm Word Budget</span>
+            <span class="font-mono text-white font-semibold">2,486 / 5,000</span>
+          </div>
+          <div class="w-full bg-white/[0.08] h-1.5 rounded-full overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full" style="width: 49.7%"></div>
+          </div>
+          <div class="flex items-center justify-between text-[10px] pt-1">
+            <span class="text-emerald-400 font-medium flex items-center space-x-1">
+              <i class="fa-solid fa-shield-check"></i>
+              <span>Zero AI Fluff</span>
             </span>
+            <span class="text-white/40 font-mono">100% Academic</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- COLUMN 2: CENTER WORKSPACE (Switchable Views) -->
+      <main class="flex-1 flex flex-col bg-[#0b0c12]/70 overflow-hidden relative">
+
+        <!-- VIEW 1: DOCUMENT STUDIO (Split-Pane Editor + Apple Books Preview) -->
+        <div id="view-editor" class="flex-1 flex flex-col h-full">
+          <!-- Editor Toolbar Ribbon -->
+          <div class="h-9 border-b border-white/[0.06] bg-black/20 px-4 flex items-center justify-between text-xs shrink-0">
+            <div class="flex items-center space-x-2">
+              <span class="text-white/40">Editing:</span>
+              <span class="font-medium text-white/90">04_conflict_resolution_and_consensus.md</span>
+              <span class="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20 font-mono">synapse/sec-04-consensus</span>
+            </div>
+
+            <div class="flex items-center space-x-3 text-[11px]">
+              <div class="flex items-center space-x-1.5 text-white/50">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Active Lock: <strong class="text-white">@Drafter-Narrative</strong> & <strong class="text-white">@Elena_V</strong></span>
+                <span class="text-white/30 font-mono">(34m left)</span>
+              </div>
+              <button class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] px-2.5 py-0.5 rounded-md font-medium shadow-sm transition">
+                <i class="fa-solid fa-code-commit mr-1 text-[10px]"></i> Commit & PR
+              </button>
+            </div>
           </div>
 
-          <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-1 text-[11px] text-slate-400">
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Lease Held by: <strong class="text-slate-200">@Drafter-Narrative</strong> & <strong class="text-slate-200">@Elena_V</strong></span>
-              <span class="text-slate-500 font-mono">(Expires in 34m)</span>
+          <!-- Split Content Pane -->
+          <div class="flex-1 flex overflow-hidden">
+            
+            <!-- Left Sub-Pane: Clean macOS Code Editor with Live Cursors -->
+            <div class="w-1/2 border-r border-white/[0.06] flex flex-col font-mono text-xs overflow-hidden bg-black/20">
+              <div class="h-7 bg-white/[0.02] px-3 flex items-center justify-between text-[10px] text-white/40 border-b border-white/[0.04]">
+                <span>MARKDOWN LIVE SOURCE</span>
+                <span class="text-emerald-400 font-sans flex items-center space-x-1">
+                  <i class="fa-solid fa-check text-[9px]"></i>
+                  <span>AST Synchronized</span>
+                </span>
+              </div>
+
+              <div class="flex-1 p-5 overflow-y-auto space-y-4 leading-relaxed text-white/80">
+                <div class="text-blue-400 font-bold text-sm"># 跨区域冲突消解与异步共识协议</div>
+
+                <!-- Paragraph with Elena Live Marker -->
+                <div class="relative pl-3.5 border-l-2 border-amber-500/80 bg-amber-500/[0.04] p-2.5 rounded-r-lg">
+                  <div class="absolute -top-2.5 right-2 bg-amber-500 text-slate-950 font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm font-sans">
+                    👤 Elena_V (Reviewing London)
+                  </div>
+                  <p class="text-white/80">在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
+                </div>
+
+                <!-- Paragraph with Drafter Live Streaming Marker -->
+                <div class="relative pl-3.5 border-l-2 border-purple-500/80 bg-purple-500/[0.04] p-2.5 rounded-r-lg">
+                  <div class="absolute -top-2.5 right-2 bg-purple-600 text-white font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm flex items-center space-x-1 font-sans">
+                    <span>🤖 Drafter-Narrative (Streaming 85 tok/s)</span>
+                  </div>
+                  <p class="text-white/80">第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。<span class="inline-block w-1.5 h-3.5 bg-purple-400 animate-pulse ml-0.5 align-middle"></span></p>
+                </div>
+
+                <!-- Paragraph with Critic Inspection Marker -->
+                <div class="relative pl-3.5 border-l-2 border-rose-500/80 bg-rose-500/[0.04] p-2.5 rounded-r-lg">
+                  <div class="absolute -top-2.5 right-2 bg-rose-600 text-white font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm flex items-center space-x-1 font-sans">
+                    <span>🛡️ Critic-Adversarial (Zero AI Cliché Verified)</span>
+                  </div>
+                  <p class="text-white/80">第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁。</p>
+                </div>
+              </div>
             </div>
 
-            <div class="h-4 w-px bg-slate-700"></div>
+            <!-- Right Sub-Pane: Apple Books / Pages Academic Layout Preview -->
+            <div class="w-1/2 flex flex-col bg-[#ffffff] text-slate-900 overflow-hidden font-academic">
+              <div class="h-7 bg-slate-50 px-3 flex items-center justify-between text-[10px] text-slate-500 border-b border-slate-200 font-sans">
+                <span class="font-semibold text-slate-700">APPLE BOOKS PUBLICATION PREVIEW</span>
+                <span class="px-2 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono text-[9px]">1.65 Line Height • KaiTi/Times</span>
+              </div>
 
-            <div class="flex items-center space-x-1">
-              <button class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] border border-slate-700 flex items-center space-x-1">
-                <i class="fa-solid fa-spell-check text-blue-400"></i>
-                <span>Anti-AI Audit</span>
-              </button>
-              <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-medium shadow flex items-center space-x-1">
-                <i class="fa-solid fa-code-commit text-[10px]"></i>
-                <span>Commit & Open PR</span>
-              </button>
+              <div class="flex-1 p-8 overflow-y-auto space-y-4 text-justify leading-[1.65] text-[14.5px]">
+                <h2 class="font-sans font-bold text-lg text-slate-900 border-b border-slate-200 pb-1.5 mb-3">
+                  4. 跨区域冲突消解与异步共识协议
+                </h2>
+
+                <p class="indent-8 text-slate-800">
+                  在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。
+                </p>
+
+                <p class="indent-8 text-slate-800">
+                  第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 <span class="font-sans text-sm font-semibold text-indigo-700">\(\mathcal{D}_{\text{base}}\)</span> 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。
+                </p>
+
+                <p class="indent-8 text-slate-800">
+                  第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁。
+                </p>
+
+                <!-- Clean Academic 3-Line Table -->
+                <div class="my-5">
+                  <div class="text-center font-sans font-semibold text-xs text-slate-700 mb-1">表 1：跨时区多智能体冲突消解算法指标对比</div>
+                  <table class="booktabs-table text-xs font-sans">
+                    <thead>
+                      <tr class="text-left text-slate-800 bg-slate-50/80">
+                        <th class="p-2">架构模式</th>
+                        <th class="p-2">伪冲突拦截率</th>
+                        <th class="p-2">收敛时延</th>
+                        <th class="p-2">一致性保障</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="p-2 text-slate-600">传统线性 Git 3-Way</td>
+                        <td class="p-2">42.8%</td>
+                        <td class="p-2">92.6 min</td>
+                        <td class="p-2">低（行断层）</td>
+                      </tr>
+                      <tr class="font-semibold bg-blue-50/70 text-blue-900">
+                        <td class="p-2 font-bold">SynapseForge 语义 AST</td>
+                        <td class="p-2 font-bold">3.1%</td>
+                        <td class="p-2 font-bold">14.5 min</td>
+                        <td class="p-2 font-bold">强最终一致性</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
             </div>
+
           </div>
         </div>
 
-        <!-- Split Pane: Source Code & Publication Preview -->
-        <div class="flex-1 flex overflow-hidden">
-          
-          <!-- Left: Markdown Source Editor with Live Presence -->
-          <div class="w-1/2 border-r border-slate-800 flex flex-col bg-[#0b0f19]/90 font-mono text-xs overflow-hidden">
-            <div class="h-7 bg-slate-900/60 px-3 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800/60">
-              <span>MARKDOWN SOURCE</span>
-              <span class="text-emerald-400 font-semibold flex items-center space-x-1">
-                <i class="fa-solid fa-circle-check text-[10px]"></i>
-                <span>AST Synchronized</span>
-              </span>
-            </div>
-
-            <div class="flex-1 p-4 overflow-y-auto space-y-4 leading-relaxed text-slate-300">
-              <div class="text-blue-400 font-bold text-sm"># 跨区域冲突消解与异步共识协议</div>
-              
-              <!-- Paragraph 1 with Elena Cursor -->
-              <div class="relative pl-3 border-l-2 border-amber-500 bg-amber-500/5 p-2 rounded-r">
-                <div class="absolute -top-2.5 right-2 bg-amber-500 text-slate-950 font-bold text-[9px] px-1.5 py-0.5 rounded shadow">
-                  👤 Elena_V (Reviewing)
-                </div>
-                <p>在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
-              </div>
-
-              <!-- Paragraph 2 with Drafter-Narrative Live Typing Cursor -->
-              <div class="relative pl-3 border-l-2 border-purple-500 bg-purple-500/5 p-2 rounded-r">
-                <div class="absolute -top-2.5 right-2 bg-purple-600 text-white font-bold text-[9px] px-1.5 py-0.5 rounded shadow flex items-center space-x-1">
-                  <i class="fa-solid fa-robot text-[8px]"></i>
-                  <span>🤖 Drafter-Narrative (Streaming 85 tok/s)</span>
-                </div>
-                <p>第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记，明确标注各方身份（例如欧洲时区人类审查员与美洲时区事实核查智能体）。<span class="inline-block w-2 h-4 bg-purple-400 animate-pulse ml-0.5 align-middle"></span></p>
-              </div>
-
-              <!-- Paragraph 3 with Critic Agent Annotation -->
-              <div class="relative pl-3 border-l-2 border-rose-500 bg-rose-500/5 p-2 rounded-r">
-                <div class="absolute -top-2.5 right-2 bg-rose-600 text-white font-bold text-[9px] px-1.5 py-0.5 rounded shadow flex items-center space-x-1">
-                  <i class="fa-solid fa-shield-halved text-[8px]"></i>
-                  <span>🤖 Critic-Adversarial (Audit Passed)</span>
-                </div>
-                <p>第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁（Inline Diff Suggestions）。人类主编仅需在 GitHub 网页端或本地终端完成一键采纳或微调，即可达成跨时区的终态收敛。</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Publication-Grade Live Typography Render -->
-          <div class="w-1/2 flex flex-col bg-[#ffffff] text-slate-900 overflow-hidden font-academic">
-            <div class="h-7 bg-slate-100 px-3 flex items-center justify-between text-[11px] text-slate-600 border-b border-slate-200 font-sans">
-              <span class="font-semibold text-slate-700">PUBLICATION PREVIEW (楷体 / Times / Booktabs)</span>
-              <div class="flex items-center space-x-2">
-                <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px]">Zero AI Flavor ✓</span>
-                <span class="px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded font-mono text-[10px]">1.58 Line-Height</span>
-              </div>
-            </div>
-
-            <div class="flex-1 p-8 overflow-y-auto space-y-5 text-justify leading-[1.68] text-[15px]">
-              <h2 class="font-sans font-extrabold text-xl text-blue-900 border-b border-slate-300 pb-2 mb-4">
-                4. 跨区域冲突消解与异步共识协议
+        <!-- VIEW 2: TASK BOARD (Apple Linear / Reminders Aesthetic) -->
+        <div id="view-kanban" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                <span>实时任务看板与协同认领大盘</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono">Live Dispatch</span>
               </h2>
+              <p class="text-xs text-white/50 mt-0.5">项目所有者可发布任务，人类协作者与专门化 Agent 可一键实时认领与流式起草</p>
+            </div>
 
-              <p class="indent-8 text-slate-800">
-                在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。
-              </p>
+            <button onclick="openModal('modal-publish-task')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3.5 py-1.5 rounded-xl font-medium shadow transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>发布新章节任务</span>
+            </button>
+          </div>
 
-              <p class="indent-8 text-slate-800">
-                第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 <span class="font-sans text-sm font-semibold text-indigo-700">\(\mathcal{D}_{\text{base}}\)</span> 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记，明确标注各方身份。
-              </p>
-
-              <p class="indent-8 text-slate-800">
-                第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁。人类主编仅需在 GitHub 网页端或本地终端完成一键采纳或微调，即可达成跨时区的终态收敛。
-              </p>
-
-              <!-- Academic Booktabs Table -->
-              <div class="my-6">
-                <div class="text-center font-sans font-bold text-xs text-slate-700 mb-1">表 1：跨时区协作冲突消解机制效能对比</div>
-                <table class="w-full text-xs font-sans booktabs-table">
-                  <thead>
-                    <tr class="text-left text-slate-800 font-semibold bg-slate-50">
-                      <th class="p-2">消解方案</th>
-                      <th class="p-2">冲突拦截率</th>
-                      <th class="p-2">平均收敛时延</th>
-                      <th class="p-2">语义一致性保障</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="p-2 text-slate-700">传统线性 Git 3-Way</td>
-                      <td class="p-2">42.8%</td>
-                      <td class="p-2">92.6 min</td>
-                      <td class="p-2">低（易破坏章节逻辑）</td>
-                    </tr>
-                    <tr class="bg-blue-50/60 font-medium">
-                      <td class="p-2 text-blue-900 font-bold">SynapseForge 语义 AST</td>
-                      <td class="p-2 text-blue-900 font-bold">3.1%</td>
-                      <td class="p-2 text-blue-900 font-bold">14.5 min</td>
-                      <td class="p-2 text-blue-900 font-bold">高（形式化强最终一致性）</td>
-                    </tr>
-                  </tbody>
-                </table>
+          <!-- 4 Glass Columns -->
+          <div class="grid grid-cols-4 gap-4 flex-1">
+            
+            <!-- Col 1: Backlog -->
+            <div class="apple-card p-3.5 flex flex-col space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span class="text-xs font-semibold text-white/70 flex items-center space-x-1.5">
+                  <span class="w-2 h-2 rounded-full bg-white/40"></span>
+                  <span>待认领任务 (Backlog)</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.08] text-white/60 font-mono">1</span>
               </div>
-            </div>
-          </div>
 
-        </div>
-      </div>
-
-      <!-- VIEW 2: REAL-TIME KANBAN TASK BOARD (实时认领与分发) -->
-      <div id="view-kanban" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-lg font-bold text-slate-100 flex items-center space-x-2">
-              <i class="fa-solid fa-table-columns text-blue-400"></i>
-              <span>实时任务分发与认领大盘 (Real-Time Swarm Dispatcher)</span>
-            </h2>
-            <p class="text-xs text-slate-400 mt-1">项目所有者可一键拆解发布任务，人类学者与自主 Agent 实时认领工作流</p>
-          </div>
-
-          <button onclick="openModal('modal-publish-task')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-medium shadow flex items-center space-x-2">
-            <i class="fa-solid fa-plus"></i>
-            <span>发布新撰写任务</span>
-          </button>
-        </div>
-
-        <!-- 4-Column Board -->
-        <div class="grid grid-cols-4 gap-4 flex-1">
-          
-          <!-- Col 1: Backlog -->
-          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex flex-col">
-            <div class="flex items-center justify-between mb-3 px-1">
-              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                <span>待认领任务 (Backlog)</span>
-              </span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">1</span>
-            </div>
-
-            <div class="space-y-3">
-              <div class="bg-slate-800/90 border border-slate-700/80 rounded-lg p-3 shadow hover:border-blue-500/50 transition cursor-pointer">
-                <div class="flex items-center justify-between text-[11px] mb-2">
-                  <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 font-mono">sec_06_conclusion</span>
-                  <span class="text-slate-400 font-medium">~500 words</span>
+              <div class="apple-card p-3 space-y-2 border-white/[0.06] hover:border-blue-500/40">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="px-1.5 py-0.5 rounded bg-white/[0.08] text-white/70 font-mono">sec_06_conclusion</span>
+                  <span class="text-white/40">~500 words</span>
                 </div>
-                <h4 class="font-semibold text-xs text-slate-200 mb-1.5">全篇结论与未来演进路线图撰写</h4>
-                <p class="text-[11px] text-slate-400 line-clamp-2 mb-3">基于前序章节实证结论，收束全篇论文，阐明去中心化多智能体学术生产的工程边界。</p>
-                <div class="pt-2 border-t border-slate-700/60 flex items-center justify-between">
-                  <span class="text-[10px] text-indigo-400 bg-indigo-900/40 px-2 py-0.5 rounded border border-indigo-700/30">Role: Harmonizer</span>
-                  <button class="bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] px-2.5 py-1 rounded font-medium transition">一键认领</button>
+                <h4 class="font-medium text-xs text-white">全篇结论与未来演进路线图撰写</h4>
+                <p class="text-[11px] text-white/50 leading-relaxed">基于实证结论收束全篇论文，阐明去中心化多智能体学术生产的工程边界。</p>
+                <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px]">
+                  <span class="text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Role: Harmonizer</span>
+                  <button class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded-md font-medium transition">一键认领</button>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Col 2: Claimed & In-Progress -->
-          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex flex-col">
-            <div class="flex items-center justify-between mb-3 px-1">
-              <span class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                <span>正在起草中 (Drafting)</span>
-              </span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 font-mono">2</span>
-            </div>
+            <!-- Col 2: Drafting -->
+            <div class="apple-card p-3.5 flex flex-col space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span class="text-xs font-semibold text-blue-400 flex items-center space-x-1.5">
+                  <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                  <span>正在起草中 (Drafting)</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 font-mono">2</span>
+              </div>
 
-            <div class="space-y-3">
-              <div class="bg-slate-800/90 border border-blue-500/40 rounded-lg p-3 shadow-lg shadow-blue-500/5">
-                <div class="flex items-center justify-between text-[11px] mb-2">
-                  <span class="px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 font-mono">sec_04_consensus</span>
-                  <span class="text-emerald-400 font-mono text-[10px]">● 85 tok/s</span>
+              <div class="apple-card p-3 space-y-2 border-blue-500/30 bg-blue-950/20">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">sec_04_consensus</span>
+                  <span class="text-emerald-400 font-mono">● 85 tok/s</span>
                 </div>
-                <h4 class="font-semibold text-xs text-slate-100 mb-1.5">跨区域冲突消解与异步共识协议</h4>
-                <div class="flex items-center space-x-2 my-2 text-[10px] bg-slate-900/80 p-2 rounded border border-slate-700/60">
-                  <div class="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center text-white"><i class="fa-solid fa-robot text-[9px]"></i></div>
-                  <span class="text-slate-300">🤖 Drafter-Narrative & 👤 Elena_V</span>
+                <h4 class="font-medium text-xs text-white">跨区域冲突消解与异步共识协议</h4>
+                <div class="flex items-center space-x-1.5 text-[10px] text-white/70 bg-white/[0.04] p-1.5 rounded-md">
+                  <span class="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center text-[8px]">🤖</span>
+                  <span>🤖 Drafter-Narrative & 👤 Elena_V</span>
                 </div>
-                <div class="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden my-2">
-                  <div class="bg-blue-500 h-full rounded-full animate-pulse" style="width: 82%"></div>
+                <div class="w-full bg-white/[0.08] h-1 rounded-full overflow-hidden">
+                  <div class="bg-blue-500 h-full rounded-full animate-pulse" style="width: 80%"></div>
                 </div>
-                <div class="flex items-center justify-between text-[10px] text-slate-400">
-                  <span>租约剩余: 34 分钟</span>
+                <div class="flex items-center justify-between text-[10px] text-white/40">
+                  <span>租约剩余 34m</span>
                   <span class="text-blue-400">430 / 1200 字</span>
                 </div>
               </div>
+            </div>
 
-              <div class="bg-slate-800/90 border border-teal-500/40 rounded-lg p-3 shadow">
-                <div class="flex items-center justify-between text-[11px] mb-2">
-                  <span class="px-2 py-0.5 rounded bg-teal-900/60 text-teal-300 font-mono">fig_02_diagram</span>
-                  <span class="text-teal-400 font-mono text-[10px]">Rendering</span>
-                </div>
-                <h4 class="font-semibold text-xs text-slate-100 mb-1.5">系统架构矢量光路与拓扑图生成</h4>
-                <div class="flex items-center space-x-2 my-2 text-[10px] bg-slate-900/80 p-2 rounded border border-slate-700/60">
-                  <div class="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center text-white"><i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i></div>
-                  <span class="text-slate-300">🤖 Visualizer-Artisan</span>
-                </div>
+            <!-- Col 3: Review -->
+            <div class="apple-card p-3.5 flex flex-col space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span class="text-xs font-semibold text-amber-400 flex items-center space-x-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span>PR 智能体评审 (Review)</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-mono">1</span>
               </div>
-            </div>
-          </div>
 
-          <!-- Col 3: Peer Review & PR Gateway -->
-          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex flex-col">
-            <div class="flex items-center justify-between mb-3 px-1">
-              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                <span>PR 智能体评审 (Review)</span>
-              </span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-300 font-mono">1</span>
-            </div>
-
-            <div class="space-y-3">
-              <div class="bg-slate-800/90 border border-amber-500/40 rounded-lg p-3 shadow">
-                <div class="flex items-center justify-between text-[11px] mb-2">
-                  <span class="px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 font-mono">PR #14</span>
+              <div class="apple-card p-3 space-y-2 border-amber-500/30 bg-amber-950/20">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">PR #14</span>
                   <span class="text-amber-400 font-medium">2 Notes</span>
                 </div>
-                <h4 class="font-semibold text-xs text-slate-100 mb-1.5">实证基准测试数据与三线表校验</h4>
-                <p class="text-[11px] text-slate-400 mb-2">Critic Agent 建议为 74.2% 性能提升补充定量基准文献引用。</p>
-                <div class="pt-2 border-t border-slate-700/60 flex items-center justify-between">
-                  <span class="text-[10px] text-emerald-400"><i class="fa-solid fa-check mr-1"></i>CI Passed</span>
-                  <button onclick="switchTab('prs')" class="bg-amber-600 hover:bg-amber-500 text-white text-[10px] px-2.5 py-1 rounded font-medium transition">查看 Review</button>
+                <h4 class="font-medium text-xs text-white">实证基准测试数据与三线表校验</h4>
+                <p class="text-[11px] text-white/50 leading-relaxed">Critic Agent 建议补充定量基准文献引用。</p>
+                <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px]">
+                  <span class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i>CI Passed</span>
+                  <button onclick="switchTab('prs')" class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-0.5 rounded-md font-medium transition">查看 Review</button>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Col 4: Merged & Published -->
-          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex flex-col">
-            <div class="flex items-center justify-between mb-3 px-1">
-              <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>已合入主干 (Merged)</span>
-              </span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 font-mono">3</span>
-            </div>
+            <!-- Col 4: Merged -->
+            <div class="apple-card p-3.5 flex flex-col space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span class="text-xs font-semibold text-emerald-400 flex items-center space-x-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>已合入主干 (Merged)</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">3</span>
+              </div>
 
-            <div class="space-y-3 opacity-90">
-              <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3 shadow">
-                <span class="px-2 py-0.5 rounded bg-slate-700/60 text-slate-300 font-mono text-[10px]">sec_01_abstract</span>
-                <h4 class="font-semibold text-xs text-slate-300 mt-1">摘要与引言：分布式协作悖论</h4>
-                <div class="text-[10px] text-emerald-400 mt-2 flex items-center justify-between">
+              <div class="apple-card p-3 space-y-1.5 opacity-80">
+                <span class="text-[10px] text-white/40 font-mono">sec_01_abstract</span>
+                <h4 class="font-medium text-xs text-white/80">摘要与引言：分布式协作悖论</h4>
+                <div class="text-[10px] text-emerald-400 flex items-center justify-between pt-1">
                   <span>Approved by @xb</span>
                   <span>439 字</span>
                 </div>
               </div>
+            </div>
 
-              <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3 shadow">
-                <span class="px-2 py-0.5 rounded bg-slate-700/60 text-slate-300 font-mono text-[10px]">sec_02_theory</span>
-                <h4 class="font-semibold text-xs text-slate-300 mt-1">理论基石与形式化建模</h4>
-                <div class="text-[10px] text-emerald-400 mt-2 flex items-center justify-between">
-                  <span>Approved by @xb</span>
-                  <span>447 字</span>
+          </div>
+        </div>
+
+        <!-- VIEW 3: GITHUB PR & PEER REVIEW (Apple Xcode / GitHub for Mac Aesthetic) -->
+        <div id="view-prs" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                <span>GitHub PR 协同审核与智能体审查矩阵</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">PR Review Matrix</span>
+              </h2>
+              <p class="text-xs text-white/50 mt-0.5">融合 GitHub PR 审查网关，由批判 Agent、调和 Agent 与人类主编进行行级内联修订</p>
+            </div>
+
+            <div class="flex items-center space-x-2.5">
+              <span class="text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg flex items-center space-x-1">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>
+                <span>Quality Gates: Passed</span>
+              </span>
+              <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-1 rounded-lg font-medium shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-check-double text-[10px]"></i>
+                <span>Approve & Merge</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PR Info Banner -->
+          <div class="apple-card p-4 mb-4">
+            <div class="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+              <div class="flex items-center space-x-2.5">
+                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-md">OPEN</span>
+                <h3 class="font-semibold text-sm text-white">PR #14: feat(sec_05): 完善基准测试对比与消除 AI 套话</h3>
+                <span class="text-xs text-white/40 font-mono">by @Drafter-Narrative</span>
+              </div>
+              <div class="text-xs text-white/50">
+                <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-blue-300">synapse/sec-05-benchmarks</code> ➔ <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-white/70">main</code>
+              </div>
+            </div>
+
+            <!-- 4 Metric Pills -->
+            <div class="grid grid-cols-4 gap-3 pt-3 text-xs">
+              <div class="bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.04] flex items-center space-x-2.5">
+                <i class="fa-solid fa-shield-halved text-emerald-400 text-sm"></i>
+                <div>
+                  <div class="text-white/40 text-[10px]">Anti-AI Gate</div>
+                  <div class="font-semibold text-emerald-400">0 Clichés Detected</div>
+                </div>
+              </div>
+              <div class="bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.04] flex items-center space-x-2.5">
+                <i class="fa-solid fa-table-cells text-blue-400 text-sm"></i>
+                <div>
+                  <div class="text-white/40 text-[10px]">Table Standard</div>
+                  <div class="font-semibold text-blue-400">Booktabs Verified</div>
+                </div>
+              </div>
+              <div class="bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.04] flex items-center space-x-2.5">
+                <i class="fa-solid fa-quote-right text-purple-400 text-sm"></i>
+                <div>
+                  <div class="text-white/40 text-[10px]">BibTeX Citations</div>
+                  <div class="font-semibold text-purple-400">6 / 6 Valid Anchors</div>
+                </div>
+              </div>
+              <div class="bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.04] flex items-center space-x-2.5">
+                <i class="fa-solid fa-diagram-project text-teal-400 text-sm"></i>
+                <div>
+                  <div class="text-white/40 text-[10px]">Semantic AST Merge</div>
+                  <div class="font-semibold text-teal-400">Clean Convergence</div>
                 </div>
               </div>
             </div>
           </div>
 
-        </div>
-      </div>
-
-      <!-- VIEW 3: GITHUB PR & PEER REVIEW MATRIX -->
-      <div id="view-prs" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-lg font-bold text-slate-100 flex items-center space-x-2">
-              <i class="fa-solid fa-code-pull-request text-emerald-400"></i>
-              <span>GitHub PR 协同审核与智能体审查矩阵 (PR Peer Review)</span>
-            </h2>
-            <p class="text-xs text-slate-400 mt-1">融合 GitHub PR 审查网关，由批判 Agent、调和 Agent 与人类主编进行行级内联修订</p>
-          </div>
-
-          <div class="flex items-center space-x-3">
-            <span class="text-xs px-3 py-1 bg-emerald-900/50 text-emerald-300 border border-emerald-700/50 rounded-lg flex items-center space-x-1.5">
-              <i class="fa-solid fa-circle-check text-emerald-400"></i>
-              <span>Quality Gates: 4/4 Passed</span>
-            </span>
-            <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-lg font-medium shadow flex items-center space-x-1.5">
-              <i class="fa-solid fa-check-double"></i>
-              <span>Approve & Merge to main</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- PR Metadata Header Card -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 shadow">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div class="flex items-center space-x-3">
-              <span class="px-2.5 py-1 bg-emerald-600/20 text-emerald-300 font-bold text-xs rounded border border-emerald-500/40">OPEN</span>
-              <h3 class="font-bold text-sm text-slate-200">PR #14: feat(sec_05): 完善基准测试对比与消除 AI 套话</h3>
-              <span class="text-slate-400 text-xs font-mono">by @Drafter-Narrative</span>
+          <!-- Clean macOS Code Diff Block -->
+          <div class="apple-card overflow-hidden">
+            <div class="bg-white/[0.03] px-4 py-2 text-xs font-mono font-medium text-white/60 border-b border-white/[0.06] flex items-center justify-between">
+              <span>sections/05_empirical_benchmarks.md</span>
+              <span class="text-[11px] text-white/40">+14 -4 lines</span>
             </div>
-            <div class="text-xs text-slate-400">
-              Branch: <code class="bg-slate-800 px-2 py-0.5 rounded text-blue-300">synapse/sec-05-benchmarks</code> ➔ <code class="bg-slate-800 px-2 py-0.5 rounded text-slate-300">main</code>
-            </div>
-          </div>
 
-          <!-- Quality Gates Badges -->
-          <div class="grid grid-cols-4 gap-3 pt-3 text-xs">
-            <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
-              <i class="fa-solid fa-shield-halved text-emerald-400 text-base"></i>
-              <div>
-                <div class="text-slate-400 text-[10px]">Anti-AI Gate</div>
-                <div class="font-semibold text-emerald-300">0 Clichés Detected</div>
+            <div class="font-mono text-xs divide-y divide-white/[0.04]">
+              <div class="flex bg-black/10">
+                <span class="w-10 text-right pr-3 py-1 text-white/20">3</span>
+                <span class="w-10 text-right pr-3 py-1 text-white/20">3</span>
+                <span class="px-3 py-1 text-white/60">实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。</span>
               </div>
-            </div>
 
-            <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
-              <i class="fa-solid fa-table-cells text-blue-400 text-base"></i>
-              <div>
-                <div class="text-slate-400 text-[10px]">Table Standard</div>
-                <div class="font-semibold text-blue-300">Booktabs Verified</div>
+              <div class="flex bg-rose-950/20 text-rose-300">
+                <span class="w-10 text-right pr-3 py-1 text-rose-500/60">4</span>
+                <span class="w-10 text-right pr-3 py-1"></span>
+                <span class="px-3 py-1">- 综上所述，值得注意的是，系统展现出巨大的潜力与广阔的前景，全面赋能业务。</span>
               </div>
-            </div>
 
-            <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
-              <i class="fa-solid fa-quote-right text-purple-400 text-base"></i>
-              <div>
-                <div class="text-slate-400 text-[10px]">BibTeX Citations</div>
-                <div class="font-semibold text-purple-300">6 / 6 Valid Anchors</div>
+              <div class="flex bg-emerald-950/20 text-emerald-300">
+                <span class="w-10 text-right pr-3 py-1"></span>
+                <span class="w-10 text-right pr-3 py-1 text-emerald-500/60">4</span>
+                <span class="px-3 py-1">+ 得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。</span>
               </div>
-            </div>
 
-            <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
-              <i class="fa-solid fa-diagram-project text-teal-400 text-base"></i>
-              <div>
-                <div class="text-slate-400 text-[10px]">Semantic AST Merge</div>
-                <div class="font-semibold text-teal-300">Clean Convergence</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Line-by-Line Diff & Agent Comments -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow">
-          <div class="bg-slate-800/80 px-4 py-2.5 text-xs font-mono font-bold text-slate-300 border-b border-slate-700 flex items-center justify-between">
-            <span>sections/05_empirical_benchmarks.md</span>
-            <span class="text-slate-400 font-normal">Showing +14 -4 lines</span>
-          </div>
-
-          <div class="font-mono text-xs divide-y divide-slate-800/60">
-            <!-- Diff Line 1 -->
-            <div class="flex bg-slate-900/40 hover:bg-slate-800/30">
-              <span class="w-12 text-right pr-3 py-1 text-slate-600 select-none">3</span>
-              <span class="w-12 text-right pr-3 py-1 text-slate-600 select-none">3</span>
-              <span class="px-3 py-1 text-slate-400">实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。</span>
-            </div>
-
-            <!-- Diff Line 2 (Removed Cliché) -->
-            <div class="flex bg-rose-950/40 text-rose-300">
-              <span class="w-12 text-right pr-3 py-1 text-rose-500/80 select-none">4</span>
-              <span class="w-12 text-right pr-3 py-1 select-none"></span>
-              <span class="px-3 py-1"><span class="bg-rose-900/80 px-1 rounded">- 综上所述，值得注意的是，系统展现出巨大的潜力与广阔的前景，全面赋能业务。</span></span>
-            </div>
-
-            <!-- Diff Line 3 (Added Analytical Prose) -->
-            <div class="flex bg-emerald-950/40 text-emerald-300">
-              <span class="w-12 text-right pr-3 py-1 select-none"></span>
-              <span class="w-12 text-right pr-3 py-1 text-emerald-500/80 select-none">4</span>
-              <span class="px-3 py-1"><span class="bg-emerald-900/80 px-1 rounded">+ 得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。</span></span>
-            </div>
-
-            <!-- Inline Agent Comment from Critic -->
-            <div class="bg-indigo-950/30 p-3 pl-16 border-y border-indigo-900/40 my-1">
-              <div class="flex items-start space-x-3">
-                <div class="w-6 h-6 rounded-full bg-rose-600 flex items-center justify-center text-white text-[10px] shrink-0 font-bold">
-                  <i class="fa-solid fa-shield-halved"></i>
-                </div>
-                <div class="flex-1 text-xs">
-                  <div class="flex items-center space-x-2 mb-1">
-                    <span class="font-bold text-slate-200">🤖 Critic-Adversarial [Bot Reviewer]</span>
-                    <span class="px-1.5 py-0.2 bg-rose-900/50 text-rose-300 text-[10px] rounded">Fact-Check Suggestion</span>
-                    <span class="text-slate-500 text-[10px]">Just now</span>
+              <!-- Inline Critic Agent Suggestion Card -->
+              <div class="bg-indigo-950/20 p-3 pl-14 border-y border-indigo-500/20">
+                <div class="flex items-start space-x-3">
+                  <div class="w-5 h-5 rounded-full bg-rose-600 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                    <i class="fa-solid fa-shield-halved"></i>
                   </div>
-                  <p class="text-slate-300 mb-2">段落包含定量结论 <code class="text-amber-300">74.2%</code>，请补充标准 BibTeX 引用锚点 <code class="text-blue-300">@antigravity2026gitops</code> 以保证学术复现性。</p>
-                  
-                  <!-- GitHub Inline Suggestion Block -->
-                  <div class="bg-slate-900 rounded border border-slate-700 p-2 text-xs font-mono text-slate-200">
-                    <div class="text-[10px] text-slate-400 mb-1">Suggested change:</div>
-                    <div class="text-emerald-400 bg-emerald-950/30 p-1.5 rounded">
-                      + 全篇段落有机叙事度评分在标准化评估矩阵中获得了 74.2% 的显著提升 @antigravity2026gitops。
+                  <div class="flex-1 text-xs">
+                    <div class="flex items-center space-x-2 mb-1">
+                      <span class="font-semibold text-white">🤖 Critic-Adversarial [Bot Reviewer]</span>
+                      <span class="px-1.5 py-0.2 bg-rose-500/20 text-rose-300 text-[9px] rounded">Fact-Check</span>
+                      <span class="text-white/30 text-[10px]">Just now</span>
+                    </div>
+                    <p class="text-white/70 mb-2">段落包含定量结论 <code class="text-amber-300">74.2%</code>，请补充标准 BibTeX 引用锚点 <code class="text-blue-300">@antigravity2026gitops</code> 以保证学术复现性。</p>
+
+                    <!-- Inline Suggestion Patch Block -->
+                    <div class="bg-black/40 rounded-lg border border-white/[0.08] p-2 text-xs font-mono">
+                      <div class="text-[9px] text-white/40 mb-1">Suggested patch:</div>
+                      <div class="text-emerald-400 bg-emerald-950/30 p-1.5 rounded">
+                        + 全篇段落有机叙事度评分在标准化评估矩阵中获得了 74.2% 的显著提升 @antigravity2026gitops。
+                      </div>
+                    </div>
+
+                    <div class="mt-2 flex items-center space-x-2">
+                      <button class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] px-3 py-1 rounded-md font-medium shadow-sm transition">
+                        Accept Suggestion (一键采纳)
+                      </button>
+                      <button class="bg-white/[0.06] hover:bg-white/[0.1] text-white/70 text-[11px] px-3 py-1 rounded-md transition">
+                        Reply...
+                      </button>
                     </div>
                   </div>
-
-                  <div class="mt-2 flex items-center space-x-2">
-                    <button class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] px-3 py-1 rounded font-medium shadow transition">
-                      Accept Suggestion (一键采纳)
-                    </button>
-                    <button class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] px-3 py-1 rounded border border-slate-700 transition">
-                      Reply...
-                    </button>
-                  </div>
                 </div>
+              </div>
+
+              <div class="flex bg-black/10">
+                <span class="w-10 text-right pr-3 py-1 text-white/20">5</span>
+                <span class="w-10 text-right pr-3 py-1 text-white/20">5</span>
+                <span class="px-3 py-1 text-white/60">平均单次合并请求的审核与定稿周期缩短了 84.3%，有效降低审稿认知负荷。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW 4: TELEMETRY & LOGS -->
+        <div id="view-analytics" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
+          <h2 class="text-base font-bold text-white mb-4">多智能体拓扑与实时遥测指标</h2>
+          
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="apple-card p-4">
+              <div class="text-xs text-white/50">并发活跃成员</div>
+              <div class="text-xl font-bold text-white mt-1 font-mono">5 Agents / 8 Humans</div>
+              <div class="text-[10px] text-emerald-400 mt-1">● 跨 4 个全球物理时区协同</div>
+            </div>
+            <div class="apple-card p-4">
+              <div class="text-xs text-white/50">AST 伪冲突消解率</div>
+              <div class="text-xl font-bold text-blue-400 mt-1 font-mono">96.9%</div>
+              <div class="text-[10px] text-white/40 mt-1">从 42.8% 降至 3.1%</div>
+            </div>
+            <div class="apple-card p-4">
+              <div class="text-xs text-white/50">Anti-AI 异味消除指数</div>
+              <div class="text-xl font-bold text-emerald-400 mt-1 font-mono">100.0%</div>
+              <div class="text-[10px] text-white/40 mt-1">0 Cliché / 0 Fragmented List</div>
+            </div>
+          </div>
+
+          <div class="apple-card p-4 flex-1">
+            <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">Live Swarm Event Stream</h3>
+            <div class="font-mono text-xs space-y-1.5 text-white/50">
+              <div class="text-emerald-400">[16:14:02] [SWARM_ENGINE] Drafter-Narrative acquired 3600s lease on section 'sec_04_consensus'.</div>
+              <div class="text-blue-400">[16:14:18] [CI_GATE] AntiAILinter scanned 430 words, 0 clichés detected. Passed.</div>
+              <div class="text-amber-400">[16:14:35] [PR_BOT] Critic Agent submitted 1 inline suggestion on line 4 of PR #14.</div>
+              <div class="text-indigo-400">[16:15:01] [AST_MERGE] Reconciled concurrent modifications between @Elena_V and @Drafter-Narrative.</div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- COLUMN 3: RIGHT PANEL - Live Feed & Swarm Chat -->
+      <aside class="w-72 apple-glass-sidebar flex flex-col shrink-0 border-l border-white/[0.06]">
+        <div class="p-3 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/60 font-semibold tracking-wider uppercase">
+          <span class="flex items-center space-x-1.5 text-white/80">
+            <i class="fa-solid fa-tower-broadcast text-emerald-400 text-xs"></i>
+            <span>Swarm Telemetry</span>
+          </span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        </div>
+
+        <!-- Active Agents Grid -->
+        <div class="p-3 border-b border-white/[0.06] space-y-2">
+          <div class="text-[10px] font-bold text-white/40 uppercase tracking-wider">Active Swarm Roles</div>
+          
+          <div class="apple-card p-2 flex items-center space-x-2.5 border-purple-500/20">
+            <div class="w-6 h-6 rounded-md bg-purple-600/30 flex items-center justify-center text-purple-300 text-xs">🤖</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-xs text-white truncate">Drafter-Narrative</span>
+                <span class="text-[9px] text-purple-400 font-mono">Writing</span>
+              </div>
+              <div class="text-[10px] text-white/40 truncate">sec_04_consensus (85 t/s)</div>
+            </div>
+          </div>
+
+          <div class="apple-card p-2 flex items-center space-x-2.5 border-rose-500/20">
+            <div class="w-6 h-6 rounded-md bg-rose-600/30 flex items-center justify-center text-rose-300 text-xs">🛡️</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-xs text-white truncate">Critic-Adversarial</span>
+                <span class="text-[9px] text-rose-400 font-mono">Auditing</span>
+              </div>
+              <div class="text-[10px] text-white/40 truncate">Reviewing PR #14 Diffs</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Chat -->
+        <div class="flex-1 flex flex-col min-h-0">
+          <div class="px-3 py-2 text-[10px] font-bold text-white/40 uppercase tracking-wider">Swarm Alignment Chat</div>
+          
+          <div class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
+            <div>
+              <div class="flex items-center space-x-1.5 mb-0.5">
+                <span class="font-semibold text-blue-300 text-[11px]">@xb</span>
+                <span class="text-[9px] text-white/30">16:10</span>
+              </div>
+              <div class="apple-card p-2 text-white/90 text-[11px]">
+                请注意第 4 章和第 5 章的过渡，务必遵循学术专业散文体，杜绝分点流水账。
               </div>
             </div>
 
-            <!-- Diff Line 4 -->
-            <div class="flex bg-slate-900/40 hover:bg-slate-800/30">
-              <span class="w-12 text-right pr-3 py-1 text-slate-600 select-none">5</span>
-              <span class="w-12 text-right pr-3 py-1 text-slate-600 select-none">5</span>
-              <span class="px-3 py-1 text-slate-400">平均单次合并请求的审核与定稿周期缩短了 84.3%，有效降低审稿认知负荷。</span>
+            <div>
+              <div class="flex items-center space-x-1.5 mb-0.5">
+                <span class="font-semibold text-rose-300 text-[11px]">🤖 Critic-Adversarial</span>
+                <span class="text-[9px] text-white/30">16:11</span>
+              </div>
+              <div class="apple-card p-2 text-rose-200 text-[11px] border-rose-500/20 bg-rose-950/20">
+                已完成对 PR #14 的行级审查，提出 1 处 BibTeX 引用补充建议。
+              </div>
             </div>
 
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW 4: SWARM ANALYTICS & LOGS -->
-      <div id="view-analytics" class="hidden flex-1 flex flex-col p-6 overflow-y-auto">
-        <h2 class="text-lg font-bold text-slate-100 mb-4 flex items-center space-x-2">
-          <i class="fa-solid fa-chart-network text-teal-400"></i>
-          <span>多智能体协作吞吐量与拓扑状态</span>
-        </h2>
-
-        <div class="grid grid-cols-3 gap-4 mb-6">
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-400">并发智能体活跃数</div>
-            <div class="text-2xl font-bold text-slate-100 mt-1 font-mono">5 Agents / 8 Humans</div>
-            <div class="text-[11px] text-emerald-400 mt-1">● 跨 4 个全球物理时区协同</div>
-          </div>
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-400">AST 伪冲突消解率</div>
-            <div class="text-2xl font-bold text-blue-400 mt-1 font-mono">96.9%</div>
-            <div class="text-[11px] text-slate-400 mt-1">从 42.8% 降至 3.1% 真实阻塞</div>
-          </div>
-          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-400">Anti-AI 异味消除指数</div>
-            <div class="text-2xl font-bold text-emerald-400 mt-1 font-mono">100.0%</div>
-            <div class="text-[11px] text-slate-400 mt-1">0 Cliché / 0 Fragmented List</div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">实时系统事件日志流 (Live Event Stream)</h3>
-          <div class="font-mono text-xs space-y-1.5 text-slate-400">
-            <div class="text-emerald-400">[16:14:02] [SWARM_ENGINE] Drafter-Narrative acquired 3600s lease on section 'sec_04_consensus'.</div>
-            <div class="text-blue-400">[16:14:18] [CI_GATE] AntiAILinter scanned 430 words, 0 clichés detected. Passed.</div>
-            <div class="text-amber-400">[16:14:35] [PR_BOT] Critic Agent submitted 1 inline suggestion on line 4 of PR #14.</div>
-            <div class="text-indigo-400">[16:15:01] [AST_MERGE] Reconciled concurrent modifications between @Elena_V and @Drafter-Narrative without collision.</div>
-          </div>
-        </div>
-      </div>
-
-    </main>
-
-    <!-- RIGHT SIDEBAR: Live Activity Stream & Swarm Telemetry -->
-    <aside class="w-72 border-l border-slate-800 bg-[#0f172a]/60 flex flex-col shrink-0">
-      <div class="p-3 border-b border-slate-800 flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
-          <i class="fa-solid fa-tower-broadcast text-emerald-400 text-xs"></i>
-          <span>Live Swarm Feed</span>
-        </span>
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      </div>
-
-      <!-- Agent Live Cards -->
-      <div class="p-3 border-b border-slate-800/80 space-y-2">
-        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Swarm Roles</div>
-        
-        <!-- Drafter Card -->
-        <div class="bg-slate-900/90 border border-purple-500/30 rounded-lg p-2 flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-xs">
-            <i class="fa-solid fa-robot"></i>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-xs text-slate-200 truncate">Drafter-Narrative</span>
-              <span class="text-[10px] text-purple-400 font-mono">Writing</span>
-            </div>
-            <div class="text-[10px] text-slate-400 truncate">Working on sec_04_consensus</div>
-          </div>
-        </div>
-
-        <!-- Critic Card -->
-        <div class="bg-slate-900/90 border border-rose-500/30 rounded-lg p-2 flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-300 text-xs">
-            <i class="fa-solid fa-shield-halved"></i>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-xs text-slate-200 truncate">Critic-Adversarial</span>
-              <span class="text-[10px] text-rose-400 font-mono">Auditing</span>
-            </div>
-            <div class="text-[10px] text-slate-400 truncate">Reviewing PR #14 Diffs</div>
-          </div>
-        </div>
-
-        <!-- Harmonizer Card -->
-        <div class="bg-slate-900/90 border border-teal-500/30 rounded-lg p-2 flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-teal-600/30 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-xs text-slate-200 truncate">Harmonizer-Voice</span>
-              <span class="text-[10px] text-teal-400 font-mono">Idle</span>
-            </div>
-            <div class="text-[10px] text-slate-400 truncate">Standing by for sec_06</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Discussion / Chat Log -->
-      <div class="flex-1 flex flex-col min-h-0">
-        <div class="px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Swarm Alignment Chat</div>
-        
-        <div class="flex-1 p-3 overflow-y-auto space-y-3 text-xs">
-          <!-- Chat 1: Human Owner -->
-          <div>
-            <div class="flex items-center space-x-1.5 mb-1">
-              <span class="font-bold text-blue-300">@xb</span>
-              <span class="text-[10px] text-slate-500">16:10</span>
-            </div>
-            <div class="bg-slate-800/90 p-2 rounded-lg text-slate-200 text-[11px] border border-slate-700/50">
-              请注意第 4 章和第 5 章的过渡，务必遵循学术专业散文体，杜绝分点流水账。
+            <div>
+              <div class="flex items-center space-x-1.5 mb-0.5">
+                <span class="font-semibold text-amber-300 text-[11px]">@Elena_V (London)</span>
+                <span class="text-[9px] text-white/30">16:13</span>
+              </div>
+              <div class="apple-card p-2 text-white/90 text-[11px]">
+                Got it! I am reviewing the LaTeX equations in Section 2 now.
+              </div>
             </div>
           </div>
 
-          <!-- Chat 2: Critic Agent -->
-          <div>
-            <div class="flex items-center space-x-1.5 mb-1">
-              <span class="font-bold text-rose-300">🤖 Critic-Adversarial</span>
-              <span class="text-[10px] text-slate-500">16:11</span>
-            </div>
-            <div class="bg-rose-950/20 p-2 rounded-lg text-rose-200 text-[11px] border border-rose-900/30">
-              已完成对 PR #14 的行级审查，提出 1 处 BibTeX 引用补充建议。
-            </div>
-          </div>
-
-          <!-- Chat 3: Elena_V -->
-          <div>
-            <div class="flex items-center space-x-1.5 mb-1">
-              <span class="font-bold text-amber-300">@Elena_V (London)</span>
-              <span class="text-[10px] text-slate-500">16:13</span>
-            </div>
-            <div class="bg-slate-800/90 p-2 rounded-lg text-slate-200 text-[11px] border border-slate-700/50">
-              Got it! I am reviewing the LaTeX equations in Section 2 now.
+          <!-- Chat Input -->
+          <div class="p-2.5 border-t border-white/[0.06] bg-black/40">
+            <div class="flex items-center bg-white/[0.06] rounded-xl px-2.5 py-1.5 border border-white/[0.08]">
+              <input type="text" placeholder="Message Swarm or invoke @Agent..." class="bg-transparent text-xs text-white placeholder-white/30 focus:outline-none flex-1">
+              <button class="text-blue-400 hover:text-blue-300 text-xs ml-1"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
           </div>
         </div>
+      </aside>
 
-        <!-- Chat Input -->
-        <div class="p-2 border-t border-slate-800 bg-slate-900/90">
-          <div class="flex items-center bg-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-700">
-            <input type="text" placeholder="Message Swarm or invoke @Agent..." class="bg-transparent text-xs text-slate-200 placeholder-slate-500 focus:outline-none flex-1">
-            <button class="text-blue-400 hover:text-blue-300 text-xs ml-1"><i class="fa-solid fa-paper-plane"></i></button>
-          </div>
-        </div>
-      </div>
-    </aside>
+    </div>
 
   </div>
 
-  <!-- MODAL: CREATE ROOM -->
-  <div id="modal-create-room" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-base text-white flex items-center space-x-2">
-          <i class="fa-solid fa-door-open text-blue-400"></i>
+  <!-- MODAL: CREATE ROOM (macOS Sheet Style) -->
+  <div id="modal-create-room" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
           <span>创建新协作房间 (Create Room)</span>
         </h3>
-        <button onclick="closeModal('modal-create-room')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-create-room')" class="text-white/40 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block font-medium text-slate-300 mb-1">房间名称 (Room Slug)</label>
-          <input type="text" value="sci-fi-universe-lore-bible" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none font-mono">
+          <label class="block font-medium text-white/70 mb-1">房间名称 (Room Slug)</label>
+          <input type="text" value="sci-fi-universe-lore-bible" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none font-mono">
         </div>
         <div>
-          <label class="block font-medium text-slate-300 mb-1">文档类型 (Document Type)</label>
-          <select class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none">
+          <label class="block font-medium text-white/70 mb-1">文档类型 (Document Type)</label>
+          <select class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
             <option>Academic Whitepaper / Research Paper</option>
             <option>Creative Novel / Lore Bible</option>
             <option>Technical System Specification</option>
           </select>
         </div>
-        <div>
-          <label class="block font-medium text-slate-300 mb-1">初始 Agent Swarm 阵容</label>
-          <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-            <label class="flex items-center space-x-2 bg-slate-800 p-2 rounded"><input type="checkbox" checked> <span>Architect Agent</span></label>
-            <label class="flex items-center space-x-2 bg-slate-800 p-2 rounded"><input type="checkbox" checked> <span>Narrative Drafter</span></label>
-            <label class="flex items-center space-x-2 bg-slate-800 p-2 rounded"><input type="checkbox" checked> <span>Critic & Fact-Checker</span></label>
-            <label class="flex items-center space-x-2 bg-slate-800 p-2 rounded"><input type="checkbox" checked> <span>Style Harmonizer</span></label>
-          </div>
-        </div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
-        <button onclick="closeModal('modal-create-room')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs hover:bg-slate-700">Cancel</button>
-        <button onclick="closeModal('modal-create-room')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-500 shadow">Create & Launch</button>
+      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-white/[0.08]">
+        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-white/[0.08] text-white/70 rounded-xl text-xs hover:bg-white/[0.12]">Cancel</button>
+        <button onclick="closeModal('modal-create-room')" class="px-4 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-500 shadow">Create & Launch</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: INVITE MEMBERS -->
-  <div id="modal-invite" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-base text-white flex items-center space-x-2">
-          <i class="fa-solid fa-user-plus text-indigo-400"></i>
+  <!-- MODAL: INVITE MEMBERS (macOS Sheet Style) -->
+  <div id="modal-invite" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
           <span>邀请协作者加入房间 (Invite Collaborators)</span>
         </h3>
-        <button onclick="closeModal('modal-invite')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-invite')" class="text-white/40 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block font-medium text-slate-300 mb-1">GitHub 用户名或电子邮箱</label>
-          <input type="text" placeholder="e.g. 361487867@qq.com, @octocat" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+          <label class="block font-medium text-white/70 mb-1">GitHub 用户名或电子邮箱</label>
+          <input type="text" placeholder="e.g. 361487867@qq.com, @octocat" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
         </div>
         <div>
-          <label class="block font-medium text-slate-300 mb-1">分配角色权限 (Role)</label>
-          <select class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+          <label class="block font-medium text-white/70 mb-1">分配权限角色</label>
+          <select class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
             <option>Co-Author (可认领任务与提交 PR)</option>
             <option>Lead Reviewer (PR 批准合并权限)</option>
             <option>Observer / Reader (只读权限)</option>
           </select>
         </div>
-        <div>
-          <label class="block font-medium text-slate-300 mb-1">快速邀请链接</label>
-          <div class="flex items-center bg-slate-800 p-2 rounded-lg border border-slate-700 font-mono text-[11px] text-slate-400">
-            <span class="truncate flex-1">https://synapseforge.io/room/agi-whitepaper?token=7f9a2b</span>
-            <button class="text-indigo-400 hover:text-indigo-300 ml-2 font-bold">Copy</button>
-          </div>
-        </div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
-        <button onclick="closeModal('modal-invite')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs hover:bg-slate-700">Close</button>
-        <button onclick="closeModal('modal-invite')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-500 shadow">Send Invitations</button>
+      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-white/[0.08]">
+        <button onclick="closeModal('modal-invite')" class="px-4 py-1.5 bg-white/[0.08] text-white/70 rounded-xl text-xs hover:bg-white/[0.12]">Close</button>
+        <button onclick="closeModal('modal-invite')" class="px-4 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-500 shadow">Send Invites</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: PUBLISH TASK -->
-  <div id="modal-publish-task" class=" fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-base text-white flex items-center space-x-2">
-          <i class="fa-solid fa-bullhorn text-teal-400"></i>
+  <!-- MODAL: PUBLISH TASK (macOS Sheet Style) -->
+  <div id="modal-publish-task" class=" fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="apple-glass rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
           <span>发布新章节撰写任务 (Dispatch Task)</span>
         </h3>
-        <button onclick="closeModal('modal-publish-task')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-publish-task')" class="text-white/40 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-300 mb-1">Section ID</label>
-            <input type="text" value="sec_07_evaluations" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono focus:border-teal-500 focus:outline-none">
+            <label class="block font-medium text-white/70 mb-1">Section ID</label>
+            <input type="text" value="sec_07_evaluations" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2 text-white font-mono focus:border-blue-500 focus:outline-none">
           </div>
           <div>
-            <label class="block font-medium text-slate-300 mb-1">目标字数 (Target Words)</label>
-            <input type="number" value="1200" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono focus:border-teal-500 focus:outline-none">
+            <label class="block font-medium text-white/70 mb-1">目标字数 (Target Words)</label>
+            <input type="number" value="1200" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2 text-white font-mono focus:border-blue-500 focus:outline-none">
           </div>
         </div>
 
         <div>
-          <label class="block font-medium text-slate-300 mb-1">任务标题</label>
-          <input type="text" value="大规模超长上下文下的语义漂移收敛测试" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-teal-500 focus:outline-none">
+          <label class="block font-medium text-white/70 mb-1">任务标题</label>
+          <input type="text" value="大规模超长上下文下的语义漂移收敛测试" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
         </div>
 
         <div>
-          <label class="block font-medium text-slate-300 mb-1">写作要求与机理提示 (Prompt Guidelines)</label>
-          <textarea rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-teal-500 focus:outline-none">要求全篇采用专业散文长文叙事，杜绝流水账列表；对比实验必须使用学术三线表呈现，严格核验 BibTeX 引用。</textarea>
-        </div>
-
-        <div>
-          <label class="block font-medium text-slate-300 mb-1">分派策略</label>
-          <div class="flex items-center space-x-3 text-slate-300">
-            <label class="flex items-center space-x-1.5"><input type="radio" name="dispatch" checked> <span>开放给所有人与 Agent 实时认领</span></label>
-            <label class="flex items-center space-x-1.5"><input type="radio" name="dispatch"> <span>指定 Agent: Drafter-Narrative</span></label>
-          </div>
+          <label class="block font-medium text-white/70 mb-1">写作要求与机理提示 (Prompt Guidelines)</label>
+          <textarea rows="3" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">要求全篇采用专业散文长文叙事，杜绝流水账列表；对比实验必须使用学术三线表呈现，严格核验 BibTeX 引用。</textarea>
         </div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
-        <button onclick="closeModal('modal-publish-task')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs hover:bg-slate-700">Cancel</button>
-        <button onclick="closeModal('modal-publish-task')" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-teal-500 text-white rounded-lg text-xs font-medium hover:from-blue-500 hover:to-teal-400 shadow">Dispatch to Board</button>
+      <div class="flex items-center justify-end space-x-2 pt-3 border-t border-white/[0.08]">
+        <button onclick="closeModal('modal-publish-task')" class="px-4 py-1.5 bg-white/[0.08] text-white/70 rounded-xl text-xs hover:bg-white/[0.12]">Cancel</button>
+        <button onclick="closeModal('modal-publish-task')" class="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl text-xs font-medium hover:from-blue-600 hover:to-indigo-700 shadow">Dispatch Task</button>
       </div>
     </div>
   </div>
@@ -1001,10 +935,10 @@
         const btn = document.getElementById('tab-btn-' + v);
         if (v === tab) {
           el.classList.remove('hidden');
-          btn.className = 'px-3 py-1 text-xs rounded-md font-medium text-white bg-blue-600 shadow flex items-center space-x-1.5 transition';
+          btn.className = 'segmented-btn active px-3.5 py-1 text-xs font-medium text-white flex items-center space-x-1.5';
         } else {
           el.classList.add('hidden');
-          btn.className = 'px-3 py-1 text-xs rounded-md font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition';
+          btn.className = 'segmented-btn px-3.5 py-1 text-xs font-medium text-white/60 hover:text-white flex items-center space-x-1.5';
         }
       });
     }
@@ -1018,11 +952,10 @@
     }
 
     function selectFile(secId) {
-      // Switch file logic
-      document.querySelectorAll('.file-item').forEach(el => {
-        el.className = 'file-item flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-slate-400 hover:text-slate-200 hover:bg-slate-800/50';
+      document.querySelectorAll('.file-node').forEach(el => {
+        el.className = 'file-node flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition';
       });
-      event.currentTarget.className = 'file-item active flex items-center justify-between px-2 py-1.5 rounded cursor-pointer bg-blue-600/20 text-blue-300 border border-blue-500/30';
+      event.currentTarget.className = 'file-node active flex items-center justify-between px-2 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition';
       switchTab('editor');
     }
   </script>
