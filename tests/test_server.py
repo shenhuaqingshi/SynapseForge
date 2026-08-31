@@ -55,3 +55,31 @@ def test_server_post_save_api(remote_server):
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
         assert data["word_count"] > 0
+
+
+def test_server_session_get_and_post(remote_server):
+    # 1. GET session
+    with urllib.request.urlopen(f"{remote_server}/api/session") as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        assert data["ok"] is True
+        assert "room_id" in data["session"]
+
+    # 2. POST update session state
+    payload = json.dumps({
+        "room_id": "room-special-sync",
+        "room_name": "Special AGI Swarm",
+        "active_section": "sec_05",
+        "draftContent": "# Testing draft state"
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{remote_server}/api/session",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    with urllib.request.urlopen(req) as resp:
+        assert resp.status == 200
+        res_data = json.loads(resp.read().decode("utf-8"))
+        assert res_data["ok"] is True
+        assert res_data["session"]["room_id"] == "room-special-sync"

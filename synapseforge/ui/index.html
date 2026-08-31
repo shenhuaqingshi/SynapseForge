@@ -114,11 +114,11 @@
         sections / <span id="top-section-name" class="text-zinc-200 font-medium">02_theoretical_foundations.md</span>
       </div>
 
-      <!-- Right: Minimal Status -->
+      <!-- Right: Minimal Status & Network Watchdog -->
       <div class="flex items-center space-x-3 text-xs">
-        <div class="flex items-center space-x-1.5 text-zinc-400">
+        <div id="network-badge" class="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium transition">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span class="text-[11px] font-mono text-zinc-400">Mesh Active</span>
+          <span id="network-badge-text" class="font-mono">Mesh Connected (Room #1)</span>
         </div>
         
         <button onclick="triggerAgentDraft()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1 rounded-md transition font-medium">
@@ -521,10 +521,95 @@
       }
     }
 
+    // Session & Network State Watchdog
+    const STORAGE_KEY = 'synapseforge_session_state';
+
+    function saveLocalSession() {
+      const editor = document.getElementById('markdown-editor');
+      const sessionData = {
+        room_id: 'room-global-sync',
+        room_name: 'Decentralized Swarm Room #1',
+        currentSection: currentSection,
+        draftContent: editor ? editor.value : '',
+        timestamp: Date.now()
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+        // Optimistically notify server if reachable
+        if (navigator.onLine) {
+          fetch('/api/session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(sessionData)
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    function restoreLocalSession() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session.currentSection && SECTIONS[session.currentSection]) {
+            currentSection = session.currentSection;
+            switchSection(currentSection);
+            if (session.draftContent) {
+              document.getElementById('markdown-editor').value = session.draftContent;
+            }
+            renderLivePreview();
+            showNetworkToast('已无缝恢复至断线前房间与文档状态');
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function showNetworkToast(msg, isWarning = false) {
+      const badge = document.getElementById('network-badge');
+      const text = document.getElementById('network-badge-text');
+      if (badge && text) {
+        text.innerText = msg;
+        if (isWarning) {
+          badge.className = 'flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-medium transition';
+        } else {
+          badge.className = 'flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium transition';
+        }
+      }
+    }
+
+    function setupNetworkWatchdog() {
+      window.addEventListener('offline', () => {
+        showNetworkToast('网络抖动/离线：已自动暂存至本地磁盘', true);
+      });
+
+      window.addEventListener('online', () => {
+        showNetworkToast('网络已恢复：已自动重连回原房间与原界面', false);
+        // Resync
+        fetch('/api/session').then(r => r.json()).then(data => {
+          if (data.ok && data.session) {
+            saveLocalSession();
+          }
+        }).catch(() => {});
+      });
+
+      const editor = document.getElementById('markdown-editor');
+      if (editor) {
+        editor.addEventListener('input', () => {
+          saveLocalSession();
+        });
+      }
+    }
+
     // Initialize when KaTeX is loaded
     window.addEventListener('DOMContentLoaded', () => {
+      setupNetworkWatchdog();
       setTimeout(() => {
-        switchSection('sec_02');
+        const restored = restoreLocalSession();
+        if (!restored) {
+          switchSection('sec_02');
+        }
       }, 200);
     });
   </script>

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import time
 import urllib.parse
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -64,6 +65,10 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True, "citations": cite.list_citations()})
             return
 
+        elif path == "/api/session":
+            self._handle_api_get_session()
+            return
+
         elif path.startswith("/assets/") or path.startswith("/dist/"):
             super().do_GET()
             return
@@ -81,7 +86,9 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         except Exception:
             data = {}
 
-        if path == "/api/doc/save":
+        if path == "/api/session":
+            self._handle_api_save_session(data)
+        elif path == "/api/doc/save":
             self._handle_api_save(data)
         elif path == "/api/agent/dispatch":
             self._handle_api_dispatch(data)
@@ -194,6 +201,32 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         output_pdf = self.root_dir / "dist" / "remote_build_report.pdf"
         res = tool.compile_markdown_to_pdf(input_file, output_pdf, title=data.get("title", "SynapseForge Remote Build"))
         self._send_json(res)
+
+    def _handle_api_get_session(self):
+        session_file = self.root_dir / ".synapse" / "session.json"
+        if session_file.exists():
+            try:
+                data = json.loads(session_file.read_text(encoding="utf-8"))
+                self._send_json({"ok": True, "session": data})
+                return
+            except Exception:
+                pass
+        
+        # Default session
+        default_sess = {
+            "room_id": "room-global-sync",
+            "room_name": "Decentralized Swarm Room #1",
+            "active_section": "sec_04",
+            "last_active": time.time(),
+        }
+        self._send_json({"ok": True, "session": default_sess})
+
+    def _handle_api_save_session(self, data: Dict[str, Any]):
+        session_file = self.root_dir / ".synapse" / "session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        data["last_active"] = time.time()
+        session_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._send_json({"ok": True, "message": "Session state saved", "session": data})
 
 
 def start_server(host: str = "0.0.0.0", port: int = 8765) -> ThreadingHTTPServer:
