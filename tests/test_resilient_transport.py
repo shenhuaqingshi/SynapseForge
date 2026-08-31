@@ -56,3 +56,31 @@ def test_lease_grace_period_during_jitter(tmp_path):
     assert check["valid"] is True
     assert check["in_grace_period"] is True
     assert check["grace_remaining_seconds"] > 200
+
+
+def test_outbox_load_events_backs_up_corrupt_file(tmp_path):
+    """A corrupted queue file must be preserved as .corrupt backup, not dropped."""
+    outbox = OutboxQueue(workspace_root=tmp_path)
+    outbox.queue_file.write_text("{corrupted json!!", encoding="utf-8")
+
+    assert outbox._load_events() == []
+
+    corrupt_backup = outbox.outbox_dir / "pending_events.json.corrupt"
+    assert corrupt_backup.exists()
+    assert corrupt_backup.read_text(encoding="utf-8") == "{corrupted json!!"
+    assert not outbox.queue_file.exists()
+
+    # Queue is usable again after the backup
+    outbox.enqueue("doc_patch", {"section": "sec_01"})
+    assert len(outbox.list_pending()) == 1
+
+
+def test_outbox_save_events_is_atomic_no_tmp_leftover(tmp_path):
+    """_save_events must write via tmp + os.replace and leave no temp file behind."""
+    outbox = OutboxQueue(workspace_root=tmp_path)
+    outbox.enqueue("doc_patch", {"section": "sec_01"})
+    outbox.enqueue("lease_renew", {"section": "sec_02"})
+
+    assert not (outbox.outbox_dir / "pending_events.json.tmp").exists()
+    assert outbox.queue_file.exists()
+    assert len(outbox.list_pending()) == 2

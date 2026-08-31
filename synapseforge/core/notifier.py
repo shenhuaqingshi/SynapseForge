@@ -41,16 +41,24 @@ class NotificationDispatcher:
                         cmd.extend(["--attachment", str(att)])
 
             try:
-                subprocess.run(cmd, check=False, capture_output=True, text=True)
+                res = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                if res.returncode != 0:
+                    err_summary = (res.stderr or res.stdout or "no output").strip()[:500]
+                    return {
+                        "ok": False,
+                        "channel": "email",
+                        "error": f"agently-cli exited with code {res.returncode}: {err_summary}",
+                    }
                 return {"ok": True, "channel": "email", "recipient": self.user_email, "title": title}
             except Exception as e:
                 return {"ok": False, "channel": "email", "error": str(e)}
 
-        # Default fallback / console log
+        # Fallback: agently-cli unavailable or non-email channel; nothing was actually delivered
         return {
-            "ok": True,
+            "ok": False,
             "channel": channel,
             "title": title,
             "message": message,
-            "status": "delivered_local",
+            "status": "not_sent",
+            "error": "agently-cli not found; notification was not sent (no delivery channel available)",
         }

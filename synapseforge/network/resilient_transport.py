@@ -45,11 +45,20 @@ class OutboxQueue:
             try:
                 return json.loads(self.queue_file.read_text(encoding="utf-8"))
             except Exception:
+                # Corrupted queue file: back it up before starting fresh so no
+                # pending events are silently lost.
+                try:
+                    os.replace(self.queue_file, self.queue_file.with_name(self.queue_file.name + ".corrupt"))
+                except OSError:
+                    pass
                 return []
         return []
 
     def _save_events(self, events: List[Dict[str, Any]]) -> None:
-        self.queue_file.write_text(json.dumps(events, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Atomic write via tmp file + os.replace to avoid truncating the queue on crash.
+        tmp_file = self.queue_file.with_name(self.queue_file.name + ".tmp")
+        tmp_file.write_text(json.dumps(events, indent=2, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp_file, self.queue_file)
 
     def enqueue(self, event_type: str, payload: Dict[str, Any], max_retries: int = 5) -> SyncEvent:
         """Buffers a sync event to local persistent storage before attempting network dispatch."""

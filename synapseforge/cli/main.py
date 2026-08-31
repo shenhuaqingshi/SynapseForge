@@ -394,8 +394,21 @@ def cmd_plot(args):
         data = {}
         if args.data:
             p = Path(args.data)
-            if p.exists():
-                data = json.loads(p.read_text(encoding="utf-8"))
+            load_error = None
+            if not p.exists():
+                load_error = f"Data file not found: {args.data}"
+            else:
+                try:
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                except (ValueError, OSError) as e:
+                    load_error = f"Failed to parse data file '{args.data}': {e}"
+            if load_error:
+                res = {"ok": False, "error": load_error}
+                if getattr(args, "json", False):
+                    print(json.dumps(res, indent=2, ensure_ascii=False))
+                else:
+                    print(f"{Color.RED}✖ Plot failed: {load_error}{Color.RESET}")
+                sys.exit(1)
         res = tool.plot_benchmark_curve(
             data=data,
             output_path=Path(args.output),
@@ -524,7 +537,15 @@ def cmd_ingest(args):
     if args.ingest_action == "add":
         content = args.content
         if args.file:
-            content = Path(args.file).read_text(encoding="utf-8")
+            file_path = Path(args.file)
+            if not file_path.exists():
+                res = {"ok": False, "error": f"File not found: {args.file}"}
+                if getattr(args, "json", False):
+                    print(json.dumps(res, indent=2, ensure_ascii=False))
+                else:
+                    print(f"{Color.RED}✖ Ingest failed: {res['error']}{Color.RESET}")
+                sys.exit(1)
+            content = file_path.read_text(encoding="utf-8")
         res = ingestor.ingest_text_or_note(
             source_id=args.id,
             title=args.title,
