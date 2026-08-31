@@ -192,6 +192,30 @@ synapseforge export
 synapseforge notify --title "第 2 章起草完成" --message "已通过质量门禁并完成公式推导" --channel email
 ```
 
+### Local Agent CLI collaboration (same machine)
+
+When Codex, Grok Build, and Antigravity share one workspace, GitHub Issues are too slow and Tailscale is the wrong layer. Use the local team bus:
+
+```bash
+# Create a room and print paste-prompts for each host CLI
+synapseforge team open --document README.md --cwd . --json
+
+# Each CLI joins a unique seat (codex / grok / antigravity)
+synapseforge team join --room my-paper --agent grok --json
+
+# Human directive — agents must act, not wait for a vote
+synapseforge team say --room my-paper --agent human -m "Stop submitting" --kind directive
+
+# Task board, file locks, stale reclaim, exclusive push/submit
+synapseforge team create-task --room my-paper --agent grok --title "Draft sec_01" --files sections/01_abstract_introduction.md
+synapseforge team claim-action --room my-paper --agent antigravity --action-key push:main
+
+# Stdio MCP for host CLIs (Content-Length and NDJSON)
+synapseforge team mcp
+```
+
+See [docs/LOCAL_AGENT_COLLAB.md](docs/LOCAL_AGENT_COLLAB.md) for seats, heartbeat, `already_online` observers, and `coordinator_silent`.
+
 ---
 
 ## 📊 Empirical Benchmarks
@@ -204,8 +228,6 @@ synapseforge notify --title "第 2 章起草完成" --message "已通过质量�
 
 ---
 
-## 🇨🇳 中文说明
-
 **SynapseForge** 是专为解决**跨地域、多智能体与人类专家异步协同写作与知识生产**而设计的 GitOps 架构与 Tailscale 网格框架：
 
 1. **GitOps 去中心化共识状态机**：利用 GitHub Issues、Pull Requests 与 Actions 进行章节拓扑排期与状态审计。
@@ -217,6 +239,41 @@ synapseforge notify --title "第 2 章起草完成" --message "已通过质量�
 7. **10 大专属文件夹集中管理与外部文件自动沙盒副本**：规范化管理资产，打开外部文件自动复制归档，绝不污染源文件。
 8. **企业科研级多层保密机制**：敏感密钥/PII 双向脱敏还原、文档静态对称加密（PBKDF2/AES）、HMAC-SHA256 房间准入签名。
 9. **一键多格式投稿包导出与严谨度量化雷达**：单指令产出出版级 PDF、Word docx、独立网页与 ZIP 包，输出 Anti-AI 与公式严谨度雷达评分。
+
+---
+
+## 📂 Repository Structure
+
+```
+SynapseForge/
+├── .github/
+│   ├── workflows/
+│   │   ├── document-ci.yml               # Document quality gates & unit test CI
+│   │   ├── agent-peer-review.yml         # Autonomous multi-agent PR reviewer bot
+│   │   ├── task-orchestrator.yml         # Issue to Agent branch & task dispatcher
+│   │   └── publication-release.yml       # Automated HTML/Typst release pipeline
+│   ├── ISSUE_TEMPLATE/                   # Section tasks, fact-checks, and RFCs
+│   ├── pull_request_template.md          # Multi-agent contribution PR template
+│   └── CODEOWNERS                        # Section & domain reviewer mapping
+├── synapseforge/
+│   ├── core/                             # AST parser, state machine, team bus, vault, AST conflict resolver, engine
+│   ├── mcp/                              # Stdio MCP server for host Agent CLI rooms
+│   ├── security/                         # Redaction, AES crypto vault, HMAC ACL
+│   ├── network/                          # Tailscale WireGuard P2P mesh & room sync
+│   ├── agents/                           # Architect, Drafter, Critic, Harmonizer, Visualizer agents
+│   ├── linters/                          # Anti-AI, Coherence, Style, and BibTeX citation linters
+│   ├── github_bridge/                    # GitHub API client, PR review bot, issue dispatcher
+│   ├── renderers/                        # Publication pipeline (HTML, Typst, Markdown)
+│   └── cli/                              # Rich command-line interface
+├── sections/                             # Showcase whitepaper modular chapters
+├── examples/                             # Full end-to-end showcase project
+├── tests/                                # Comprehensive pytest unit & integration test suite
+├── docs/                                 # Whitepaper architecture & specification guides
+├── bibliography.bib                      # Verified BibTeX academic references
+├── synapseforge.yaml                     # Swarm & document configuration
+├── pyproject.toml                        # Package specification
+└── README.md
+```
 
 ---
 

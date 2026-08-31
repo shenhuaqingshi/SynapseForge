@@ -27,6 +27,7 @@ from synapseforge.cli.agent_cmds import (
     handle_agent_roles,
     handle_agent_run_cli,
 )
+from synapseforge.cli.team_cmds import handle_team
 from synapseforge.cli.doc_cmds import handle_doc_get, handle_doc_stats
 from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.conflict_resolver import SemanticConflictResolver
@@ -983,6 +984,104 @@ def main():
     p_room.add_argument("--user", default="xb", help="User name joining")
     p_room.add_argument("--json", action="store_true", help="Output JSON")
     p_room.set_defaults(func=cmd_room)
+
+    # ==========================================
+    # LOCAL TEAM BUS (host Agent CLI collaboration)
+    # ==========================================
+    p_team = subparsers.add_parser(
+        "team",
+        help="Local collaboration bus for Codex / Grok / Antigravity on one machine",
+    )
+    p_team.set_defaults(func=handle_team)
+    team_subs = p_team.add_subparsers(dest="team_action", help="Team action")
+
+    def _team_common(p, agent=False, room=True):
+        p.add_argument("--cwd", default=None, help="Workspace root (default: cwd)")
+        p.add_argument("--json", action="store_true", help="Machine-readable JSON")
+        if room:
+            p.add_argument("--room", default=None, help="Room name (or SYNAPSEFORGE_ROOM)")
+        if agent:
+            p.add_argument("--agent", required=True, help="Seat name: codex, grok, antigravity, claude, human")
+        p.set_defaults(func=handle_team)
+        return p
+
+    p_team_join = team_subs.add_parser("join", help="Join or create a local team room")
+    _team_common(p_team_join, agent=True)
+    p_team_join.add_argument("--role", default="", help="Role label")
+    p_team_join.add_argument("--objective", default="", help="Room objective")
+
+    _team_common(team_subs.add_parser("status", help="Room dashboard: seats, tasks, locks, coordinator_silent"))
+    p_team_say = team_subs.add_parser("say", help="Post a message or human directive")
+    _team_common(p_team_say, agent=True)
+    p_team_say.add_argument("-m", "--message", required=True, help="Message body")
+    p_team_say.add_argument("--kind", default="discussion", help="discussion, proposal, directive, ...")
+    p_team_say.add_argument("--to-agent", dest="to_agent", default=None)
+
+    p_team_msg = team_subs.add_parser("messages", help="Read room messages (heartbeat)")
+    _team_common(p_team_msg, agent=True)
+    p_team_msg.add_argument("--after-id", dest="after_id", type=int, default=0)
+    p_team_msg.add_argument("--limit", type=int, default=50)
+
+    p_team_tasks = team_subs.add_parser("tasks", help="List the shared task board")
+    _team_common(p_team_tasks)
+    p_team_tasks.add_argument("--status", default=None, choices=["open", "in_progress", "blocked", "done"])
+
+    p_team_ct = team_subs.add_parser("create-task", help="Create a task (dedupes same files/title)")
+    _team_common(p_team_ct, agent=True)
+    p_team_ct.add_argument("--title", required=True)
+    p_team_ct.add_argument("--description", default="")
+    p_team_ct.add_argument("--files", default="", help="Comma-separated workspace paths")
+    p_team_ct.add_argument("--priority", type=int, default=2)
+
+    p_team_claim = team_subs.add_parser("claim-task", help="Claim a task and lock its files")
+    _team_common(p_team_claim, agent=True)
+    p_team_claim.add_argument("--task-id", dest="task_id", type=int, required=True)
+    p_team_claim.add_argument("--lock-minutes", dest="lock_minutes", type=int, default=30)
+
+    p_team_up = team_subs.add_parser("update-task", help="Update task status")
+    _team_common(p_team_up, agent=True)
+    p_team_up.add_argument("--task-id", dest="task_id", type=int, required=True)
+    p_team_up.add_argument("--status", required=True, choices=["open", "in_progress", "blocked", "done"])
+    p_team_up.add_argument("--result", default="")
+
+    p_team_lock = team_subs.add_parser("lock", help="Lock workspace files")
+    _team_common(p_team_lock, agent=True)
+    p_team_lock.add_argument("--files", required=True, help="Comma-separated paths")
+    p_team_lock.add_argument("--task-id", dest="task_id", type=int, default=None)
+    p_team_lock.add_argument("--lock-minutes", dest="lock_minutes", type=int, default=30)
+
+    p_team_unlock = team_subs.add_parser("unlock", help="Release this agent's file locks")
+    _team_common(p_team_unlock, agent=True)
+    p_team_unlock.add_argument("--files", default="", help="Optional subset of paths")
+
+    p_team_reclaim = team_subs.add_parser("reclaim", help="Drop locks whose holder went silent")
+    _team_common(p_team_reclaim, agent=True)
+
+    p_team_act = team_subs.add_parser("claim-action", help="Claim a one-shot push/submit/deploy action")
+    _team_common(p_team_act, agent=True)
+    p_team_act.add_argument("--action-key", dest="action_key", required=True)
+    p_team_act.add_argument("--ttl", type=int, default=600)
+
+    _team_common(team_subs.add_parser("rooms", help="List local rooms"), room=False)
+    _team_common(team_subs.add_parser("docs", help="List shared documents"))
+
+    p_team_share = team_subs.add_parser("share", help="Share a local document into the room")
+    _team_common(p_team_share, agent=True)
+    p_team_share.add_argument("--path", required=True)
+    p_team_share.add_argument("--title", default="")
+
+    p_team_open = team_subs.add_parser("open", help="Create/resume a room and print paste prompts for host CLIs")
+    _team_common(p_team_open, room=False)
+    p_team_open.add_argument("--document", required=True, help="Shared brief / section markdown")
+    p_team_open.add_argument("--room", default=None, help="Room name (resumes live workspace room if omitted)")
+    p_team_open.add_argument("--objective", default="")
+    p_team_open.add_argument("--new-room", dest="new_room", action="store_true", help="Do not resume an existing live room")
+
+    p_team_paste = team_subs.add_parser("paste-prompts", help="Print join prompts for Codex/Grok/Antigravity")
+    _team_common(p_team_paste)
+
+    p_team_mcp = team_subs.add_parser("mcp", help="Run the stdio MCP server for host Agent CLIs")
+    _team_common(p_team_mcp)
 
     # ==========================================
     # AGENT TOOLKIT COMMANDS (For AI Subagents)

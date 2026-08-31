@@ -37,7 +37,7 @@ synapseforge = "synapseforge.cli.main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["synapseforge*"]
-exclude = ["assets*", "sections*", "tests*", "docs*", "prompts*", "variants*", "imports*", "references*", "figures*", "dist*", "rooms*"]
+exclude = ["assets*", "sections*", "tests*", "docs*", "prompts*", "variants*", "imports*", "references*", "figures*", "dist*", "rooms*", "examples*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
