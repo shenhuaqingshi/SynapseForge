@@ -159,6 +159,55 @@ class PDFTool:
         md = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+)\$(?!\$)', repl_inline, md)
         return md
 
+    def _convert_markdown_tables_to_typst(self, md: str) -> str:
+        """Converts GitHub-flavored markdown tables into Typst booktabs-style tables."""
+        lines = md.split("\n")
+        out: List[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith("|") and line.endswith("|"):
+                rows: List[List[str]] = []
+                while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                    row_line = lines[i].strip()
+                    if not re.match(r'^\|[\s\-:|]+\|$', row_line):
+                        cells = [c.strip() for c in row_line.strip("|").split("|")]
+                        rows.append(cells)
+                    i += 1
+                if rows:
+                    ncols = max(len(r) for r in rows)
+                    parts = [
+                        "#table(",
+                        f"  columns: {ncols},",
+                        "  stroke: none,",
+                        "  inset: (x: 8pt, y: 5pt),",
+                        "  table.hline(y: 0, stroke: 1.2pt),",
+                        "  table.hline(y: 1, stroke: 0.8pt),",
+                        "  table.header(",
+                    ]
+                    for cell in rows[0] + [""] * (ncols - len(rows[0])):
+                        parts.append(f"    [{cell}],")
+                    parts.append("  ),")
+                    for body_row in rows[1:]:
+                        for cell in body_row + [""] * (ncols - len(body_row)):
+                            parts.append(f"  [{cell}],")
+                    parts.append("  table.hline(stroke: 1.2pt),")
+                    parts.append(")")
+                    out.append("\n".join(parts))
+                continue
+            out.append(lines[i])
+            i += 1
+        return "\n".join(out)
+
+    @staticmethod
+    def _convert_markdown_emphasis_to_typst(md: str) -> str:
+        """Converts markdown bold/italic markers into Typst strong/emph syntax."""
+        # Italic first: its lookarounds cannot match inside `**bold**`, whereas
+        # running bold first would produce `*bold*` that the italic rule re-matches.
+        md = re.sub(r'(?<![*\w])\*([^*\n]+)\*(?![*\w])', r'_\1_', md)
+        md = re.sub(r'\*\*([^*]+)\*\*', r'*\1*', md)
+        return md
+
     def compile_markdown_to_pdf(
         self,
         markdown_path: Path,
@@ -174,6 +223,8 @@ class PDFTool:
 
         # Convert simple markdown headers/body into typst syntax
         typst_content = self._convert_latex_math_to_typst(raw_md)
+        typst_content = self._convert_markdown_tables_to_typst(typst_content)
+        typst_content = self._convert_markdown_emphasis_to_typst(typst_content)
         typst_content = typst_content.replace("### ", "=== ")
         typst_content = typst_content.replace("## ", "== ")
         typst_content = typst_content.replace("# ", "= ")
