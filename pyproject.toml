@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "GitOps Swarm Framework for Distributed Multi-Agent & Multi-Human Collaborative Writing on GitHub"
 readme = "README.md"
 authors = [{ name = "SynapseForge Contributors" }]
-license = { text = "MIT" }
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -34,6 +34,12 @@ dev = [
 [project.scripts]
 synapseforge = "synapseforge.cli.main:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["synapseforge*"]
+exclude = ["assets*", "sections*", "tests*", "docs*", "prompts*", "variants*", "imports*", "references*", "figures*", "dist*", "rooms*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+

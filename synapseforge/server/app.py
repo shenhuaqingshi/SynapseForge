@@ -228,11 +228,44 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         })
 
     def _handle_api_pdf_build(self, data: Dict[str, Any]):
+        t0 = time.time()
         tool = PDFTool()
-        input_file = self.root_dir / "sections" / "01_abstract_introduction.md"
-        output_pdf = self.root_dir / "dist" / "remote_build_report.pdf"
-        res = tool.compile_markdown_to_pdf(input_file, output_pdf, title=data.get("title", "SynapseForge Remote Build"))
-        self._send_json(res)
+        title = data.get("title", "SynapseForge Real-Time Publication PDF")
+        
+        # If live markdown text is sent from editor
+        if data.get("markdown_text"):
+            temp_md = self.root_dir / "dist" / "live_preview.md"
+            temp_md.parent.mkdir(parents=True, exist_ok=True)
+            temp_md.write_text(data["markdown_text"], encoding="utf-8")
+            input_file = temp_md
+        elif data.get("section_id"):
+            sec_id = data["section_id"]
+            sec_dir = self.root_dir / "sections"
+            matches = list(sec_dir.glob(f"*{sec_id}*.md"))
+            input_file = matches[0] if matches else (sec_dir / f"{sec_id}.md")
+        else:
+            input_file = self.root_dir / "dist" / "full_manuscript.md"
+            if not input_file.exists():
+                input_file = self.root_dir / "sections" / "02_theoretical_foundations.md"
+
+        output_pdf = self.root_dir / "dist" / "live_preview.pdf"
+        res = tool.compile_markdown_to_pdf(input_file, output_pdf, title=title)
+        
+        elapsed_ms = round((time.time() - t0) * 1000, 1)
+        if res.get("ok"):
+            self._send_json({
+                "ok": True,
+                "pdf_url": f"/dist/live_preview.pdf?t={int(time.time()*1000)}",
+                "compile_time_ms": elapsed_ms,
+                "file_size": output_pdf.stat().st_size if output_pdf.exists() else 0,
+                "engine": res.get("engine", "typst"),
+            })
+        else:
+            self._send_json({
+                "ok": False,
+                "error": res.get("error"),
+                "compile_time_ms": elapsed_ms,
+            })
 
     def _handle_api_get_session(self):
         session_file = self.root_dir / ".synapse" / "session.json"

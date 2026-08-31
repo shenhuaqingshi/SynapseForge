@@ -184,7 +184,7 @@ def cmd_lint(args):
                     "severity": i.severity,
                     "line": i.line_start,
                     "message": i.message,
-                    "suggestion": i.suggestion,
+                    "suggestion": i.suggested_fix,
                 }
                 for i in report.all_issues
             ]

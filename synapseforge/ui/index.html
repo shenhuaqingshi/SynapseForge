@@ -363,15 +363,39 @@
             ></textarea>
           </div>
 
-          <!-- Publication-Grade KaTeX Preview -->
+          <!-- Dual-Mode Publication Preview: Web KaTeX vs True Real-Time PDF -->
           <div class="w-1/2 flex flex-col bg-[#ffffff] text-[#111827] overflow-hidden">
-            <div class="h-7 px-4 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-[10px] text-zinc-500 font-sans shrink-0">
-              <span class="font-medium text-zinc-700 uppercase tracking-wider">Publication Preview (KaiTi + KaTeX)</span>
-              <span>14pt 出版级舒适排版 | 三线表</span>
+            <!-- Mode Switcher Header -->
+            <div class="h-8 px-3 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-[11px] text-zinc-600 shrink-0 select-none">
+              <div class="flex items-center space-x-1 bg-zinc-200/70 p-0.5 rounded-md">
+                <button id="btn-mode-web" onclick="switchPreviewMode('web')" class="px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-zinc-800 shadow-sm transition">
+                  🌐 网页 KaTeX 预览
+                </button>
+                <button id="btn-mode-pdf" onclick="switchPreviewMode('pdf')" class="px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-600 hover:text-zinc-900 transition flex items-center space-x-1">
+                  <span>📄 出版级 PDF 实时渲染</span>
+                  <span id="pdf-latency-tag" class="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded font-mono hidden">52ms</span>
+                </button>
+              </div>
+              
+              <div class="flex items-center space-x-2 text-[10px] text-zinc-500 font-mono">
+                <span id="pdf-status-indicator" class="flex items-center space-x-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span id="pdf-status-text">Live Sync</span>
+                </span>
+                <button onclick="downloadCurrentPdf()" class="px-2 py-0.5 bg-zinc-200 hover:bg-zinc-300 rounded text-zinc-700 font-sans transition">
+                  ⬇️ 导出 PDF
+                </button>
+              </div>
             </div>
             
+            <!-- Mode A: HTML / KaTeX Preview -->
             <div id="publication-preview" class="flex-1 p-6 overflow-y-auto font-serif-sc text-sm leading-[1.65] selection:bg-blue-100 selection:text-blue-900">
               <!-- Rendered via JS -->
+            </div>
+
+            <!-- Mode B: Real-Time True Vector PDF Preview -->
+            <div id="pdf-preview-container" class="flex-1 hidden bg-[#525659] overflow-hidden relative">
+              <iframe id="pdf-viewer-frame" class="w-full h-full border-0 bg-white" src="/dist/live_preview.pdf"></iframe>
             </div>
           </div>
 
@@ -652,6 +676,78 @@
       return tableHtml;
     }
 
+    let currentPreviewMode = 'web';
+    let livePdfDebounceTimer = null;
+
+    function switchPreviewMode(mode) {
+      currentPreviewMode = mode;
+      const btnWeb = document.getElementById('btn-mode-web');
+      const btnPdf = document.getElementById('btn-mode-pdf');
+      const htmlContainer = document.getElementById('publication-preview');
+      const pdfContainer = document.getElementById('pdf-preview-container');
+
+      if (mode === 'web') {
+        btnWeb.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-zinc-800 shadow-sm transition';
+        btnPdf.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-600 hover:text-zinc-900 transition flex items-center space-x-1';
+        htmlContainer.classList.remove('hidden');
+        pdfContainer.classList.add('hidden');
+        renderLivePreview();
+      } else {
+        btnPdf.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-zinc-800 shadow-sm transition flex items-center space-x-1';
+        btnWeb.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-600 hover:text-zinc-900 transition';
+        htmlContainer.classList.add('hidden');
+        pdfContainer.classList.remove('hidden');
+        triggerLivePdfRender(true);
+      }
+    }
+
+    function triggerLivePdfRender(immediate = false) {
+      if (livePdfDebounceTimer) clearTimeout(livePdfDebounceTimer);
+
+      const executeRender = () => {
+        const editor = document.getElementById('markdown-editor');
+        const text = editor ? editor.value : '';
+        const statusText = document.getElementById('pdf-status-text');
+        const latencyTag = document.getElementById('pdf-latency-tag');
+        const pdfFrame = document.getElementById('pdf-viewer-frame');
+
+        if (statusText) statusText.innerText = 'Compiling Typst...';
+
+        fetch('/api/pdf/build', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            markdown_text: text,
+            title: SECTIONS[currentSection] ? SECTIONS[currentSection].name : 'SynapseForge Live PDF'
+          })
+        })
+        .then(r => r.json())
+        .then(res => {
+          if (res.ok && res.pdf_url) {
+            if (pdfFrame) pdfFrame.src = res.pdf_url;
+            if (latencyTag) {
+              latencyTag.innerText = `\${res.compile_time_ms}ms`;
+              latencyTag.classList.remove('hidden');
+            }
+            if (statusText) statusText.innerText = 'PDF 实时就绪';
+          }
+        })
+        .catch(() => {
+          if (statusText) statusText.innerText = 'Live Sync';
+        });
+      };
+
+      if (immediate) {
+        executeRender();
+      } else {
+        livePdfDebounceTimer = setTimeout(executeRender, 350);
+      }
+    }
+
+    function downloadCurrentPdf() {
+      window.open('/dist/live_preview.pdf', '_blank');
+    }
+
     function renderLivePreview() {
       const editor = document.getElementById('markdown-editor');
       const preview = document.getElementById('publication-preview');
@@ -661,6 +757,11 @@
       const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
       const latin = (text.match(/[a-zA-Z0-9_\\-]+/g) || []).length;
       document.getElementById('word-count-badge').innerText = `\${cjk + latin} words`;
+
+      // If PDF mode active, debounce compile PDF
+      if (currentPreviewMode === 'pdf') {
+        triggerLivePdfRender();
+      }
 
       // Render Markdown HTML
       preview.innerHTML = parseMarkdownToHTML(text);
