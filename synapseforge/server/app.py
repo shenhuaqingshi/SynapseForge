@@ -75,10 +75,23 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True, "prompts": mgr.list_prompts()})
             return
 
-        elif path == "/api/vault/files":
+        elif path in ("/api/vault/list", "/api/vault/files"):
             from synapseforge.core.vault import WorkspaceVault
             vault = WorkspaceVault(self.root_dir)
-            self._send_json(vault.list_vault_files())
+            self._send_json({"ok": True, "vault": vault.list_vault_files()})
+            return
+
+        elif path == "/api/report/spec":
+            from synapseforge.report.spec import ReportStandard
+            self._send_json({
+                "ok": True,
+                "standard_name": "Report Specification (Report-Spec)",
+                "seven_prohibitions": ReportStandard.SEVEN_PROHIBITIONS,
+                "paragraph_triad_rule": ReportStandard.PARAGRAPH_TRIAD_RULE,
+                "booktabs_rule": ReportStandard.BOOKTABS_RULE,
+                "scientific_plot_rules": ReportStandard.SCIENTIFIC_PLOT_RULES,
+                "publication_pdf_layout_rules": ReportStandard.PUBLICATION_PDF_LAYOUT_RULES,
+            })
             return
 
         elif path.startswith("/assets/") or path.startswith("/dist/"):
@@ -100,6 +113,18 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/session":
             self._handle_api_save_session(data)
+        elif path == "/api/report/new":
+            from synapseforge.report.generator import ReportGenerator
+            from synapseforge.report.spec import ReportType
+            gen = ReportGenerator(self.root_dir)
+            rep_type = ReportType(data.get("type", "whitepaper"))
+            res = gen.generate_report_template(
+                title=data.get("title", "SynapseForge Report"),
+                topic=data.get("topic", "Distributed Systems"),
+                report_type=rep_type,
+                author=data.get("author", "Human Co-Author"),
+            )
+            self._send_json(res)
         elif path == "/api/vault/import":
             from synapseforge.core.vault import WorkspaceVault
             vault = WorkspaceVault(self.root_dir)
