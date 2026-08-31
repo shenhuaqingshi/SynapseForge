@@ -1,32 +1,51 @@
-import re
+"""SynapseForge Studio UI generator.
 
-ui_code = """<!DOCTYPE html>
+Reads the real manuscript sections from ./sections/ and emits a self-contained
+synapseforge/ui/index.html. At runtime the page prefers the live daemon APIs
+(/api/sections, /api/doc/save, /api/prompts, /api/pdf/build) and gracefully
+falls back to the embedded snapshot when opened as a static file.
+"""
+
+import json
+from pathlib import Path
+
+sections = {}
+for p in sorted(Path("sections").glob("*.md")):
+    sec_num = p.stem.split("_")[0]
+    sections[f"sec_{sec_num}"] = {
+        "name": p.name,
+        "content": p.read_text(encoding="utf-8"),
+    }
+
+sections_json = json.dumps(sections, ensure_ascii=False, indent=2)
+
+html_template = r"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge Studio — Distributed Multi-Agent Consensus</title>
-  
-  <!-- Tailwind CSS & KaTeX -->
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <title>SynapseForge Studio</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600&display=swap');
 
     :root {
-      --bg-app: #0c0d10;
-      --bg-sidebar: #101116;
-      --bg-center: #12141a;
-      --bg-editor: #0c0d10;
-      --bg-preview: #ffffff;
-      --border: rgba(255, 255, 255, 0.05);
-      --text-main: #e4e4e7;
-      --text-muted: #71717a;
-      --accent: #0a84ff;
+      --bg-app: #0e0f12;
+      --bg-panel: #14161b;
+      --bg-raised: #1a1d23;
+      --border: rgba(255, 255, 255, 0.06);
+      --text-main: #e6e6ea;
+      --text-muted: #8b8f98;
+      --text-faint: #5c6068;
+      --accent: #3b82f6;
     }
+
+    * { box-sizing: border-box; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", sans-serif;
@@ -34,487 +53,438 @@ ui_code = """<!DOCTYPE html>
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
       overflow: hidden;
-      letter-spacing: -0.01em;
     }
 
-    .font-mono {
-      font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    .font-mono { font-family: "SF Mono", "JetBrains Mono", Menlo, monospace; }
+    .font-serif-sc { font-family: "Noto Serif SC", "Songti SC", "Times New Roman", Georgia, serif; }
+
+    .surface { background: var(--bg-panel); border-color: var(--border); }
+    .raised { background: var(--bg-raised); }
+
+    /* Traffic lights */
+    .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+
+    /* Presence avatars */
+    .avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 600; color: #fff; cursor: pointer;
+      border: 1.5px solid var(--bg-app); transition: transform .15s ease;
     }
+    .avatar:hover { transform: translateY(-1px); }
+    .avatar.is-followed { box-shadow: 0 0 0 2px var(--bg-app), 0 0 0 3.5px currentColor; }
 
-    .font-serif-sc {
-      font-family: "Noto Serif SC", "STKaiti", "KaiTi", "Times New Roman", Georgia, serif;
-    }
-
-    /* Minimal Apple Traffic Lights */
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .dot-r { background: #ff5f56; }
-    .dot-y { background: #ffbd2e; }
-    .dot-g { background: #27c93f; }
-
-    /* Academic 3-Line Table (Booktabs) */
+    /* Booktabs academic table */
     .booktabs {
-      width: 100%;
-      border-collapse: collapse;
-      border-top: 1.5px solid #111827;
-      border-bottom: 1.5px solid #111827;
-      margin: 16px 0;
+      width: 100%; border-collapse: collapse; margin: 1.25em 0; font-size: 12.5px;
+      border-top: 1.5px solid #1f2937; border-bottom: 1.5px solid #1f2937;
+      font-family: "Inter", -apple-system, sans-serif;
     }
-    .booktabs th {
-      border-bottom: 1px solid #111827;
-      padding: 8px 14px;
-      font-weight: 600;
-      text-align: left;
-      color: #111827;
-    }
-    .booktabs td {
-      padding: 8px 14px;
-      color: #374151;
-      border-bottom: 0.5px solid #f3f4f6;
-    }
-    .booktabs tr:last-child td {
-      border-bottom: none;
-    }
+    .booktabs th { border-bottom: 1px solid #1f2937; padding: 7px 14px; font-weight: 600; text-align: left; color: #111827; }
+    .booktabs td { padding: 7px 14px; color: #374151; border-bottom: .5px solid #f0f0f2; }
+    .booktabs tr:last-child td { border-bottom: none; }
 
-    /* Zed-Style Presence Avatars & Following Ring */
-    .avatar-ring {
-      box-shadow: 0 0 0 2px #0c0d10, 0 0 0 3.5px currentColor;
-    }
-    .following-active {
-      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    @keyframes pulse-ring {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.08); }
-    }
+    /* Preview typography */
+    #publication-preview h1 { font-size: 20px; font-weight: 700; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin: 4px 0 14px; font-family: "Inter", -apple-system, sans-serif; }
+    #publication-preview h2 { font-size: 15px; font-weight: 700; color: #111827; margin: 20px 0 8px; font-family: "Inter", -apple-system, sans-serif; }
+    #publication-preview h3 { font-size: 13.5px; font-weight: 600; color: #1f2937; margin: 16px 0 6px; font-family: "Inter", -apple-system, sans-serif; }
+    #publication-preview p  { text-indent: 2em; margin: 8px 0; color: #1f2937; }
 
-    /* Subtle minimalist scrollbar */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); border: 1px solid var(--border);
+      transition: all .15s ease; cursor: pointer; white-space: nowrap;
+    }
+    .btn:hover { color: var(--text-main); background: rgba(255,255,255,.05); }
+    .btn-primary { background: var(--accent); border-color: transparent; color: #fff; }
+    .btn-primary:hover { background: #2f74e0; color: #fff; }
+
+    /* Nav items */
+    .nav-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 10px; border-radius: 6px; color: var(--text-muted);
+      cursor: pointer; transition: all .12s ease; font-size: 12px;
+    }
+    .nav-item:hover { color: var(--text-main); background: rgba(255,255,255,.04); }
+    .nav-item.is-active { color: #fff; background: rgba(255,255,255,.07); font-weight: 500; }
+
+    .field {
+      width: 100%; background: var(--bg-app); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 10px; color: var(--text-main); font-size: 12px;
+      transition: border-color .15s ease;
+    }
+    .field:focus { outline: none; border-color: var(--accent); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 8px);
+      background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-main);
+      font-size: 12px; padding: 7px 14px; border-radius: 8px;
+      opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 60;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.14); }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center p-2 select-none">
 
-  <!-- MAIN macOS APP SHELL -->
-  <div class="w-full h-full max-w-[1800px] max-h-[1050px] rounded-xl bg-[#0c0d10] shadow-2xl flex flex-col overflow-hidden border border-white/[0.06]">
+  <div class="w-full h-full max-w-[1800px] max-h-[1050px] rounded-xl surface shadow-2xl flex flex-col overflow-hidden border">
 
-    <!-- ZED-STYLE COLLABORATIVE TITLEBAR -->
-    <header class="h-10 bg-[#0c0d10] border-b border-white/[0.05] px-3.5 flex items-center justify-between shrink-0">
-      
-      <!-- Left: Window Dots & Project Title -->
-      <div class="flex items-center space-x-3">
-        <div class="flex items-center space-x-1.5">
-          <span class="dot dot-r"></span>
-          <span class="dot dot-y"></span>
-          <span class="dot dot-g"></span>
+    <!-- ═══════════ TITLE BAR ═══════════ -->
+    <header class="h-11 border-b px-4 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
         </div>
-        <div class="h-3 w-px bg-white/10"></div>
-        <span class="text-xs font-semibold text-zinc-200">SynapseForge Studio</span>
-        <span class="text-[10px] text-zinc-600 font-mono">Zed-Mesh 2.0</span>
+        <span class="text-[13px] font-semibold text-zinc-200">SynapseForge Studio</span>
+        <span class="text-[10px] text-zinc-600 font-mono hidden sm:inline">Zed-Mesh 2.0</span>
       </div>
 
-      <!-- Center: Current Document Path & Zed Active Channel -->
-      <div class="flex items-center space-x-2 text-xs text-zinc-500">
+      <div class="flex items-center gap-2 text-xs text-zinc-500">
         <span class="px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 font-mono text-[10px]"># consensus-room</span>
-        <span>sections /</span>
-        <span id="top-section-name" class="text-zinc-200 font-medium">02_theoretical_foundations.md</span>
+        <span class="text-zinc-700">/</span>
+        <span id="top-section-name" class="text-zinc-300 font-medium">—</span>
       </div>
 
-      <!-- Right: Zed Presence Avatars & Following Mode -->
-      <div class="flex items-center space-x-3 text-xs">
-        
-        <!-- Zed Multi-Agent Presence Deck -->
-        <div class="flex items-center -space-x-1.5 bg-black/40 px-2 py-1 rounded-full border border-white/[0.06]">
-          <div title="You (xb - Commander)" class="w-5 h-5 rounded-full bg-blue-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10]">
-            xb
-          </div>
-          <div onclick="toggleFollow('drafter')" id="avatar-drafter" title="Click to Follow Drafter Agent" class="w-5 h-5 rounded-full bg-purple-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110">
-            D
-          </div>
-          <div onclick="toggleFollow('critic')" id="avatar-critic" title="Click to Follow Critic Agent" class="w-5 h-5 rounded-full bg-amber-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110">
-            C
-          </div>
-          <div onclick="toggleFollow('harmonizer')" id="avatar-harmonizer" title="Click to Follow Harmonizer Agent" class="w-5 h-5 rounded-full bg-emerald-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110">
-            H
-          </div>
+      <div class="flex items-center gap-3">
+        <!-- Presence -->
+        <div class="flex items-center -space-x-1.5 bg-black/30 px-2 py-1 rounded-full border border-white/[0.05]">
+          <div class="avatar bg-blue-600" title="You (Commander)">xb</div>
+          <div class="avatar bg-purple-600 text-purple-400" id="avatar-drafter" title="Follow Drafter Agent" onclick="toggleFollow('drafter')">D</div>
+          <div class="avatar bg-amber-600 text-amber-400" id="avatar-critic" title="Follow Critic Agent" onclick="toggleFollow('critic')">C</div>
+          <div class="avatar bg-emerald-600 text-emerald-400" id="avatar-harmonizer" title="Follow Harmonizer Agent" onclick="toggleFollow('harmonizer')">H</div>
         </div>
 
-        <!-- Network / Follow Status Toast Badge -->
-        <div id="network-badge" class="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium transition">
+        <!-- Mesh status -->
+        <div id="network-badge" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span id="network-badge-text" class="font-mono">Mesh Connected (Room #1)</span>
+          <span id="network-badge-text" class="font-mono">Mesh Connected</span>
         </div>
-        
-        <button onclick="openPromptModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 text-xs px-2.5 py-1 rounded-md transition font-medium border border-white/[0.08]">
-          ⚙️ 自定义提示词
-        </button>
 
-        <button onclick="triggerAgentDraft()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1 rounded-md transition font-medium">
-          Ask Agent
+        <button class="btn" onclick="openPromptModal()">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.27 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+          提示词
         </button>
+        <button class="btn btn-primary" onclick="triggerAgentDraft()">Ask Agent</button>
       </div>
     </header>
 
-    <!-- 3-COLUMN WORKSPACE -->
+    <!-- ═══════════ WORKSPACE ═══════════ -->
     <div class="flex-1 flex overflow-hidden">
 
-      <!-- ======================================================== -->
-      <!-- COLUMN 1: MINIMAL NAVIGATOR (Sections & User Prompts)   -->
-      <!-- ======================================================== -->
-      <aside class="w-56 bg-[#101116] border-r border-white/[0.05] flex flex-col shrink-0 overflow-hidden text-xs">
-        
-        <!-- Document Sections -->
-        <div class="h-[50%] flex flex-col border-b border-white/[0.05] overflow-hidden p-2">
+      <!-- Column 1 · Navigator -->
+      <aside class="w-56 surface border-r flex flex-col shrink-0 overflow-hidden text-xs">
+        <div class="h-1/2 flex flex-col border-b overflow-hidden p-2">
           <div class="px-2 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Sections</span>
-            <span class="text-[9px] text-zinc-600">AST DAG</span>
+            <span>Sections</span><span class="text-[9px] text-zinc-600 normal-case">AST DAG</span>
           </div>
-
-          <div class="flex-1 overflow-y-auto space-y-0.5 mt-1">
-            <div onclick="switchSection('sec_01')" id="nav-sec_01" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer">
-              <span class="truncate">01_abstract.md</span>
-              <span class="text-[10px] text-zinc-600 font-mono">439w</span>
-            </div>
-
-            <div onclick="switchSection('sec_02')" id="nav-sec_02" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md bg-white/[0.07] text-white font-medium cursor-pointer">
-              <span class="truncate">02_theory.md</span>
-              <span class="text-[10px] text-zinc-400 font-mono">447w</span>
-            </div>
-
-            <div onclick="switchSection('sec_03')" id="nav-sec_03" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer">
-              <span class="truncate">03_architecture.md</span>
-              <span class="text-[10px] text-zinc-600 font-mono">495w</span>
-            </div>
-
-            <div onclick="switchSection('sec_04')" id="nav-sec_04" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer">
-              <span class="truncate">04_consensus.md</span>
-              <span class="text-[10px] text-zinc-600 font-mono">430w</span>
-            </div>
-
-            <div onclick="switchSection('sec_05')" id="nav-sec_05" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer">
-              <span class="truncate">05_benchmarks.md</span>
-              <span class="text-[10px] text-zinc-600 font-mono">380w</span>
-            </div>
-
-            <div onclick="switchSection('sec_06')" id="nav-sec_06" class="nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer">
-              <span class="truncate">06_conclusion.md</span>
-              <span class="text-[10px] text-zinc-600 font-mono">310w</span>
-            </div>
-          </div>
+          <div id="section-nav" class="flex-1 overflow-y-auto space-y-0.5 mt-1"></div>
         </div>
 
-        <!-- User-Defined Custom Agent Roster -->
         <div class="flex-1 flex flex-col p-2 overflow-hidden">
           <div class="px-2 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
             <span>User Prompts</span>
-            <button onclick="openPromptModal()" class="text-[10px] text-blue-400 hover:text-blue-300 font-normal">
-              + 自定义
-            </button>
+            <button onclick="openPromptModal()" class="text-[10px] text-blue-400 hover:text-blue-300 normal-case font-normal">+ 自定义</button>
           </div>
-
-          <div class="flex-1 overflow-y-auto space-y-1.5 mt-1 px-1">
-            
-            <div onclick="openPromptModal('drafter')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-purple-500/30 cursor-pointer transition">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
-                  <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-                  <span>Drafter (自定义)</span>
-                </div>
-                <span class="text-[9px] text-purple-400 font-mono">prompts/</span>
-              </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户预设的起草风格与论证提示词</p>
-            </div>
-
-            <div onclick="openPromptModal('critic')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-amber-500/30 cursor-pointer transition">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
-                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                  <span>Critic (自定义)</span>
-                </div>
-                <span class="text-[9px] text-amber-400 font-mono">prompts/</span>
-              </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户配置的审稿门禁规则与检查项</p>
-            </div>
-
-            <div onclick="openPromptModal('harmonizer')" class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-emerald-500/30 cursor-pointer transition">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-1.5 font-medium text-zinc-300">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>Harmonizer (自定义)</span>
-                </div>
-                <span class="text-[9px] text-emerald-400 font-mono">prompts/</span>
-              </div>
-              <p class="text-[11px] text-zinc-500 mt-1 leading-tight">用户定制的多方案融合原则</p>
-            </div>
-
-          </div>
+          <div id="prompt-cards" class="flex-1 overflow-y-auto space-y-1.5 mt-1 px-1"></div>
         </div>
-
       </aside>
 
-      <!-- ======================================================== -->
-      <!-- COLUMN 2: ZED-STYLE LIVE STREAM & INLINE COLLABORATION   -->
-      <!-- ======================================================== -->
-      <section class="w-80 bg-[#12141a] border-r border-white/[0.05] flex flex-col shrink-0 overflow-hidden text-xs">
-        
-        <!-- Header -->
-        <div class="h-9 px-3 border-b border-white/[0.05] flex items-center justify-between">
-          <span class="font-medium text-zinc-300">Swarm Activity Stream</span>
+      <!-- Column 2 · Swarm stream -->
+      <section class="w-80 surface border-r flex flex-col shrink-0 overflow-hidden text-xs">
+        <div class="h-10 px-3 border-b flex items-center justify-between">
+          <span class="font-medium text-zinc-300 text-[13px]">Swarm Activity</span>
           <span class="text-[10px] text-zinc-500 font-mono">Live CRDT Sync</span>
         </div>
 
-        <!-- Activity Feed -->
         <div id="activity-stream" class="flex-1 overflow-y-auto p-3 space-y-3">
-          
           <div class="space-y-1">
-            <div class="text-zinc-500 text-[10px]">Session Manager • System</div>
-            <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-zinc-400 text-[11px] leading-relaxed">
-              Tailscale mesh connected. User custom prompts loaded from ./prompts/ directory.
+            <div class="text-zinc-500 text-[10px]">Session Manager · System</div>
+            <div class="p-2.5 rounded-lg raised border border-white/[0.04] text-zinc-400 text-[11px] leading-relaxed">
+              Tailscale mesh connected. Custom prompts loaded from <span class="font-mono">./prompts/</span>.
             </div>
           </div>
 
-          <!-- Zed-Style Inline Thread Finding from Critic -->
           <div class="space-y-1.5">
             <div class="text-amber-400 text-[10px] font-medium flex items-center justify-between">
-              <div class="flex items-center space-x-1.5">
+              <div class="flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>Critic Agent • Peer Review</span>
+                <span>Critic Agent · Peer Review</span>
               </div>
               <span class="text-[9px] text-zinc-500 font-mono">Line 42</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-zinc-300 leading-relaxed text-xs">
+            <div class="p-2.5 rounded-lg bg-amber-500/[0.07] border border-amber-500/20 text-zinc-300 leading-relaxed">
               <span class="text-amber-300 font-medium">Suggestion:</span> Bound convergence theorem proof with explicit RTT bounds.
-              <div class="mt-2 flex items-center space-x-2">
-                <button onclick="triggerAgentDraft()" class="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-medium transition">
-                  Apply Patch
-                </button>
-                <button class="px-2 py-1 rounded hover:bg-white/[0.05] text-zinc-400 text-[10px] transition">
-                  Dismiss
-                </button>
+              <div class="mt-2 flex items-center gap-2">
+                <button onclick="triggerAgentDraft()" class="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-medium transition">Apply Patch</button>
+                <button class="px-2 py-1 rounded hover:bg-white/[0.05] text-zinc-400 text-[10px] transition">Dismiss</button>
               </div>
             </div>
           </div>
 
           <div class="space-y-1.5">
-            <div class="text-purple-400 text-[10px] font-medium flex items-center space-x-1.5">
+            <div class="text-purple-400 text-[10px] font-medium flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
               <span>Drafter Agent</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-purple-950/20 border border-purple-500/20 text-zinc-300 leading-relaxed text-xs">
-              Applying user-defined prompt rules from prompts/drafter.md. KaTeX preview synchronized.
+            <div class="p-2.5 rounded-lg bg-purple-500/[0.07] border border-purple-500/20 text-zinc-300 leading-relaxed">
+              Applying prompt rules from <span class="font-mono">prompts/drafter.md</span>. KaTeX preview synchronized.
             </div>
           </div>
-
         </div>
 
-        <!-- Input Bar -->
-        <div class="p-2.5 border-t border-white/[0.05] bg-[#0c0d10]">
+        <div class="p-2.5 border-t">
           <div class="relative flex items-center">
-            <input 
-              id="agent-input" 
-              type="text" 
-              placeholder="Direct agents (@Drafter / @Critic)..." 
-              class="w-full bg-[#161821] text-zinc-200 placeholder-zinc-500 text-xs px-3 py-2 rounded-lg border border-white/[0.06] focus:outline-none focus:border-blue-500"
-              onkeydown="if(event.key==='Enter') handleSend()"
-            >
-            <button onclick="handleSend()" class="absolute right-1.5 p-1 text-zinc-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            <input id="agent-input" type="text" placeholder="Direct agents (@Drafter / @Critic)…"
+              class="w-full raised text-zinc-200 placeholder-zinc-600 text-xs pl-3 pr-8 py-2 rounded-lg border border-white/[0.06] focus:outline-none focus:border-blue-500 transition"
+              onkeydown="if(event.key==='Enter') handleSend()">
+            <button onclick="handleSend()" class="absolute right-2 text-zinc-500 hover:text-zinc-200 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3"/></svg>
             </button>
           </div>
         </div>
-
       </section>
 
-      <!-- ======================================================== -->
-      <!-- COLUMN 3: REAL-TIME DUAL-PANE DOCUMENT STUDIO           -->
-      <!-- ======================================================== -->
-      <main class="flex-1 flex flex-col overflow-hidden bg-[#0c0d10]">
-        
-        <!-- Studio Bar -->
-        <div class="h-9 px-4 border-b border-white/[0.05] flex items-center justify-between shrink-0 bg-[#0c0d10]">
-          <div class="flex items-center space-x-4 text-xs">
-            <span class="font-medium text-zinc-200" id="doc-title-label">02_theoretical_foundations.md</span>
-            <span class="text-zinc-600 font-mono">|</span>
-            <span class="text-zinc-400 text-[11px]" id="word-count-badge">447 words</span>
-            <span class="text-zinc-600 font-mono">|</span>
-            <span class="text-emerald-400 text-[11px] font-mono">User Prompts Active</span>
+      <!-- Column 3 · Document studio -->
+      <main class="flex-1 flex flex-col overflow-hidden">
+        <div class="h-10 px-4 border-b flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-3 text-xs min-w-0">
+            <span class="font-medium text-zinc-200 truncate" id="doc-title-label">—</span>
+            <span class="text-zinc-700">|</span>
+            <span class="text-zinc-500 text-[11px] shrink-0" id="word-count-badge">0 words</span>
+            <span id="save-state" class="text-[11px] text-zinc-600 shrink-0 transition"></span>
           </div>
-
-          <!-- Zed Multi-Cursor Live Indicator -->
-          <div id="zed-cursor-badge" class="hidden items-center space-x-1.5 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-mono">
+          <div id="follow-badge" class="hidden items-center gap-1.5 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-mono">
             <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping"></span>
-            <span>🟣 Drafter active at line 34</span>
+            <span id="follow-badge-text"></span>
           </div>
         </div>
 
-        <!-- Split Pane: Left Source Markdown | Right Publication Preview -->
         <div class="flex-1 flex overflow-hidden">
-          
-          <!-- Source Markdown Editor -->
-          <div class="w-1/2 border-r border-white/[0.05] flex flex-col p-4 bg-[#0c0d10] overflow-hidden">
+          <!-- Source editor -->
+          <div class="w-1/2 border-r flex flex-col p-4 overflow-hidden">
             <div class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Markdown Source</span>
-              <span class="text-[10px] text-zinc-600 font-mono">Live AST Sync</span>
+              <span>Markdown Source</span><span class="text-zinc-600 normal-case font-normal">Live AST Sync</span>
             </div>
-            <textarea 
-              id="markdown-editor" 
-              class="flex-1 w-full bg-transparent text-zinc-200 font-mono text-xs leading-relaxed focus:outline-none resize-none overflow-y-auto"
-              oninput="renderLivePreview()"
-              spellcheck="false"
-            ></textarea>
+            <textarea id="markdown-editor" spellcheck="false"
+              class="flex-1 w-full bg-transparent text-zinc-300 font-mono text-xs leading-relaxed focus:outline-none resize-none overflow-y-auto"
+              oninput="onEditorInput()"></textarea>
           </div>
 
-          <!-- Publication-Grade KaTeX Preview -->
-          <div class="w-1/2 flex flex-col bg-[#ffffff] text-[#111827] overflow-hidden">
-            <div class="h-7 px-4 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-[10px] text-zinc-500 font-sans shrink-0">
-              <span class="font-medium text-zinc-700 uppercase tracking-wider">Publication Preview (KaiTi + KaTeX)</span>
-              <span>14pt 出版级舒适排版 | 三线表</span>
+          <!-- Preview -->
+          <div class="w-1/2 flex flex-col bg-white overflow-hidden">
+            <div class="h-9 px-3 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-1 bg-zinc-200/60 p-0.5 rounded-md">
+                <button id="btn-mode-web" onclick="switchPreviewMode('web')" class="px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-zinc-800 shadow-sm transition">Web 预览</button>
+                <button id="btn-mode-pdf" onclick="switchPreviewMode('pdf')" class="px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-500 hover:text-zinc-800 transition flex items-center gap-1">
+                  出版级 PDF
+                  <span id="pdf-latency-tag" class="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded font-mono hidden"></span>
+                </button>
+              </div>
+              <div class="flex items-center gap-2 text-[10px] text-zinc-500 font-mono">
+                <span id="pdf-status-indicator" class="flex items-center gap-1">
+                  <span id="pdf-status-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span id="pdf-status-text">Live Sync</span>
+                </span>
+                <button onclick="downloadCurrentPdf()" class="px-2 py-1 bg-zinc-200 hover:bg-zinc-300 rounded text-zinc-700 font-sans transition">导出 PDF</button>
+              </div>
             </div>
-            
-            <div id="publication-preview" class="flex-1 p-6 overflow-y-auto font-serif-sc text-sm leading-[1.65] selection:bg-blue-100 selection:text-blue-900">
-              <!-- Rendered via JS -->
+
+            <div id="publication-preview" class="flex-1 px-8 py-6 overflow-y-auto font-serif-sc text-[13.5px] leading-[1.75] selection:bg-blue-100"></div>
+
+            <div id="pdf-preview-container" class="flex-1 hidden bg-[#525659] overflow-hidden">
+              <iframe id="pdf-viewer-frame" class="w-full h-full border-0 bg-white" title="PDF preview"></iframe>
             </div>
           </div>
-
         </div>
-
       </main>
-
     </div>
   </div>
 
-  <!-- USER CUSTOM PROMPT PRESET MODAL -->
+  <!-- ═══════════ PROMPT PRESET MODAL ═══════════ -->
   <div id="prompt-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-[#12141a] border border-white/[0.08] rounded-xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden text-xs">
-      
-      <!-- Modal Header -->
-      <div class="h-10 px-4 bg-[#161821] border-b border-white/[0.06] flex items-center justify-between">
-        <span class="font-semibold text-zinc-200 text-sm">⚙️ 自定义 Agent 提示词预设 (User Prompt Presets)</span>
-        <button onclick="closePromptModal()" class="text-zinc-500 hover:text-zinc-300 p-1">✕</button>
+    <div class="surface border rounded-xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden text-xs">
+      <div class="h-11 px-4 raised border-b flex items-center justify-between">
+        <span class="font-semibold text-zinc-200 text-[13px]">自定义 Agent 提示词预设</span>
+        <button onclick="closePromptModal()" class="text-zinc-500 hover:text-zinc-200 transition p-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
       </div>
 
-      <!-- Modal Body -->
       <div class="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-zinc-400 text-[11px] mb-1">Agent 角色标识 (Role ID)</label>
-            <input id="modal-role-id" type="text" placeholder="e.g. drafter / my_philosopher" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500">
+            <label class="block text-zinc-400 text-[11px] mb-1.5">Agent 角色标识 (Role ID)</label>
+            <input id="modal-role-id" type="text" placeholder="e.g. drafter / my_philosopher" class="field">
           </div>
           <div>
-            <label class="block text-zinc-400 text-[11px] mb-1">显示名称 (Display Name)</label>
-            <input id="modal-display-name" type="text" placeholder="e.g. 学术起草专家" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500">
+            <label class="block text-zinc-400 text-[11px] mb-1.5">显示名称 (Display Name)</label>
+            <input id="modal-display-name" type="text" placeholder="e.g. 学术起草专家" class="field">
           </div>
         </div>
 
         <div>
-          <label class="block text-zinc-400 text-[11px] mb-1">推荐调用大模型 (Model Routing)</label>
-          <select id="modal-model" class="w-full bg-[#0c0d10] border border-white/[0.08] rounded px-3 py-1.5 text-zinc-200 focus:outline-none">
-            <option value="deepseek-v3">DeepSeek-V3 (学术长文叙事最佳)</option>
-            <option value="deepseek-reasoner">DeepSeek-R1 (深度逻辑推理 & 定理证明)</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash (高速检索与代码生成)</option>
-            <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (结构审校与综合)</option>
-            <option value="ollama/qwen2.5:72b">Local Ollama / Qwen 2.5 (离线私有化)</option>
+          <label class="block text-zinc-400 text-[11px] mb-1.5">推荐调用大模型 (Model Routing)</label>
+          <select id="modal-model" class="field">
+            <option value="deepseek-v3">DeepSeek-V3 · 学术长文叙事</option>
+            <option value="deepseek-reasoner">DeepSeek-R1 · 深度逻辑推理与定理证明</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash · 高速检索与代码生成</option>
+            <option value="claude-3-7-sonnet">Claude 3.7 Sonnet · 结构审校与综合</option>
+            <option value="ollama/qwen2.5:72b">Local Ollama / Qwen 2.5 · 离线私有化</option>
           </select>
         </div>
 
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="text-zinc-400 text-[11px]">系统提示词内容 (Markdown 格式，保存至 prompts/ 目录)</label>
-            <span class="text-[10px] text-zinc-500">支持自由定义人设、写作规则、禁用词与数学符号要求</span>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-zinc-400 text-[11px]">系统提示词内容 (Markdown,保存至 prompts/ 目录)</label>
+            <span class="text-[10px] text-zinc-600">支持人设、写作规则、禁用词与数学符号要求</span>
           </div>
-          <textarea id="modal-prompt-content" rows="10" placeholder="# Role: Custom Agent&#10;&#10;## Writing Guidelines&#10;1. Use formal tone...&#10;2. Enforce LaTeX formulas..." class="w-full bg-[#0c0d10] border border-white/[0.08] rounded p-3 font-mono text-zinc-200 text-xs focus:outline-none focus:border-blue-500 resize-none leading-relaxed"></textarea>
+          <textarea id="modal-prompt-content" rows="10" spellcheck="false"
+            placeholder="# Role: Custom Agent&#10;&#10;## Writing Guidelines&#10;1. Use formal tone…&#10;2. Enforce LaTeX formulas…"
+            class="field font-mono resize-none leading-relaxed"></textarea>
         </div>
       </div>
 
-      <!-- Modal Footer -->
-      <div class="h-12 px-4 bg-[#161821] border-t border-white/[0.06] flex items-center justify-between">
-        <span class="text-[10px] text-zinc-500">提示词将自动同步并在所有协作节点间生效</span>
-        <div class="flex items-center space-x-2">
-          <button onclick="closePromptModal()" class="px-3 py-1.5 rounded hover:bg-white/[0.05] text-zinc-400 transition">取消</button>
-          <button onclick="saveUserCustomPrompt()" class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition">保存提示词预设</button>
+      <div class="h-12 px-4 raised border-t flex items-center justify-between">
+        <span class="text-[10px] text-zinc-600">提示词将自动同步并在所有协作节点间生效</span>
+        <div class="flex items-center gap-2">
+          <button onclick="closePromptModal()" class="btn">取消</button>
+          <button onclick="saveUserCustomPrompt()" class="btn btn-primary">保存预设</button>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- SCRIPT ENGINE -->
+  <div id="toast" role="status"></div>
+
+  <!-- ═══════════ SCRIPT ═══════════ -->
   <script>
-    const SECTIONS = {
-      sec_01: {
-        name: "01_abstract_introduction.md",
-        content: `# 1. 引言与宏观背景\\n\\n在现代大规模分布式系统与自主智能体演进的交汇点，多智能体协同生产学术论著面临着由网络分区时延、语义分歧扩散以及缺乏中心化裁决机制引发的核心瓶颈。传统基于静态提示词或简单上下文拼接的多 Agent 系统，在长程复杂论证中极易退化为相互覆盖与流水账式的机械罗列 @vaswani2017attention。\\n\\n为克服上述困境，本文提出了 **SynapseForge**——一个深度融合 GitOps 不可变状态机、Tailscale P2P WireGuard 加密网格通信与 AST 语法树级语义冲突消解的分布式多智能体协作框架。通过将文档状态空间投影为高维有向无环图，系统在数学上保障了跨地域并发写入的最终一致性与学术规范严谨性。`
-      },
-      sec_02: {
-        name: "02_theoretical_foundations.md",
-        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\\\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\\\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\\\mathcal{T}(\\\\mathcal{D}) = \\\\left( \\\\mathcal{V}_{\\\\text{frontmatter}}, \\\\mathcal{V}_{\\\\text{heading}}, \\\\mathcal{V}_{\\\\text{body}}, \\\\mathcal{E}_{\\\\text{hier}} \\\\right) $$\\n\\n两份候选分支 $\\\\mathcal{D}_{\\\\text{ours}}$ 与 $\\\\mathcal{D}_{\\\\text{theirs}}$ 相对于基准版本 $\\\\mathcal{D}_{\\\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\\\Delta \\\\mathcal{T} = \\\\sum_{k=1}^{|\\\\mathcal{V}|} \\\\mathbf{w}_k \\\\cdot | \\\\phi_{\\\\text{ours}}(v_k) - \\\\phi_{\\\\text{theirs}}(v_k) |^2 $$`
-      },
-      sec_03: {
-        name: "03_system_architecture.md",
-        content: `# 3. 系统架构与网络传输\\n\\nSynapseForge 系统架构划分为物理网络层、分布式状态账本层与多智能体执行层三级垂直栈。在物理网络层，系统依托 Tailscale 提供的 WireGuard P2P 隧道建立全球点对点网状拓扑，节点间直接通过 UDP 通信，完全规避了传统中心化中继服务器单点故障与数据泄露风险。\\n\\n状态账本层通过 GitOps 原语维护不可变版本树，每一个段落块的增删改均被封装为原子化的 Git 快照提交。各节点通过轻量级心跳与租约机制（Section Lease）协同工作，租约超时自动回滚，确保了在极端网络抖动条件下的鲁棒性。`
-      },
-      sec_04: {
-        name: "04_conflict_resolution.md",
-        content: `# 4. 语义冲突消解与质量门禁\\n\\n当不同地域的 Agent 产生并发修改时，系统调用语义 AST 3-Way 消解引擎。定理 1（无冲突收敛性）：若两分支的修改集合在其语法树投影空间中满足正交性，则存在唯一的保序合并状态 $\\\\mathcal{D}^*$。\\n\\n$$ \\\\Delta(\\\\mathcal{D}_{\\\\text{ours}}) \\\\cap \\\\Delta(\\\\mathcal{D}_{\\\\text{theirs}}) \\\\subseteq \\\\mathcal{V}_{\\\\text{disjoint}} $$\\n\\n| 消解策略 | 适用场景 | 算法复杂度 | 成功率 |\\n|---|---|---|---|\\n| 拓扑并集 (Union) | 非重叠段落与新增章节 | $\\\\mathcal{O}(|\\\\mathcal{V}|)$ | 100.0% |\\n| 语义调和 (Harmonize) | 同章节公式与数据交叉补充 | $\\\\mathcal{O}(|\\\\mathcal{V}| \\\\log |\\\\mathcal{V}|)$ | 98.4% |\\n| 形式化裁决 (Arbitrate) | 核心定理假设冲突 | $\\\\mathcal{O}(1)$ 人工介入 | 100.0% |\\n\\n此外，系统内置严苛的 Anti-AI 质量门禁，实时扫描词汇表中的空泛套话与流水账机械分点，强制将所有分析论述转化为高信息密度的专业长文散文体。`
-      },
-      sec_05: {
-        name: "05_empirical_benchmarks.md",
-        content: `# 5. 实证基准测试与性能评估\\n\\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\\n\\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升。`
-      },
-      sec_06: {
-        name: "06_conclusion.md",
-        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多智能体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
-      }
-    };
+    // ── Embedded snapshot (fallback when daemon is not running) ──
+    const EMBEDDED_SECTIONS = __SECTIONS_JSON__;
 
-    let currentSection = 'sec_02';
+    let SECTIONS = EMBEDDED_SECTIONS;
+    let currentSection = null;
     let followingTarget = null;
+    let currentPreviewMode = 'web';
+    let livePdfDebounceTimer = null;
+    let saveDebounceTimer = null;
 
-    // User Prompts Cache
-    const USER_PROMPT_PRESETS = {
-      drafter: {
-        id: "drafter",
-        name: "Drafter Agent (学术起草专家)",
-        model: "deepseek-v3",
-        prompt: `# Role: Senior Academic Drafter\\n\\n## Writing Principles\\n1. Zero AI Clichés\\n2. Dense Narrative Prose (150-300 words per paragraph)\\n3. KaTeX Equations & Booktabs Tables`
-      },
-      critic: {
-        id: "critic",
-        name: "Critic Agent (严苛审稿专家)",
-        model: "deepseek-reasoner",
-        prompt: `# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag hollow phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds`
-      },
-      harmonizer: {
-        id: "harmonizer",
-        name: "Harmonizer Agent (多方案调和官)",
-        model: "deepseek-v3",
-        prompt: `# Role: Multi-Variant Harmonizer\\n\\n## Principles\\n1. Reconcile tone differences\\n2. Fuse mathematical and empirical variants\\n3. Deduplicate bibliography keys`
-      }
+    const DEFAULT_PROMPTS = {
+      drafter:    { id: 'drafter',    name: 'Drafter · 学术起草专家',   model: 'deepseek-v3',       prompt: '# Role: Senior Academic Drafter\n\n## Writing Principles\n1. Zero AI clichés\n2. Dense narrative prose (150-300 words per paragraph)\n3. KaTeX equations & booktabs tables' },
+      critic:     { id: 'critic',     name: 'Critic · 严苛审稿专家',    model: 'deepseek-reasoner', prompt: '# Role: Adversarial Peer Reviewer\n\n## Audit Checklist\n1. Flag hollow phrases\n2. Check bibliography references @citekey\n3. Verify math proof bounds' },
+      harmonizer: { id: 'harmonizer', name: 'Harmonizer · 多方案调和官', model: 'deepseek-v3',       prompt: '# Role: Multi-Variant Harmonizer\n\n## Principles\n1. Reconcile tone differences\n2. Fuse mathematical and empirical variants\n3. Deduplicate bibliography keys' },
     };
+    const USER_PROMPT_PRESETS = JSON.parse(JSON.stringify(DEFAULT_PROMPTS));
 
+    const AGENT_COLORS = { drafter: 'purple', critic: 'amber', harmonizer: 'emerald' };
+
+    // ── Boot: prefer live daemon sections ──
+    async function boot() {
+      try {
+        const r = await fetch('/api/sections');
+        const data = await r.json();
+        if (data.ok && data.sections && Object.keys(data.sections).length) {
+          SECTIONS = data.sections;
+        }
+      } catch (e) { /* static file mode */ }
+
+      buildSectionNav();
+      buildPromptCards();
+      setupNetworkWatchdog();
+      setupKeyboardShortcuts();
+
+      const restored = restoreLocalSession();
+      if (!restored) switchSection(Object.keys(SECTIONS)[0] || null);
+    }
+
+    // ── Section navigator ──
+    function buildSectionNav() {
+      const nav = document.getElementById('section-nav');
+      nav.innerHTML = '';
+      Object.entries(SECTIONS).forEach(([id, sec]) => {
+        const el = document.createElement('div');
+        el.className = 'nav-item';
+        el.id = 'nav-' + id;
+        el.onclick = () => switchSection(id);
+        const label = document.createElement('span');
+        label.className = 'truncate';
+        label.textContent = sec.name;
+        const count = document.createElement('span');
+        count.className = 'text-[10px] text-zinc-600 font-mono shrink-0';
+        count.textContent = countWords(sec.content) + 'w';
+        el.appendChild(label);
+        el.appendChild(count);
+        nav.appendChild(el);
+      });
+    }
+
+    function switchSection(secId) {
+      if (!secId || !SECTIONS[secId]) return;
+      currentSection = secId;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('is-active'));
+      const active = document.getElementById('nav-' + secId);
+      if (active) active.classList.add('is-active');
+      document.getElementById('markdown-editor').value = SECTIONS[secId].content;
+      document.getElementById('doc-title-label').innerText = SECTIONS[secId].name;
+      document.getElementById('top-section-name').innerText = SECTIONS[secId].name;
+      setSaveState('');
+      renderLivePreview();
+    }
+
+    // ── Prompt cards ──
+    function buildPromptCards() {
+      const wrap = document.getElementById('prompt-cards');
+      wrap.innerHTML = '';
+      Object.values(USER_PROMPT_PRESETS).forEach(p => {
+        const color = AGENT_COLORS[p.id] || 'blue';
+        const card = document.createElement('div');
+        card.className = 'p-2.5 rounded-lg raised border border-white/[0.04] hover:border-white/[0.12] cursor-pointer transition';
+        card.onclick = () => openPromptModal(p.id);
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between';
+        const left = document.createElement('div');
+        left.className = 'flex items-center gap-1.5 font-medium text-zinc-300 min-w-0';
+        const dot = document.createElement('span');
+        dot.className = 'w-1.5 h-1.5 rounded-full shrink-0 bg-' + color + '-400';
+        const name = document.createElement('span');
+        name.className = 'truncate';
+        name.textContent = p.name;
+        left.appendChild(dot); left.appendChild(name);
+        const tag = document.createElement('span');
+        tag.className = 'text-[9px] text-zinc-600 font-mono shrink-0';
+        tag.textContent = 'prompts/';
+        row.appendChild(left); row.appendChild(tag);
+        const model = document.createElement('p');
+        model.className = 'text-[10.5px] text-zinc-500 mt-1 font-mono truncate';
+        model.textContent = p.model;
+        card.appendChild(row); card.appendChild(model);
+        wrap.appendChild(card);
+      });
+    }
+
+    // ── Prompt modal ──
     function openPromptModal(roleId) {
       const modal = document.getElementById('prompt-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-
-      if (roleId && USER_PROMPT_PRESETS[roleId]) {
-        const item = USER_PROMPT_PRESETS[roleId];
-        document.getElementById('modal-role-id').value = item.id;
-        document.getElementById('modal-display-name').value = item.name;
-        document.getElementById('modal-model').value = item.model;
-        document.getElementById('modal-prompt-content').value = item.prompt.replace(/\\\\n/g, '\\n');
-      } else {
-        document.getElementById('modal-role-id').value = '';
-        document.getElementById('modal-display-name').value = '';
-        document.getElementById('modal-prompt-content').value = '';
-      }
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      const p = roleId && USER_PROMPT_PRESETS[roleId];
+      document.getElementById('modal-role-id').value = p ? p.id : '';
+      document.getElementById('modal-display-name').value = p ? p.name : '';
+      document.getElementById('modal-model').value = p ? p.model : 'deepseek-v3';
+      document.getElementById('modal-prompt-content').value = p ? p.prompt : '';
     }
 
     function closePromptModal() {
       const modal = document.getElementById('prompt-modal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
     }
 
     function saveUserCustomPrompt() {
@@ -522,272 +492,278 @@ ui_code = """<!DOCTYPE html>
       const displayName = document.getElementById('modal-display-name').value.trim();
       const model = document.getElementById('modal-model').value;
       const promptContent = document.getElementById('modal-prompt-content').value;
+      if (!roleId) { showToast('请输入 Role ID', true); return; }
 
-      if (!roleId) {
-        alert('请输入 Role ID');
-        return;
-      }
+      USER_PROMPT_PRESETS[roleId] = { id: roleId, name: displayName || roleId, model, prompt: promptContent };
+      buildPromptCards();
 
-      USER_PROMPT_PRESETS[roleId] = {
-        id: roleId,
-        name: displayName || roleId,
-        model: model,
-        prompt: promptContent
-      };
-
-      // POST to /api/prompts
       fetch('/api/prompts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          role_id: roleId,
-          display_name: displayName,
-          model: model,
-          prompt_content: promptContent
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_id: roleId, display_name: displayName, model, prompt_content: promptContent }),
       }).catch(() => {});
 
       closePromptModal();
-      showNetworkToast(`✓ 已成功保存用户自定义提示词 prompts/\${roleId}.md`);
+      showToast(`已保存提示词预设 prompts/${roleId}.md`);
     }
 
+    // ── Markdown → HTML ──
     function parseMarkdownToHTML(md) {
       if (!md) return '';
-      
       let html = md;
       const displayMath = [];
       const inlineMath = [];
 
-      // Extract display math $$ ... $$
-      html = html.replace(/\\$\\$([\\s\\S]*?)\\$\\$/g, function(match, math) {
-        displayMath.push(math.trim());
-        return `%%%DISPLAY_MATH_\${displayMath.length - 1}%%%`;
+      html = html.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => {
+        displayMath.push(m.trim());
+        return `%%%DISPLAY_MATH_${displayMath.length - 1}%%%`;
+      });
+      html = html.replace(/(?<!\$)\$(?!\$)([^\$\n]+)\$(?!\$)/g, (_, m) => {
+        inlineMath.push(m.trim());
+        return `%%%INLINE_MATH_${inlineMath.length - 1}%%%`;
       });
 
-      // Extract inline math $ ... $
-      html = html.replace(/(?<!\\$)\\$(?!\\$)([^\\$\\n]+)\\$(?!\\$)/g, function(match, math) {
-        inlineMath.push(math.trim());
-        return `%%%INLINE_MATH_\${inlineMath.length - 1}%%%`;
-      });
-
-      // Headings
-      html = html.replace(/^# (.*$)/gim, '<h1 class="text-xl font-bold text-zinc-900 border-b border-zinc-200 pb-2 mb-3 mt-1 font-sans">$1</h1>');
-      html = html.replace(/^## (.*$)/gim, '<h2 class="text-base font-bold text-zinc-900 mt-4 mb-2 font-sans">$1</h2>');
-      html = html.replace(/^### (.*$)/gim, '<h3 class="text-sm font-semibold text-zinc-800 mt-3 mb-1 font-sans">$1</h3>');
-
-      // Bold & Italic
-      html = html.replace(/\\*\\*(.*?)\\*\\*/g, '<strong class="font-bold text-zinc-900">$1</strong>');
-      html = html.replace(/\\*(.*?)\\*/g, '<em class="italic text-zinc-700">$1</em>');
+      html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+      html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-900">$1</strong>');
+      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
       // Tables
-      const lines = html.split('\\n');
-      let inTable = false;
-      let tableRows = [];
-      let newLines = [];
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
+      const lines = html.split('\n');
+      let inTable = false, tableRows = [];
+      const out = [];
+      for (const raw of lines) {
+        const line = raw.trim();
         if (line.startsWith('|') && line.endsWith('|')) {
-          if (!inTable) {
-            inTable = true;
-            tableRows = [];
-          }
-          if (!line.includes('---')) {
-            tableRows.push(line);
-          }
+          if (!inTable) { inTable = true; tableRows = []; }
+          if (!/^\|[\s\-:|]+\|$/.test(line)) tableRows.push(line);
         } else {
-          if (inTable) {
-            inTable = false;
-            newLines.push(buildBooktabsTable(tableRows));
-          }
-          newLines.push(lines[i]);
+          if (inTable) { inTable = false; out.push(buildBooktabsTable(tableRows)); }
+          out.push(raw);
         }
       }
-      if (inTable) {
-        newLines.push(buildBooktabsTable(tableRows));
-      }
-      html = newLines.join('\\n');
+      if (inTable) out.push(buildBooktabsTable(tableRows));
+      html = out.join('\n');
 
       // Paragraphs
-      html = html.split('\\n\\n').map(para => {
+      html = html.split('\n\n').map(para => {
         para = para.trim();
         if (!para) return '';
-        if (para.startsWith('<h') || para.startsWith('<table') || para.startsWith('<div')) {
-          return para;
-        }
-        return `<p class="indent-8 text-zinc-800 my-2 leading-[1.65]">\${para}</p>`;
-      }).join('\\n\\n');
+        if (/^<(h\d|table|div)/.test(para)) return para;
+        return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+      }).join('\n');
 
-      // Restore inline math
-      html = html.replace(/%%%INLINE_MATH_(\\d+)%%%/g, function(match, idx) {
-        return `$\${inlineMath[idx]}$`;
-      });
-
-      // Restore display math
-      html = html.replace(/%%%DISPLAY_MATH_(\\d+)%%%/g, function(match, idx) {
-        return `$$\${displayMath[idx]}$$`;
-      });
-
+      html = html.replace(/%%%INLINE_MATH_(\d+)%%%/g, (_, i) => `$${inlineMath[i]}$`);
+      html = html.replace(/%%%DISPLAY_MATH_(\d+)%%%/g, (_, i) => `$$${displayMath[i]}$$`);
       return html;
     }
 
     function buildBooktabsTable(rows) {
-      if (rows.length === 0) return '';
-      let tableHtml = '<div class="my-4"><table class="booktabs text-xs font-sans">';
-      
-      const headerCols = rows[0].split('|').filter(c => c.trim().length > 0);
-      tableHtml += '<thead><tr class="bg-zinc-50">';
-      headerCols.forEach(c => {
-        tableHtml += `<th>\${c.trim()}</th>`;
-      });
-      tableHtml += '</tr></thead><tbody>';
-
+      if (!rows.length) return '';
+      const cells = r => r.split('|').slice(1, -1).map(c => c.trim());
+      let t = '<div class="my-2 overflow-x-auto"><table class="booktabs"><thead><tr>';
+      cells(rows[0]).forEach(c => { t += `<th>${c}</th>`; });
+      t += '</tr></thead><tbody>';
       for (let i = 1; i < rows.length; i++) {
-        const cols = rows[i].split('|').filter(c => c.trim().length > 0);
-        tableHtml += '<tr>';
-        cols.forEach(c => {
-          tableHtml += `<td>\${c.trim()}</td>`;
-        });
-        tableHtml += '</tr>';
+        t += '<tr>';
+        cells(rows[i]).forEach(c => { t += `<td>${c}</td>`; });
+        t += '</tr>';
       }
-      tableHtml += '</tbody></table></div>';
-      return tableHtml;
+      return t + '</tbody></table></div>';
+    }
+
+    // ── Preview ──
+    function countWords(text) {
+      const cjk = (text.match(/[一-鿿]/g) || []).length;
+      const latin = (text.match(/[a-zA-Z0-9_\-]+/g) || []).length;
+      return cjk + latin;
     }
 
     function renderLivePreview() {
       const editor = document.getElementById('markdown-editor');
       const preview = document.getElementById('publication-preview');
       const text = editor.value;
-
-      // Count words
-      const cjk = (text.match(/[\\u4e00-\\u9fff]/g) || []).length;
-      const latin = (text.match(/[a-zA-Z0-9_\\\\-]+/g) || []).length;
-      document.getElementById('word-count-badge').innerText = `\${cjk + latin} words`;
-
-      // Render Markdown HTML
+      document.getElementById('word-count-badge').innerText = `${countWords(text)} words`;
       preview.innerHTML = parseMarkdownToHTML(text);
-
-      // Render KaTeX Math
       if (window.renderMathInElement) {
         renderMathInElement(preview, {
           delimiters: [
-            {left: '$$', right: '$$', display: true},
-            {left: '$', right: '$', display: false}
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
           ],
-          throwOnError: false
+          throwOnError: false,
         });
       }
+      if (currentPreviewMode === 'pdf') triggerLivePdfRender();
     }
 
-    function switchSection(secId) {
-      currentSection = secId;
-      document.querySelectorAll('.nav-item').forEach(el => {
-        el.className = 'nav-item flex items-center justify-between px-2 py-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer';
-      });
-      const activeNav = document.getElementById('nav-' + secId);
-      if (activeNav) {
-        activeNav.className = 'nav-item flex items-center justify-between px-2 py-1.5 rounded-md bg-white/[0.07] text-white font-medium cursor-pointer';
-      }
+    function switchPreviewMode(mode) {
+      currentPreviewMode = mode;
+      const active = 'px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-zinc-800 shadow-sm transition';
+      const idle = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-500 hover:text-zinc-800 transition';
+      const btnWeb = document.getElementById('btn-mode-web');
+      const btnPdf = document.getElementById('btn-mode-pdf');
+      btnWeb.className = mode === 'web' ? active : idle;
+      btnPdf.className = (mode === 'pdf' ? active : idle) + ' flex items-center gap-1';
+      document.getElementById('publication-preview').classList.toggle('hidden', mode === 'pdf');
+      document.getElementById('pdf-preview-container').classList.toggle('hidden', mode !== 'pdf');
+      if (mode === 'pdf') triggerLivePdfRender(true); else renderLivePreview();
+    }
 
-      if (SECTIONS[secId]) {
-        document.getElementById('markdown-editor').value = SECTIONS[secId].content;
-        document.getElementById('doc-title-label').innerText = SECTIONS[secId].name;
-        document.getElementById('top-section-name').innerText = SECTIONS[secId].name;
+    function triggerLivePdfRender(immediate = false) {
+      if (livePdfDebounceTimer) clearTimeout(livePdfDebounceTimer);
+      const run = () => {
+        const text = document.getElementById('markdown-editor').value;
+        const statusText = document.getElementById('pdf-status-text');
+        const statusDot = document.getElementById('pdf-status-dot');
+        const latencyTag = document.getElementById('pdf-latency-tag');
+        statusText.innerText = 'Compiling…';
+        fetch('/api/pdf/build', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markdown_text: text, title: (SECTIONS[currentSection] && SECTIONS[currentSection].name) || 'SynapseForge Live PDF' }),
+        })
+          .then(r => r.json())
+          .then(res => {
+            if (res.ok && res.pdf_url) {
+              document.getElementById('pdf-viewer-frame').src = res.pdf_url;
+              latencyTag.innerText = `${res.compile_time_ms}ms`;
+              latencyTag.classList.remove('hidden');
+              statusText.innerText = 'PDF 实时就绪';
+              statusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+            } else {
+              statusText.innerText = res.error ? '编译失败' : 'PDF 不可用';
+              statusDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
+            }
+          })
+          .catch(() => {
+            statusText.innerText = 'Daemon 未连接';
+            statusDot.className = 'w-1.5 h-1.5 rounded-full bg-zinc-400';
+          });
+      };
+      if (immediate) run(); else livePdfDebounceTimer = setTimeout(run, 400);
+    }
+
+    function downloadCurrentPdf() {
+      window.open('/dist/live_preview.pdf', '_blank');
+    }
+
+    // ── Editor input: preview + autosave ──
+    function onEditorInput() {
+      if (currentSection && SECTIONS[currentSection]) {
+        SECTIONS[currentSection].content = document.getElementById('markdown-editor').value;
       }
       renderLivePreview();
+      saveLocalSession();
+      scheduleDocSave();
     }
 
-    // Zed Following Mode Toggle
+    function setSaveState(msg) {
+      document.getElementById('save-state').innerText = msg;
+    }
+
+    function scheduleDocSave() {
+      setSaveState('未保存的更改…');
+      if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = setTimeout(saveCurrentSection, 900);
+    }
+
+    function saveCurrentSection() {
+      if (!currentSection) return;
+      const content = document.getElementById('markdown-editor').value;
+      setSaveState('保存中…');
+      fetch('/api/doc/save', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section_id: currentSection, content }),
+      })
+        .then(r => r.json())
+        .then(res => { setSaveState(res.ok ? '已保存' : '保存失败'); })
+        .catch(() => { setSaveState('本地暂存(守护进程离线)'); });
+    }
+
+    function setupKeyboardShortcuts() {
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault();
+          if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+          saveCurrentSection();
+        }
+      });
+    }
+
+    // ── Follow mode ──
     function toggleFollow(agentRole) {
-      const drafterAvatar = document.getElementById('avatar-drafter');
-      const criticAvatar = document.getElementById('avatar-critic');
-      const harmonizerAvatar = document.getElementById('avatar-harmonizer');
-      const cursorBadge = document.getElementById('zed-cursor-badge');
-
-      if (followingTarget === agentRole) {
-        followingTarget = null;
-        drafterAvatar.className = 'w-5 h-5 rounded-full bg-purple-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-        criticAvatar.className = 'w-5 h-5 rounded-full bg-amber-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-        harmonizerAvatar.className = 'w-5 h-5 rounded-full bg-emerald-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-        cursorBadge.classList.add('hidden');
-        cursorBadge.classList.remove('flex');
-        showNetworkToast('已退出跟随模式 (Manual Viewport)');
-      } else {
-        followingTarget = agentRole;
-        drafterAvatar.className = 'w-5 h-5 rounded-full bg-purple-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-        criticAvatar.className = 'w-5 h-5 rounded-full bg-amber-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-        harmonizerAvatar.className = 'w-5 h-5 rounded-full bg-emerald-600 text-[9px] font-bold text-white flex items-center justify-center cursor-pointer border border-[#0c0d10] transition hover:scale-110';
-
-        const activeAvatar = document.getElementById('avatar-' + agentRole);
-        if (activeAvatar) {
-          activeAvatar.className += ' avatar-ring following-active';
-        }
-
-        cursorBadge.classList.remove('hidden');
-        cursorBadge.classList.add('flex');
-        cursorBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping"></span><span>Following @\${agentRole.toUpperCase()} (Auto-scrolling viewport)</span>`;
-
-        showNetworkToast(`🎯 Zed 跟随模式激活：正在同步跟随 @\${agentRole.toUpperCase()} 的视口`);
-        
-        // Auto scroll to target
+      const badge = document.getElementById('follow-badge');
+      followingTarget = followingTarget === agentRole ? null : agentRole;
+      ['drafter', 'critic', 'harmonizer'].forEach(id => {
+        const el = document.getElementById('avatar-' + id);
+        if (el) el.classList.toggle('is-followed', followingTarget === id);
+      });
+      if (followingTarget) {
+        badge.classList.remove('hidden'); badge.classList.add('flex');
+        document.getElementById('follow-badge-text').innerText = `Following @${followingTarget.toUpperCase()}`;
+        showToast(`跟随模式:正在同步 @${followingTarget.toUpperCase()} 的视口`);
         const preview = document.getElementById('publication-preview');
-        if (preview) {
-          preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
-        }
+        preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
+      } else {
+        badge.classList.add('hidden'); badge.classList.remove('flex');
+        showToast('已退出跟随模式');
       }
     }
 
+    // ── Agent simulation ──
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += "\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$，系统全局状态收敛上界满足：\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\\\text{sync}}] \\\\le \\\\frac{1}{\\\\mu - \\\\lambda} \\\\ln \\\\left( \\\\frac{|\\\\mathcal{V}|}{\\\\epsilon} \\\\right) + \\\\max_{j \\\\in \\\\mathcal{N}} \\\\{\\\\text{RTT}_j\\\\}\\n$$\\n";
-      renderLivePreview();
-      
+      editor.value += '\n\n## 形式化一致性收敛定理\n\n设节点往返通信时延为 $\\tau_j$,系统全局状态收敛上界满足:\n\n$$\n\\mathbb{E}[\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\n$$\n';
+      onEditorInput();
       const preview = document.getElementById('publication-preview');
-      if (preview) {
-        preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
-      }
+      preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
     }
 
     function handleSend() {
       const input = document.getElementById('agent-input');
       const text = input.value.trim();
-      if (text) {
-        const stream = document.getElementById('activity-stream');
-        const userCard = document.createElement('div');
-        userCard.className = 'space-y-1';
-        userCard.innerHTML = `<div class="text-zinc-500 text-[10px]">You • Just now</div><div class="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-zinc-300 leading-relaxed">\${text}</div>`;
-        stream.appendChild(userCard);
+      if (!text) return;
+      const stream = document.getElementById('activity-stream');
 
-        const agentCard = document.createElement('div');
-        agentCard.className = 'space-y-1.5';
-        agentCard.innerHTML = `<div class="text-purple-400 text-[10px] font-medium flex items-center space-x-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span><span>Drafter Agent</span></div><div class="p-2.5 rounded-lg bg-purple-950/20 border border-purple-500/20 text-zinc-300 leading-relaxed text-xs">Incorporating request into current section AST. Math equations updated.</div>`;
-        stream.appendChild(agentCard);
-        stream.scrollTop = stream.scrollHeight;
+      const userCard = document.createElement('div');
+      userCard.className = 'space-y-1';
+      const userMeta = document.createElement('div');
+      userMeta.className = 'text-zinc-500 text-[10px]';
+      userMeta.textContent = 'You · Just now';
+      const userBody = document.createElement('div');
+      userBody.className = 'p-2.5 rounded-lg raised border border-white/[0.04] text-zinc-300 leading-relaxed';
+      userBody.textContent = text;
+      userCard.appendChild(userMeta); userCard.appendChild(userBody);
+      stream.appendChild(userCard);
 
-        triggerAgentDraft();
-        input.value = '';
-      }
+      const agentCard = document.createElement('div');
+      agentCard.className = 'space-y-1.5';
+      agentCard.innerHTML = '<div class="text-purple-400 text-[10px] font-medium flex items-center gap-1.5">' +
+        '<span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span><span>Drafter Agent</span></div>' +
+        '<div class="p-2.5 rounded-lg bg-purple-500/[0.07] border border-purple-500/20 text-zinc-300 leading-relaxed">' +
+        'Incorporating request into current section AST. Math equations updated.</div>';
+      stream.appendChild(agentCard);
+      stream.scrollTop = stream.scrollHeight;
+      triggerAgentDraft();
+      input.value = '';
     }
 
-    // Session & Network State Watchdog
+    // ── Session persistence & watchdog ──
     const STORAGE_KEY = 'synapseforge_session_state';
 
     function saveLocalSession() {
-      const editor = document.getElementById('markdown-editor');
-      const sessionData = {
-        room_id: 'room-global-sync',
-        room_name: 'Decentralized Swarm Room #1',
-        currentSection: currentSection,
-        draftContent: editor ? editor.value : '',
-        timestamp: Date.now()
-      };
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+        const data = {
+          room_id: 'room-global-sync',
+          room_name: 'Decentralized Swarm Room #1',
+          currentSection,
+          draftContent: document.getElementById('markdown-editor').value,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         if (navigator.onLine) {
           fetch('/api/session', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(sessionData)
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
           }).catch(() => {});
         }
       } catch (e) {}
@@ -796,74 +772,54 @@ ui_code = """<!DOCTYPE html>
     function restoreLocalSession() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const session = JSON.parse(raw);
-          if (session.currentSection && SECTIONS[session.currentSection]) {
-            currentSection = session.currentSection;
-            switchSection(currentSection);
-            if (session.draftContent) {
-              document.getElementById('markdown-editor').value = session.draftContent;
-            }
+        if (!raw) return false;
+        const session = JSON.parse(raw);
+        if (session.currentSection && SECTIONS[session.currentSection]) {
+          switchSection(session.currentSection);
+          if (session.draftContent) {
+            document.getElementById('markdown-editor').value = session.draftContent;
+            SECTIONS[session.currentSection].content = session.draftContent;
             renderLivePreview();
-            showNetworkToast('已无缝恢复至断线前房间与文档状态');
-            return true;
           }
+          showToast('已恢复至断线前的房间与文档状态');
+          return true;
         }
       } catch (e) {}
       return false;
     }
 
-    function showNetworkToast(msg, isWarning = false) {
-      const badge = document.getElementById('network-badge');
-      const text = document.getElementById('network-badge-text');
-      if (badge && text) {
-        text.innerText = msg;
-        if (isWarning) {
-          badge.className = 'flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-medium transition';
-        } else {
-          badge.className = 'flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium transition';
-        }
-      }
-    }
-
     function setupNetworkWatchdog() {
-      window.addEventListener('offline', () => {
-        showNetworkToast('网络抖动/离线：已自动暂存至本地磁盘', true);
-      });
-
-      window.addEventListener('online', () => {
-        showNetworkToast('网络已恢复：已自动重连回原房间与原界面', false);
-        fetch('/api/session').then(r => r.json()).then(data => {
-          if (data.ok && data.session) {
-            saveLocalSession();
-          }
-        }).catch(() => {});
-      });
-
-      const editor = document.getElementById('markdown-editor');
-      if (editor) {
-        editor.addEventListener('input', () => {
-          saveLocalSession();
-        });
-      }
+      window.addEventListener('offline', () => setNetworkBadge('离线:已自动暂存至本地', true));
+      window.addEventListener('online', () => setNetworkBadge('Mesh Connected', false));
     }
 
-    // Initialize when KaTeX is loaded
-    window.addEventListener('DOMContentLoaded', () => {
-      setupNetworkWatchdog();
-      setTimeout(() => {
-        const restored = restoreLocalSession();
-        if (!restored) {
-          switchSection('sec_02');
-        }
-      }, 200);
-    });
+    function setNetworkBadge(msg, warn) {
+      const badge = document.getElementById('network-badge');
+      document.getElementById('network-badge-text').innerText = msg;
+      badge.className = warn
+        ? 'flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-medium'
+        : 'flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium';
+    }
+
+    // ── Misc ──
+    let toastTimer = null;
+    function showToast(msg, warn = false) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.borderColor = warn ? 'rgba(245,158,11,.4)' : 'rgba(255,255,255,.08)';
+      toast.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => setTimeout(boot, 150));
   </script>
 </body>
 </html>
 """
 
-with open('synapseforge/ui/index.html', 'w', encoding='utf-8') as f:
-    f.write(ui_code)
+full_html = html_template.replace("__SECTIONS_JSON__", sections_json)
 
-print('Generated UI with User Custom Prompt Presets Modal: SUCCESS')
+out = Path("synapseforge/ui/index.html")
+out.write_text(full_html, encoding="utf-8")
+print(f"Generated {out} with {len(sections)} embedded sections: SUCCESS")
