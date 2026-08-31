@@ -30,6 +30,9 @@ from synapseforge.github_bridge.ci_reporter import CIReporter
 from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
 from synapseforge.github_bridge.pr_reviewer import PRReviewRunner
 from synapseforge.linters import LintSuite
+from synapseforge.core.figure_linker import FigureLinker
+from synapseforge.core.ingest import DocumentIngestor
+from synapseforge.core.llm_router import LLMRouter
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
@@ -501,6 +504,86 @@ def cmd_snapshot(args):
             print()
 
 
+def cmd_ingest(args):
+    ingestor = DocumentIngestor()
+    if args.ingest_action == "add":
+        content = args.content
+        if args.file:
+            content = Path(args.file).read_text(encoding="utf-8")
+        res = ingestor.ingest_text_or_note(
+            source_id=args.id,
+            title=args.title,
+            content=content,
+            tags=args.tags.split(",") if args.tags else [],
+        )
+    elif args.ingest_action == "list" or not args.ingest_action:
+        res = {"ok": True, "sources": ingestor.list_ingested_sources()}
+    else:
+        res = {"ok": False, "error": f"Unknown ingest action: {args.ingest_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if args.ingest_action == "add":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Ingested research source: '{args.title}' ({res['file']}){Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Ingest failed: {res.get('error')}{Color.RESET}")
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}Ingested Knowledge Context ({len(res.get('sources', []))} sources):{Color.RESET}")
+            for s in res.get("sources", []):
+                print(f"  • [{s['id']}] {s['title']} ({s['file']})")
+            print()
+
+
+def cmd_figure(args):
+    linker = FigureLinker()
+    if args.figure_action == "insert":
+        res = linker.insert_figure(
+            section_id=args.section,
+            image_path=args.image,
+            caption=args.caption,
+            fig_num=args.num or 1,
+            discussion_bridge=args.bridge,
+        )
+    else:
+        res = {"ok": False, "error": f"Unknown figure action: {args.figure_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"{Color.GREEN}✓ Bound figure to {res['section_file']}:{Color.RESET}")
+            print(f"  - Caption: 图 {res['fig_num']}：{res['caption']}")
+            print(f"  - Discussion Bridge: {res['bridge_injected']}")
+        else:
+            print(f"{Color.RED}✖ Figure insertion failed: {res.get('error')}{Color.RESET}")
+
+
+def cmd_provider(args):
+    router = LLMRouter()
+    if args.provider_action == "list" or not args.provider_action:
+        res = {"ok": True, "providers": router.list_providers()}
+    elif args.provider_action == "ping":
+        res = router.ping_provider(args.provider_id)
+    else:
+        res = {"ok": False, "error": f"Unknown provider action: {args.provider_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if args.provider_action == "ping":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Provider '{res['provider']}' online (RTT: {res['latency_ms']}ms){Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Ping failed: {res.get('error')}{Color.RESET}")
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}LLM Model Provider Mesh Routing:{Color.RESET}")
+            for p in res.get("providers", []):
+                print(f"  • {p['name']:<25} | {p['type']:<10} | {p['model']:<25} | {p['endpoint']}")
+            print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -756,6 +839,61 @@ def main():
     p_sn_roll.add_argument("--file", default=None, help="Optional specific file path")
     p_sn_roll.add_argument("--json", action="store_true", default=True)
     p_sn_roll.set_defaults(func=cmd_snapshot)
+
+    # ==========================================
+    # RESEARCH INGESTION TOOLKIT
+    # ==========================================
+    p_ing = subparsers.add_parser("ingest", help="Ingest research literature, ArXiv, notes into context")
+    p_ing.add_argument("--json", action="store_true", default=True)
+    p_ing.set_defaults(func=cmd_ingest)
+    p_ing_subs = p_ing.add_subparsers(dest="ingest_action", help="Ingest action")
+
+    p_in_add = p_ing_subs.add_parser("add", help="Add text note or file into project context")
+    p_in_add.add_argument("--id", required=True, help="Source identifier")
+    p_in_add.add_argument("--title", required=True, help="Source title")
+    p_in_add.add_argument("--content", default="", help="Note content")
+    p_in_add.add_argument("--file", default=None, help="File to ingest")
+    p_in_add.add_argument("--tags", default="", help="Comma-separated tags")
+    p_in_add.add_argument("--json", action="store_true", default=True)
+    p_in_add.set_defaults(func=cmd_ingest)
+
+    p_in_list = p_ing_subs.add_parser("list", help="List all ingested research sources")
+    p_in_list.add_argument("--json", action="store_true", default=True)
+    p_in_list.set_defaults(func=cmd_ingest)
+
+    # ==========================================
+    # SCIENTIFIC FIGURE LINKER
+    # ==========================================
+    p_fig = subparsers.add_parser("figure", help="Bind scientific figures with narrative discussion bridges")
+    p_fig.add_argument("--json", action="store_true", default=True)
+    p_fig.set_defaults(func=cmd_figure)
+    p_fig_subs = p_fig.add_subparsers(dest="figure_action", help="Figure action")
+
+    p_fg_ins = p_fig_subs.add_parser("insert", help="Insert figure into section with caption and bridge")
+    p_fg_ins.add_argument("--section", required=True, help="Target section ID")
+    p_fg_ins.add_argument("--image", required=True, help="Image file path")
+    p_fg_ins.add_argument("--caption", required=True, help="Figure caption")
+    p_fg_ins.add_argument("--num", type=int, default=1, help="Figure number")
+    p_fg_ins.add_argument("--bridge", default=None, help="Discussion bridge sentence")
+    p_fg_ins.add_argument("--json", action="store_true", default=True)
+    p_fg_ins.set_defaults(func=cmd_figure)
+
+    # ==========================================
+    # LLM MODEL PROVIDER MESH ROUTER
+    # ==========================================
+    p_prov = subparsers.add_parser("provider", help="Multi-model LLM routing and GPU node latency ping")
+    p_prov.add_argument("--json", action="store_true", default=True)
+    p_prov.set_defaults(func=cmd_provider)
+    p_prov_subs = p_prov.add_subparsers(dest="provider_action", help="Provider action")
+
+    p_pr_list = p_prov_subs.add_parser("list", help="List all configured LLM providers and models")
+    p_pr_list.add_argument("--json", action="store_true", default=True)
+    p_pr_list.set_defaults(func=cmd_provider)
+
+    p_pr_ping = p_prov_subs.add_parser("ping", help="Ping LLM provider endpoint latency")
+    p_pr_ping.add_argument("--provider-id", required=True, help="Provider ID (e.g. deepseek, ollama_local)")
+    p_pr_ping.add_argument("--json", action="store_true", default=True)
+    p_pr_ping.set_defaults(func=cmd_provider)
 
     args = parser.parse_args()
     if not args.command:
