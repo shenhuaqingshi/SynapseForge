@@ -92,6 +92,30 @@ synapseforge review
 synapseforge build
 ```
 
+### Local Agent CLI collaboration (same machine)
+
+When Codex, Grok Build, and Antigravity share one workspace, GitHub Issues are too slow and Tailscale is the wrong layer. Use the local team bus:
+
+```bash
+# Create a room and print paste-prompts for each host CLI
+synapseforge team open --document README.md --cwd . --json
+
+# Each CLI joins a unique seat (codex / grok / antigravity)
+synapseforge team join --room my-paper --agent grok --json
+
+# Human directive — agents must act, not wait for a vote
+synapseforge team say --room my-paper --agent human -m "Stop submitting" --kind directive
+
+# Task board, file locks, stale reclaim, exclusive push/submit
+synapseforge team create-task --room my-paper --agent grok --title "Draft sec_01" --files sections/01_abstract_introduction.md
+synapseforge team claim-action --room my-paper --agent antigravity --action-key push:main
+
+# Stdio MCP for host CLIs (Content-Length and NDJSON)
+synapseforge team mcp
+```
+
+See [docs/LOCAL_AGENT_COLLAB.md](docs/LOCAL_AGENT_COLLAB.md) for seats, heartbeat, `already_online` observers, and `coordinator_silent`.
+
 ---
 
 ## 📊 Empirical Benchmarks
@@ -120,7 +144,8 @@ SynapseForge/
 │   ├── pull_request_template.md          # Multi-agent contribution PR template
 │   └── CODEOWNERS                        # Section & domain reviewer mapping
 ├── synapseforge/
-│   ├── core/                             # AST parser, state machine, AST conflict resolver, engine
+│   ├── core/                             # AST parser, state machine, team bus, AST conflict resolver, engine
+│   ├── mcp/                              # Stdio MCP server for host Agent CLI rooms
 │   ├── agents/                           # Architect, Drafter, Critic, Harmonizer, Visualizer agents
 │   ├── linters/                          # Anti-AI, Coherence, Style, and BibTeX citation linters
 │   ├── github_bridge/                    # GitHub API client, PR review bot, issue dispatcher
