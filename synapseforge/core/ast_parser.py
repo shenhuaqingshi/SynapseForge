@@ -100,6 +100,14 @@ class MarkdownASTParser:
     """Parses a Markdown string or file into structured AST blocks and hierarchical sections."""
 
     @staticmethod
+    def count_words(text: str) -> int:
+        if not text:
+            return 0
+        cjk_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+        latin_words = len(re.findall(r'[a-zA-Z0-9_\-]+', text))
+        return cjk_chars + latin_words
+
+    @staticmethod
     def parse_blocks(text: str) -> List[DocBlock]:
         lines = text.splitlines()
         blocks: List[DocBlock] = []

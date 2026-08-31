@@ -1,17 +1,28 @@
 """
 SynapseForge Command Line Interface (CLI).
-The central toolkit for distributed multi-agent collaborative writing, quality gating, Tailscale mesh networking, and GitHub synchronization.
+Comprehensive, programmatic toolkit for Solo Humans, Multi-Agent Swarms, Quality Gating, Tailscale Mesh, and GitOps workflows.
+Supports machine-readable JSON output (--json) across all subcommands.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
 from typing import List, Optional
 
 from synapseforge import __version__
+from synapseforge.cli.agent_cmds import (
+    handle_agent_audit,
+    handle_agent_claim,
+    handle_agent_draft,
+    handle_agent_list,
+    handle_agent_patch,
+    handle_agent_release,
+)
+from synapseforge.cli.doc_cmds import handle_doc_get, handle_doc_stats
 from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.conflict_resolver import SemanticConflictResolver
 from synapseforge.core.engine import SwarmEngine
@@ -44,7 +55,7 @@ def print_banner():
  \__ \ || | ' \/ _` | '_ \(_-</ -_) _/ _ \ '_/ _` / -_)
  |___/\_, |_||_\__,_| .__/__/\___|_| \___/_| \__, \___|
       |__/          |_|                      |___/     
-    {Color.GRAY}GitOps & Tailscale Multi-Agent Distributed Collaborative Writing Engine v{__version__}{Color.RESET}
+    {Color.GRAY}Solo-Human & Multi-Agent Swarm Collaborative Writing Engine v{__version__}{Color.RESET}
 """
     print(banner)
 
@@ -68,6 +79,23 @@ def cmd_init(args):
 def cmd_plan(args):
     engine = SwarmEngine()
     sections = engine.plan_document()
+    
+    if getattr(args, "json", False):
+        data = [
+            {
+                "order": idx,
+                "id": s.id,
+                "title": s.title,
+                "file": s.file,
+                "role": s.assigned_role,
+                "word_count_target": s.word_count_target,
+                "dependencies": s.dependencies,
+            }
+            for idx, s in enumerate(sections, 1)
+        ]
+        print(json.dumps({"ok": True, "plan": data}, indent=2, ensure_ascii=False))
+        return
+
     print(f"\n{Color.CYAN}{Color.BOLD}Document Structure Plan (Topological Order):{Color.RESET}")
     print(f"{'Order':<6} | {'Section ID':<25} | {'Role':<12} | {'Target File':<35}")
     print("-" * 85)
@@ -79,6 +107,11 @@ def cmd_plan(args):
 def cmd_status(args):
     engine = SwarmEngine()
     tree = engine.get_document_tree()
+
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": True, "status_ledger": tree}, indent=2, ensure_ascii=False))
+        return
+
     print(f"\n{Color.CYAN}{Color.BOLD}SynapseForge Swarm Status:{Color.RESET}")
     print(f"{'Section ID':<25} | {'Status':<15} | {'Words':<8} | {'Actor':<18} | {'File'}")
     print("-" * 90)
@@ -108,25 +141,49 @@ def cmd_lint(args):
         targets = list(sec_dir.glob("*.md")) if sec_dir.exists() else list(Path.cwd().glob("*.md"))
 
     if not targets:
-        print(f"{Color.YELLOW}No markdown files found to lint.{Color.RESET}")
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "files_scanned": 0, "passed": True}))
+        else:
+            print(f"{Color.YELLOW}No markdown files found to lint.{Color.RESET}")
         return
 
-    print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Document Quality Gates on {len(targets)} files...{Color.RESET}\n")
     all_passed = True
+    reports_data = []
 
     for t in sorted(targets):
         report = suite.lint_file(t)
-        status_str = f"{Color.GREEN}PASSED{Color.RESET}" if report.passed else f"{Color.RED}FAILED{Color.RESET}"
-        print(f"[{status_str}] {t.name} (Errors: {report.total_errors}, Warnings: {report.total_warnings})")
-
-        for issue in report.all_issues:
-            icon = f"{Color.RED}✖ Error{Color.RESET}" if issue.severity == "error" else f"{Color.YELLOW}⚠ Warning{Color.RESET}"
-            print(f"  {icon} [{issue.linter_name}] Line {issue.line_start}: {issue.message}")
-            if issue.snippet:
-                print(f"    {Color.GRAY}Context: {issue.snippet[:90]}{Color.RESET}")
-
         if not report.passed:
             all_passed = False
+        reports_data.append({
+            "file": str(t.relative_to(Path.cwd())),
+            "passed": report.passed,
+            "errors": report.total_errors,
+            "warnings": report.total_warnings,
+            "issues": [
+                {
+                    "linter": i.linter_name,
+                    "severity": i.severity,
+                    "line": i.line_start,
+                    "message": i.message,
+                    "suggestion": i.suggestion,
+                }
+                for i in report.all_issues
+            ]
+        })
+
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": True, "all_passed": all_passed, "reports": reports_data}, indent=2, ensure_ascii=False))
+        if not all_passed and args.ci:
+            sys.exit(1)
+        return
+
+    print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Document Quality Gates on {len(targets)} files...{Color.RESET}\n")
+    for r in reports_data:
+        status_str = f"{Color.GREEN}PASSED{Color.RESET}" if r["passed"] else f"{Color.RED}FAILED{Color.RESET}"
+        print(f"[{status_str}] {r['file']} (Errors: {r['errors']}, Warnings: {r['warnings']})")
+        for issue in r["issues"]:
+            icon = f"{Color.RED}✖ Error{Color.RESET}" if issue["severity"] == "error" else f"{Color.YELLOW}⚠ Warning{Color.RESET}"
+            print(f"  {icon} [{issue['linter']}] Line {issue['line']}: {issue['message']}")
 
     print("\n" + "=" * 60)
     if all_passed:
@@ -148,6 +205,15 @@ def cmd_merge(args):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(res.merged_content, encoding="utf-8")
 
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "ok": True,
+            "output": str(out_path),
+            "auto_resolved": res.resolved_auto_count,
+            "conflicts": res.conflict_count,
+        }, indent=2))
+        return
+
     print(f"\n{Color.CYAN}{Color.BOLD}Semantic AST 3-Way Merge Result:{Color.RESET}")
     print(f"  - Output: {out_path}")
     print(f"  - Auto-Resolved Sections: {res.resolved_auto_count}")
@@ -156,8 +222,15 @@ def cmd_merge(args):
 
 def cmd_review(args):
     runner = PRReviewRunner()
-    print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Multi-Agent Peer Review...{Color.RESET}")
     res = runner.run_full_pr_review(base_ref=args.base, pr_number=args.pr)
+    
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+        if not res["all_passed"] and args.ci:
+            sys.exit(1)
+        return
+
+    print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Multi-Agent Peer Review...{Color.RESET}")
     print("\n" + res["summary_markdown"] + "\n")
     if not res["all_passed"] and args.ci:
         sys.exit(1)
@@ -168,6 +241,16 @@ def cmd_build(args):
     master_md = engine.compile_full_document()
     pipeline = PublicationPipeline(config=engine.config)
     res = pipeline.build_all(master_md)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "ok": True,
+            "document_title": res.document_title,
+            "output_dir": res.output_dir,
+            "total_words": res.total_words,
+            "files": res.generated_files,
+        }, indent=2, ensure_ascii=False))
+        return
 
     print(f"\n{Color.GREEN}{Color.BOLD}✓ Publication Artifacts Successfully Generated!{Color.RESET}")
     print(f"  - Document: {res.document_title}")
@@ -182,6 +265,30 @@ def cmd_mesh(args):
     config = load_config()
     mesh = TailscaleMeshManager(tailnet_name=config.tailscale.tailnet, port=config.tailscale.mesh_port)
     topo = mesh.get_mesh_status()
+
+    if getattr(args, "json", False):
+        data = {
+            "ok": True,
+            "tailnet": topo.tailnet_name,
+            "local_node": topo.local_node_id,
+            "local_ip": topo.local_ip,
+            "total_nodes": topo.total_nodes,
+            "direct_p2p_ratio": topo.direct_p2p_ratio,
+            "average_latency_ms": topo.average_latency_ms,
+            "nodes": [
+                {
+                    "hostname": n.hostname,
+                    "tailscale_ip": n.tailscale_ip,
+                    "region": n.region,
+                    "role": n.role,
+                    "latency_ms": n.latency_ms,
+                    "direct_p2p": n.direct_p2p,
+                }
+                for n in topo.connected_nodes
+            ]
+        }
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        return
 
     print(f"\n{Color.CYAN}{Color.BOLD}🔒 Tailscale Mesh Topology ({topo.tailnet_name}):{Color.RESET}")
     print(f"  - Local Node: {topo.local_node_id} ({topo.local_ip})")
@@ -201,6 +308,9 @@ def cmd_room(args):
     
     if args.room_action == "list" or not args.room_action:
         rooms = room_mgr.list_rooms()
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "rooms": [r.to_dict() for r in rooms]}, indent=2, ensure_ascii=False))
+            return
         print(f"\n{Color.CYAN}{Color.BOLD}🏢 Decentralized Shared Rooms across Tailscale Mesh:{Color.RESET}")
         print(f"{'Slug / ID':<30} | {'Room Name':<28} | {'Synced Nodes':<14} | {'Members':<8} | {'Owner'}")
         print("-" * 96)
@@ -214,6 +324,9 @@ def cmd_room(args):
         title = args.title or name
         doc_type = args.type or "academic_whitepaper"
         room = room_mgr.create_shared_room(name=name, document_title=title, document_type=doc_type)
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "room": room.to_dict()}, indent=2, ensure_ascii=False))
+            return
         print(f"\n{Color.GREEN}{Color.BOLD}✓ Shared Room Successfully Created & Replicated across Tailscale Mesh!{Color.RESET}")
         print(f"  - Room Slug: {room.slug}")
         print(f"  - Room ID: {room.room_id}")
@@ -222,6 +335,9 @@ def cmd_room(args):
 
     elif args.room_action == "join":
         room = room_mgr.join_shared_room(args.room_id, member_name=args.user or "xb")
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": room is not None, "room": room.to_dict() if room else None}, indent=2))
+            return
         if room:
             print(f"{Color.GREEN}✓ Node successfully joined shared room '{room.name}' (Version {room.state_version}){Color.RESET}")
         else:
@@ -234,6 +350,7 @@ def main():
         description="SynapseForge: GitOps & Tailscale Mesh Framework for Distributed Multi-Agent Collaborative Writing",
     )
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON format for AI agents")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # init
@@ -243,16 +360,19 @@ def main():
 
     # plan
     p_plan = subparsers.add_parser("plan", help="Generate document structure DAG & scaffolds")
+    p_plan.add_argument("--json", action="store_true", help="Output JSON")
     p_plan.set_defaults(func=cmd_plan)
 
     # status
     p_status = subparsers.add_parser("status", help="Display document writing status ledger")
+    p_status.add_argument("--json", action="store_true", help="Output JSON")
     p_status.set_defaults(func=cmd_status)
 
     # lint
     p_lint = subparsers.add_parser("lint", help="Run document quality gates & anti-AI linter")
     p_lint.add_argument("target", nargs="?", default=None, help="Target markdown file or directory")
     p_lint.add_argument("--ci", action="store_true", help="Exit with code 1 on quality gate failure")
+    p_lint.add_argument("--json", action="store_true", help="Output JSON")
     p_lint.set_defaults(func=cmd_lint)
 
     # merge
@@ -263,6 +383,7 @@ def main():
     p_merge.add_argument("-o", "--output", required=True, help="Path to write merged document")
     p_merge.add_argument("--ours-label", default="OURS (Branch)", help="Label for ours")
     p_merge.add_argument("--theirs-label", default="THEIRS (Incoming)", help="Label for theirs")
+    p_merge.add_argument("--json", action="store_true", help="Output JSON")
     p_merge.set_defaults(func=cmd_merge)
 
     # review
@@ -270,14 +391,17 @@ def main():
     p_review.add_argument("--base", default="main", help="Base git ref to diff against")
     p_review.add_argument("--pr", type=int, default=None, help="Pull Request number to comment on")
     p_review.add_argument("--ci", action="store_true", help="Exit with non-zero on failure in CI")
+    p_review.add_argument("--json", action="store_true", help="Output JSON")
     p_review.set_defaults(func=cmd_review)
 
     # build
     p_build = subparsers.add_parser("build", help="Build publication deliverables (HTML, Typst, PDF)")
+    p_build.add_argument("--json", action="store_true", help="Output JSON")
     p_build.set_defaults(func=cmd_build)
 
     # mesh
     p_mesh = subparsers.add_parser("mesh", help="Inspect Tailscale WireGuard P2P mesh network status")
+    p_mesh.add_argument("--json", action="store_true", help="Output JSON")
     p_mesh.set_defaults(func=cmd_mesh)
 
     # room
@@ -288,7 +412,74 @@ def main():
     p_room.add_argument("--type", default="academic_whitepaper", help="Document type")
     p_room.add_argument("--room-id", default="", help="Room ID or slug to join")
     p_room.add_argument("--user", default="xb", help="User name joining")
+    p_room.add_argument("--json", action="store_true", help="Output JSON")
     p_room.set_defaults(func=cmd_room)
+
+    # ==========================================
+    # AGENT TOOLKIT COMMANDS (For AI Subagents)
+    # ==========================================
+    p_agent = subparsers.add_parser("agent", help="AI Agent atomic action toolkit (list, claim, draft, audit, patch)")
+    agent_subs = p_agent.add_subparsers(dest="agent_action", help="Agent action")
+
+    # agent list
+    p_ag_list = agent_subs.add_parser("list", help="List all swarm agents and their active leases")
+    p_ag_list.add_argument("--json", action="store_true", default=True, help="Output JSON (default true for agents)")
+    p_ag_list.set_defaults(func=handle_agent_list)
+
+    # agent claim
+    p_ag_claim = agent_subs.add_parser("claim", help="Acquire an exclusive writing lease on a section")
+    p_ag_claim.add_argument("--agent", required=True, help="Agent name (e.g. Drafter-Narrative)")
+    p_ag_claim.add_argument("--section", required=True, help="Section ID to claim (e.g. sec_04_consensus)")
+    p_ag_claim.add_argument("--lease", type=int, default=3600, help="Lease duration in seconds")
+    p_ag_claim.add_argument("--json", action="store_true", default=True)
+    p_ag_claim.set_defaults(func=handle_agent_claim)
+
+    # agent release
+    p_ag_release = agent_subs.add_parser("release", help="Release a section lease")
+    p_ag_release.add_argument("--agent", required=True, help="Agent name")
+    p_ag_release.add_argument("--section", required=True, help="Section ID to release")
+    p_ag_release.add_argument("--json", action="store_true", default=True)
+    p_ag_release.set_defaults(func=handle_agent_release)
+
+    # agent draft
+    p_ag_draft = agent_subs.add_parser("draft", help="Atomically write drafted content to a section file")
+    p_ag_draft.add_argument("--agent", required=True, help="Agent name")
+    p_ag_draft.add_argument("--section", required=True, help="Section ID")
+    p_ag_draft.add_argument("--content", default="", help="Markdown text content")
+    p_ag_draft.add_argument("--content-file", default=None, help="File containing markdown text")
+    p_ag_draft.add_argument("--json", action="store_true", default=True)
+    p_ag_draft.set_defaults(func=handle_agent_draft)
+
+    # agent audit
+    p_ag_audit = agent_subs.add_parser("audit", help="Run quality gates audit with structured line issues")
+    p_ag_audit.add_argument("--target", required=True, help="Target markdown file to audit")
+    p_ag_audit.add_argument("--json", action="store_true", default=True)
+    p_ag_audit.set_defaults(func=handle_agent_audit)
+
+    # agent patch
+    p_ag_patch = agent_subs.add_parser("patch", help="Apply line-level patch to markdown document")
+    p_ag_patch.add_argument("--file", required=True, help="Path to markdown file")
+    p_ag_patch.add_argument("--line", type=int, required=True, help="1-indexed line number to replace")
+    p_ag_patch.add_argument("--replace", required=True, help="New line content")
+    p_ag_patch.add_argument("--json", action="store_true", default=True)
+    p_ag_patch.set_defaults(func=handle_agent_patch)
+
+    # ==========================================
+    # DOCUMENT TOOLKIT COMMANDS (For AI Agents)
+    # ==========================================
+    p_doc = subparsers.add_parser("doc", help="Document inspection & AST queries for AI Agents")
+    doc_subs = p_doc.add_subparsers(dest="doc_action", help="Document action")
+
+    # doc get
+    p_doc_get = doc_subs.add_parser("get", help="Get section content and AST blocks in JSON")
+    p_doc_get.add_argument("--section", required=True, help="Section ID or filename")
+    p_doc_get.add_argument("--json", action="store_true", default=True)
+    p_doc_get.set_defaults(func=handle_doc_get)
+
+    # doc stats
+    p_doc_stats = doc_subs.add_parser("stats", help="Get full document metrics, word counts, and citations")
+    p_doc_stats.add_argument("--json", action="store_true", default=True)
+    p_doc_stats.set_defaults(func=handle_doc_stats)
 
     args = parser.parse_args()
     if not args.command:

@@ -54,9 +54,9 @@ class SwarmState:
 class StateManager:
     """Manages persistent project state in .synapse/state.json with lease locks and dependency tracking."""
 
-    def __init__(self, project_root: Path):
-        self.project_root = project_root
-        self.synapse_dir = project_root / ".synapse"
+    def __init__(self, project_root: Optional[Path] = None):
+        self.project_root = project_root or Path.cwd()
+        self.synapse_dir = self.project_root / ".synapse"
         self.state_file = self.synapse_dir / "state.json"
         self.synapse_dir.mkdir(parents=True, exist_ok=True)
         self.state = self._load_or_init()

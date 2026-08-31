@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge Studio</title>
+  <title>SynapseForge Studio - Solo Commander & Multi-Agent Swarm</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -107,7 +107,6 @@
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center p-2.5 select-none">
@@ -115,10 +114,10 @@
   <!-- macOS MAIN APP WINDOW -->
   <div class="w-full h-full max-w-[1780px] max-h-[1050px] rounded-2xl apple-panel shadow-2xl flex flex-col overflow-hidden border border-white/[0.08] relative">
 
-    <!-- macOS TITLEBAR & TOP TOOLBAR -->
+    <!-- macOS TITLEBAR & TOP TOOLBAR (Solo User + Swarm Fleet) -->
     <header class="h-11 bg-black/40 border-b border-white/[0.06] px-4 flex items-center justify-between shrink-0 z-30">
       
-      <!-- Left: Window Controls, Room Selector & Network Mesh Status -->
+      <!-- Left: Window Controls, Document Project & Commander Identity -->
       <div class="flex items-center space-x-3.5">
         <div class="flex items-center space-x-2">
           <span class="traffic-dot traffic-close"></span>
@@ -128,63 +127,64 @@
 
         <div class="h-3.5 w-px bg-white/10"></div>
 
-        <!-- Room Switcher Button -->
-        <button onclick="openModal('modal-room-switcher')" class="flex items-center space-x-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] px-2.5 py-1 rounded-lg transition text-xs font-medium text-white/90">
+        <!-- Document Project Selector -->
+        <button class="flex items-center space-x-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] px-2.5 py-1 rounded-lg transition text-xs font-medium text-white/90">
           <svg class="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-          <span>agi-distributed-whitepaper</span>
-          <span class="text-[10px] text-zinc-400 font-mono">v1.4</span>
-          <svg class="w-2.5 h-2.5 text-zinc-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <span>distributed-consensus-whitepaper</span>
+          <span class="text-[10px] text-zinc-500 font-mono">v1.0</span>
         </button>
 
-        <!-- Tailscale Mesh Network Badge -->
+        <!-- Tailscale Mesh Backend (P2P GPU compute connection) -->
         <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-emerald-500/[0.08] border border-emerald-500/20 text-[11px] text-emerald-400 font-mono">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span>synapseforge.ts.net (4 nodes)</span>
+          <span>Tailscale Mesh • Remote Agent GPU (2.4ms)</span>
         </div>
       </div>
 
-      <!-- Center: Structural Breadcrumbs -->
+      <!-- Center: Status Breadcrumb -->
       <div class="flex items-center space-x-2 text-xs text-zinc-500 font-medium">
-        <span class="text-zinc-400">Project</span>
+        <span class="text-zinc-400">Workspace</span>
         <span>/</span>
-        <span class="text-zinc-400">Room Activity</span>
+        <span class="text-zinc-400">Swarm Command</span>
         <span>/</span>
         <span class="text-zinc-200">04_conflict_resolution.md</span>
       </div>
 
-      <!-- Right: Collaborator Badges & Action Buttons -->
+      <!-- Right: Solo Commander Profile & Actions -->
       <div class="flex items-center space-x-2.5">
-        <div class="flex items-center -space-x-1 pr-1.5">
-          <div class="w-6 h-6 rounded-full bg-zinc-800 border border-white/20 flex items-center justify-center text-[10px] font-medium text-white shadow-sm" title="xb (Lead, Beijing)">xb</div>
-          <div class="w-6 h-6 rounded-full bg-blue-900 border border-white/20 flex items-center justify-center text-[10px] font-medium text-blue-200 shadow-sm" title="Elena_V (London)">EV</div>
-          <div class="w-6 h-6 rounded-full bg-amber-950 border border-white/20 flex items-center justify-center text-[10px] font-medium text-amber-200 shadow-sm" title="Dr_Chen (Tokyo)">DC</div>
-          <div class="w-6 h-6 rounded-full bg-zinc-700 border border-white/20 flex items-center justify-center text-[9px] font-medium text-zinc-300 shadow-sm" title="Swarm Engine (Silicon Valley)">S5</div>
+        <div class="flex items-center space-x-2 pr-1.5">
+          <div class="w-6 h-6 rounded-full bg-blue-600 border border-white/20 flex items-center justify-center text-[11px] font-semibold text-white shadow-sm" title="xb (Solo Author & Commander)">
+            xb
+          </div>
+          <span class="text-xs text-zinc-300 font-medium">Author (Commander)</span>
         </div>
 
-        <button onclick="openModal('modal-invite')" class="text-xs bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/[0.08] transition flex items-center space-x-1.5">
-          <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-          <span>Invite</span>
+        <div class="h-3.5 w-px bg-white/10"></div>
+
+        <button onclick="openModal('modal-dispatch')" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium px-3 py-1 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span>Dispatch to Agent</span>
         </button>
 
-        <button onclick="openModal('modal-new-task')" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium px-3 py-1 rounded-lg shadow-sm transition flex items-center space-x-1.5">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          <span>New Task</span>
+        <button class="text-xs bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/[0.08] transition flex items-center space-x-1">
+          <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <span>Export</span>
         </button>
       </div>
     </header>
 
-    <!-- 3-PANEL WORKSPACE -->
+    <!-- 3-PANEL WORKSPACE (Single User Commander + Swarm Fleet) -->
     <div class="flex-1 flex overflow-hidden">
 
       <!-- ======================================================== -->
-      <!-- COLUMN 1: PROJECT NAVIGATOR & PEER NODES (Leftmost)     -->
+      <!-- COLUMN 1: DOCUMENT STRUCTURE & AGENT SWARM FLEET (Left)  -->
       <!-- ======================================================== -->
       <aside class="w-64 bg-black/25 border-r border-white/[0.06] flex flex-col shrink-0 overflow-hidden">
         
-        <!-- Files & Sections Tree -->
-        <div class="h-[46%] flex flex-col border-b border-white/[0.06] overflow-hidden">
+        <!-- Files & Chapters -->
+        <div class="h-[48%] flex flex-col border-b border-white/[0.06] overflow-hidden">
           <div class="px-3.5 py-2.5 border-b border-white/[0.04] flex items-center justify-between text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-            <span>Sections</span>
+            <span>Document Sections</span>
             <span class="font-mono text-[10px] text-zinc-600">6 files</span>
           </div>
 
@@ -213,13 +213,13 @@
               <span class="text-[10px] text-zinc-600 font-mono">493w</span>
             </div>
 
-            <!-- Active File -->
+            <!-- Active Section -->
             <div onclick="selectFile('sec_04')" class="file-item active flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.08] text-white border border-white/[0.1] cursor-pointer">
               <div class="flex items-center space-x-2 truncate">
                 <svg class="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 <span class="truncate font-medium">04_consensus.md</span>
               </div>
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400" title="Selected Section"></span>
             </div>
 
             <div onclick="selectFile('sec_05')" class="file-item apple-item flex items-center justify-between px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer">
@@ -240,138 +240,129 @@
           </div>
         </div>
 
-        <!-- Swarm Agent Roles -->
-        <div class="h-[28%] flex flex-col border-b border-white/[0.06] overflow-hidden bg-black/10">
-          <div class="px-3.5 py-2 border-b border-white/[0.04] flex items-center justify-between text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-            <span>Swarm Agents</span>
-            <span class="text-[10px] text-zinc-400 font-mono">3 Active</span>
+        <!-- Dedicated Multi-Agent Fleet Roster -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-black/15">
+          <div class="px-3.5 py-2.5 border-b border-white/[0.04] flex items-center justify-between text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+            <span>Your Agent Swarm</span>
+            <span class="text-[10px] text-emerald-400 font-mono">Ready</span>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-            <div class="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] flex items-center justify-between">
-              <div class="flex items-center space-x-2 truncate">
-                <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-                <span class="text-zinc-200 font-medium truncate">Drafter</span>
+          <div class="flex-1 overflow-y-auto p-2.5 space-y-1.5 text-xs">
+            
+            <!-- Agent 1: Drafter -->
+            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] space-y-1.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                  <span class="font-medium text-zinc-200">Drafter Agent</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 font-mono">Active</span>
               </div>
-              <span class="text-[10px] text-zinc-400 font-mono">Drafting sec_04</span>
+              <p class="text-[11px] text-zinc-400 leading-tight">Drafts deep narrative prose based on outlines and citations.</p>
+              <button onclick="dispatchTo('Drafter')" class="w-full py-1 text-[11px] rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 font-medium transition">
+                Assign Section
+              </button>
             </div>
 
-            <div class="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] flex items-center justify-between">
-              <div class="flex items-center space-x-2 truncate">
-                <span class="w-2 h-2 rounded-full bg-rose-400"></span>
-                <span class="text-zinc-200 font-medium truncate">Critic</span>
+            <!-- Agent 2: Critic -->
+            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] space-y-1.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                  <span class="font-medium text-zinc-200">Critic Agent</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 font-mono">Standby</span>
               </div>
-              <span class="text-[10px] text-zinc-400 font-mono">Auditing PR #14</span>
+              <p class="text-[11px] text-zinc-400 leading-tight">Fact-checks citations, anti-AI linter & logical rigor.</p>
+              <button onclick="dispatchTo('Critic')" class="w-full py-1 text-[11px] rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 font-medium transition">
+                Run Audit
+              </button>
             </div>
 
-            <div class="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] flex items-center justify-between">
-              <div class="flex items-center space-x-2 truncate">
-                <span class="w-2 h-2 rounded-full bg-teal-400"></span>
-                <span class="text-zinc-200 font-medium truncate">Harmonizer</span>
+            <!-- Agent 3: Harmonizer -->
+            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] space-y-1.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                  <span class="font-medium text-zinc-200">Harmonizer Agent</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 font-mono">Idle</span>
               </div>
-              <span class="text-[10px] text-zinc-500 font-mono">Idle</span>
+              <p class="text-[11px] text-zinc-400 leading-tight">Polishes cross-chapter tone into seamless academic flow.</p>
+              <button onclick="dispatchTo('Harmonizer')" class="w-full py-1 text-[11px] rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 font-medium transition">
+                Harmonize Voice
+              </button>
             </div>
-          </div>
-        </div>
 
-        <!-- Tailscale Mesh Nodes Matrix -->
-        <div class="h-[26%] flex flex-col overflow-hidden p-3 space-y-2 text-[11px]">
-          <div class="flex items-center justify-between text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">
-            <span>Tailscale Mesh Nodes</span>
-            <span class="text-emerald-400 font-mono text-[10px]">Direct P2P</span>
-          </div>
-
-          <div class="space-y-1 font-mono text-zinc-400 text-[10px] overflow-y-auto">
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-zinc-300">node-beijing (100.64.0.1)</span>
-              <span class="text-emerald-400">2ms</span>
-            </div>
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-zinc-400">node-london (100.64.0.2)</span>
-              <span class="text-zinc-500">84ms</span>
-            </div>
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-zinc-400">node-tokyo (100.64.0.3)</span>
-              <span class="text-zinc-500">38ms</span>
-            </div>
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-zinc-400">agent-swarm (100.64.0.10)</span>
-              <span class="text-zinc-500">118ms</span>
-            </div>
           </div>
         </div>
 
       </aside>
 
       <!-- ======================================================== -->
-      <!-- COLUMN 2: ROOM INTERACTION & TASK GATEWAY (Center)       -->
+      <!-- COLUMN 2: SWARM COMMAND & TASK ORCHESTRATION (Center)    -->
       <!-- ======================================================== -->
-      <section class="w-[480px] border-r border-white/[0.06] bg-black/15 flex flex-col shrink-0 overflow-hidden">
+      <section class="w-[490px] border-r border-white/[0.06] bg-black/15 flex flex-col shrink-0 overflow-hidden">
         
-        <!-- Center Header & Tab Bar -->
+        <!-- Header & View Switcher -->
         <div class="p-3 border-b border-white/[0.06] space-y-2 shrink-0">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-zinc-200">Room Activity</span>
-            <span class="text-[10px] text-zinc-500 font-mono">4 nodes synchronized</span>
+            <span class="text-xs font-semibold text-zinc-200">Swarm Command</span>
+            <span class="text-[10px] text-zinc-500 font-mono">3 agents connected</span>
           </div>
 
           <div class="segmented-control flex items-center text-xs">
             <button onclick="switchCenterTab('chat')" id="tab-center-chat" class="segmented-btn flex-1 py-1 font-medium text-center">
-              Activity Stream
+              Agent Directives
             </button>
             <button onclick="switchCenterTab('tasks')" id="tab-center-tasks" class="segmented-btn active flex-1 py-1 font-medium text-center">
-              Task Board (4)
+              Task Queue (4)
             </button>
             <button onclick="switchCenterTab('prs')" id="tab-center-prs" class="segmented-btn flex-1 py-1 font-medium text-center">
-              PR Reviews (2)
+              Review Suggestions (2)
             </button>
           </div>
         </div>
 
-        <!-- View 1: Real-Time Stream (Chat + Structured Event Cards) -->
+        <!-- View 1: Agent Directives & Direct Execution Feed -->
         <div id="center-view-chat" class="hidden flex-1 flex flex-col min-h-0">
           <div class="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs">
             
-            <!-- Message 1: Project Owner -->
+            <!-- User Directive -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
-                <span class="text-zinc-200 font-semibold">@xb</span>
+                <span class="text-blue-400 font-semibold">You (Commander)</span>
                 <span class="text-[10px] text-zinc-500">16:10</span>
-                <span class="text-[10px] text-zinc-600 font-mono">Beijing</span>
               </div>
-              <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.05] text-zinc-300 leading-relaxed">
-                Section 4 draft is live. Drafter agent and Elena are coordinating the consensus mechanism writeup.
+              <div class="p-2.5 rounded-xl bg-blue-600/10 border border-blue-500/20 text-zinc-200 leading-relaxed">
+                @Drafter: Draft section 4 (Conflict Resolution). Focus on two-phase AST reconciliation without line-based diff breakages.
               </div>
             </div>
 
-            <!-- Event Card: Drafter Lease -->
-            <div class="p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-1.5">
+            <!-- Drafter Agent Response Card -->
+            <div class="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2">
               <div class="flex items-center justify-between text-[11px]">
                 <span class="font-medium text-purple-300">Drafter Agent</span>
-                <span class="text-[10px] text-purple-400/80 font-mono">Lease acquired (3600s)</span>
+                <span class="text-[10px] text-emerald-400 font-mono">Completed Section 4 Draft</span>
               </div>
               <p class="text-zinc-300 text-xs leading-relaxed">
-                Streaming draft for <code class="font-mono text-purple-200 bg-purple-900/40 px-1 py-0.5 rounded text-[11px]">04_conflict_resolution.md</code> over Tailscale Direct UDP.
+                Generated 430-word academic prose with formal AST block model and academic 3-line table. Streamed directly to your editor.
               </p>
-            </div>
-
-            <!-- Message 2: Elena (London) -->
-            <div class="space-y-1">
-              <div class="flex items-center space-x-2">
-                <span class="text-zinc-200 font-semibold">@Elena_V</span>
-                <span class="text-[10px] text-zinc-500">16:14</span>
-                <span class="text-[10px] text-zinc-600 font-mono">London</span>
-              </div>
-              <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.05] text-zinc-300 leading-relaxed">
-                Reconciled the formal proof in Section 2 with the Lamport 1998 Paxos reference.
+              <div class="pt-1 flex items-center space-x-2">
+                <button class="px-3 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 font-medium text-xs border border-purple-500/30 transition">
+                  Insert into Section 4
+                </button>
+                <button class="px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 text-xs transition">
+                  Request Revision
+                </button>
               </div>
             </div>
 
-            <!-- Critic Inline Patch Review Card -->
+            <!-- Critic Agent Adversarial Review Card -->
             <div class="p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-2">
               <div class="flex items-center justify-between text-[11px]">
                 <span class="font-medium text-rose-300">Critic Agent</span>
-                <span class="text-[10px] text-rose-400 font-mono">PR #14 Note</span>
+                <span class="text-[10px] text-rose-400 font-mono">Audit Note</span>
               </div>
               <p class="text-zinc-300 text-xs">
                 Quantitative finding <span class="font-mono text-zinc-200">74.2%</span> requires standard BibTeX citation anchor.
@@ -379,17 +370,22 @@
               <div class="p-2 rounded-lg bg-black/40 border border-white/[0.06] font-mono text-[11px] text-emerald-400">
                 + improved narrative coherence score by 74.2% @antigravity2026gitops.
               </div>
-              <button class="w-full py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-zinc-200 font-medium text-xs border border-white/[0.08] transition">
-                Accept Patch
-              </button>
+              <div class="pt-1 flex items-center space-x-2">
+                <button class="px-3 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 font-medium text-xs border border-emerald-500/30 transition">
+                  Apply Fix-it Patch
+                </button>
+                <button class="px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 text-xs transition">
+                  Dismiss
+                </button>
+              </div>
             </div>
 
           </div>
 
-          <!-- Bottom Chat Box -->
+          <!-- Bottom Prompt Box for Solo Commander -->
           <div class="p-2.5 border-t border-white/[0.06] bg-black/30">
             <div class="flex items-center bg-white/[0.04] rounded-xl px-3 py-2 border border-white/[0.06]">
-              <input type="text" placeholder="Message room or invoke @agent..." class="bg-transparent text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none flex-1">
+              <input type="text" placeholder="Command Swarm (e.g. '@Drafter expand paragraph 2', '@Critic check citations')..." class="bg-transparent text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none flex-1">
               <button class="text-zinc-400 hover:text-zinc-200 text-xs ml-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               </button>
@@ -397,56 +393,55 @@
           </div>
         </div>
 
-        <!-- View 2: Task Board -->
+        <!-- View 2: Task Queue -->
         <div id="center-view-tasks" class="flex-1 p-3.5 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
-            <span class="text-xs font-semibold text-zinc-300">Task Backlog & Leases</span>
-            <button onclick="openModal('modal-new-task')" class="text-xs text-blue-400 hover:text-blue-300 font-medium">+ Add</button>
+            <span class="text-xs font-semibold text-zinc-300">Agent Task Backlog</span>
+            <button onclick="openModal('modal-dispatch')" class="text-xs text-blue-400 hover:text-blue-300 font-medium">+ Assign Task</button>
           </div>
 
           <div class="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2">
             <div class="flex items-center justify-between text-[10px]">
               <span class="font-mono text-zinc-400">sec_06_conclusion</span>
-              <span class="text-amber-400 font-medium">Unassigned</span>
+              <span class="text-purple-400 font-mono">Assigned to: Harmonizer</span>
             </div>
             <h4 class="text-xs font-medium text-zinc-200">Conclusion and Future Roadmap</h4>
-            <p class="text-xs text-zinc-400 leading-relaxed">Synthesizing multi-region empirical observations into final thesis.</p>
+            <p class="text-xs text-zinc-400 leading-relaxed">Synthesize empirical observations and formal properties into conclusive thesis.</p>
             <div class="pt-2 border-t border-white/[0.04] flex items-center justify-between text-xs">
-              <span class="text-zinc-500 text-[11px]">Target: ~500w</span>
-              <button class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-[11px] transition">Claim Task</button>
+              <span class="text-zinc-500 text-[11px]">Budget: ~500w</span>
+              <button class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-[11px] transition">Start Agent</button>
             </div>
           </div>
 
           <div class="p-3 rounded-xl bg-blue-950/20 border border-blue-500/20 space-y-2">
             <div class="flex items-center justify-between text-[10px]">
               <span class="font-mono text-blue-300">sec_04_consensus</span>
-              <span class="text-emerald-400 font-mono">In Progress</span>
+              <span class="text-emerald-400 font-mono">Drafted</span>
             </div>
             <h4 class="text-xs font-medium text-zinc-200">Cross-Regional Conflict Resolution Protocol</h4>
-            <p class="text-xs text-zinc-400 leading-relaxed">Assigned to: Drafter Agent & Elena_V</p>
-            <div class="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-              <span>Lease: 34m left</span>
-              <span class="text-zinc-300">430 / 1200w</span>
+            <div class="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-zinc-400">
+              <span>Completed by Drafter Agent</span>
+              <span class="text-zinc-200 font-mono">430 words</span>
             </div>
           </div>
         </div>
 
-        <!-- View 3: PR Reviews -->
+        <!-- View 3: Review Suggestions -->
         <div id="center-view-prs" class="hidden flex-1 p-3.5 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
-            <span class="text-xs font-semibold text-zinc-300">Active Pull Requests</span>
-            <span class="text-[10px] text-zinc-500 font-mono">2 open</span>
+            <span class="text-xs font-semibold text-zinc-300">Pending Agent Suggestions</span>
+            <span class="text-[10px] text-zinc-500 font-mono">1 ready to apply</span>
           </div>
 
           <div class="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-semibold text-zinc-200">PR #14: Benchmark Empirical Evaluation</span>
-              <span class="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded">CI Passed</span>
+              <span class="font-semibold text-zinc-200">Section 5 Benchmark Table Format</span>
+              <span class="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded">Verified</span>
             </div>
-            <p class="text-xs text-zinc-400">Sections updated with booktabs structured table.</p>
+            <p class="text-xs text-zinc-400">Harmonizer formatted raw LaTeX matrix into publishing-grade booktabs table.</p>
             <div class="pt-2 border-t border-white/[0.04] flex items-center justify-end space-x-2">
               <button class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition">
-                Merge PR
+                Accept Suggestion
               </button>
             </div>
           </div>
@@ -455,15 +450,15 @@
       </section>
 
       <!-- ======================================================== -->
-      <!-- COLUMN 3: REAL-TIME EDITORIAL WORKSPACE (Rightmost)     -->
+      <!-- COLUMN 3: YOUR REAL-TIME EDITORIAL WORKSPACE (Rightmost) -->
       <!-- ======================================================== -->
       <main class="flex-1 flex flex-col bg-black/35 overflow-hidden relative">
         
-        <!-- Document Toolbar Header -->
+        <!-- Document Header Toolbar -->
         <div class="h-11 border-b border-white/[0.06] bg-black/25 px-4 flex items-center justify-between text-xs shrink-0">
           <div class="flex items-center space-x-3">
             <span class="font-medium text-zinc-300">04_conflict_resolution_and_consensus.md</span>
-            <span class="text-[10px] text-zinc-500 font-mono">branch: synapse/sec-04</span>
+            <span class="text-[10px] text-zinc-500 font-mono">main</span>
           </div>
 
           <div class="flex items-center space-x-3 text-xs">
@@ -471,56 +466,49 @@
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
               <span class="text-zinc-300 font-medium">430 words</span>
               <span class="text-zinc-600">|</span>
-              <span class="text-zinc-500">Live P2P Sync</span>
+              <span class="text-zinc-500">Auto-saved</span>
             </div>
 
-            <button class="bg-white/[0.08] hover:bg-white/[0.14] text-zinc-200 px-3 py-1 rounded-lg font-medium border border-white/[0.08] transition">
-              Commit & PR
+            <button class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg font-medium transition">
+              Publish Draft
             </button>
           </div>
         </div>
 
-        <!-- Split Editor / Publication Preview Pane -->
+        <!-- Split Editor / Publication Preview -->
         <div class="flex-1 flex overflow-hidden">
           
-          <!-- Left Half: Markdown Editor with Clean Collaborative Presence -->
+          <!-- Left: Markdown Editor with Clean Agent Proposal Tags -->
           <div class="w-1/2 border-r border-white/[0.06] flex flex-col font-mono text-xs overflow-hidden bg-black/20">
             <div class="h-7 bg-white/[0.015] px-3 flex items-center justify-between text-[10px] text-zinc-500 border-b border-white/[0.04]">
               <span>MARKDOWN SOURCE</span>
-              <span class="text-emerald-400">AST Synchronized</span>
+              <span class="text-zinc-400">Editable by You</span>
             </div>
 
             <div class="flex-1 p-6 overflow-y-auto space-y-4 leading-relaxed text-zinc-300">
               <div class="text-zinc-100 font-bold text-sm font-sans"># 跨区域冲突消解与异步共识协议</div>
 
-              <!-- Paragraph 1: Elena Presence -->
-              <div class="relative pl-3 border-l-2 border-amber-500/80 bg-amber-500/[0.03] p-2.5 rounded-r-lg">
-                <div class="absolute -top-2.5 right-2 bg-zinc-800 text-amber-300 text-[10px] px-2 py-0.5 rounded border border-amber-500/30 font-sans">
-                  Elena_V (London)
-                </div>
-                <p>在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
-              </div>
+              <!-- Paragraph 1 -->
+              <p>在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
 
-              <!-- Paragraph 2: Drafter Stream -->
+              <!-- Paragraph 2: Drafter Agent Generated Block -->
               <div class="relative pl-3 border-l-2 border-purple-500/80 bg-purple-500/[0.03] p-2.5 rounded-r-lg">
                 <div class="absolute -top-2.5 right-2 bg-zinc-800 text-purple-300 text-[10px] px-2 py-0.5 rounded border border-purple-500/30 font-sans">
-                  Drafter Agent
+                  Proposed by Drafter Agent
                 </div>
-                <p>第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。<span class="inline-block w-1.5 h-3.5 bg-purple-400 animate-pulse ml-0.5 align-middle"></span></p>
+                <p>第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。</p>
               </div>
 
               <!-- Paragraph 3 -->
-              <div class="p-2.5 text-zinc-400">
-                <p>第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁。</p>
-              </div>
+              <p>第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁。</p>
             </div>
           </div>
 
-          <!-- Right Half: Publication Grade Output (Craft / Apple Pages style) -->
+          <!-- Right: Apple Pages / Craft Publication Preview -->
           <div class="w-1/2 flex flex-col bg-[#ffffff] text-zinc-900 overflow-hidden font-serif-sc">
             <div class="h-7 bg-zinc-50 px-3.5 flex items-center justify-between text-[10px] text-zinc-500 border-b border-zinc-200 font-sans">
               <span class="font-medium text-zinc-700">PUBLICATION PREVIEW</span>
-              <span class="text-zinc-500 font-mono">1.65 Line Height • KaiTi / Times</span>
+              <span class="text-zinc-500 font-mono">KaiTi / Times • 1.65 Line Height</span>
             </div>
 
             <div class="flex-1 p-8 overflow-y-auto space-y-4 text-justify leading-[1.65] text-[14px]">
@@ -579,96 +567,46 @@
 
   </div>
 
-  <!-- MODAL: ROOM SWITCHER (Clean Apple Dialog) -->
-  <div id="modal-room-switcher" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="apple-panel rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4 border border-white/[0.12]">
+  <!-- MODAL: DISPATCH TASK TO AGENT -->
+  <div id="modal-dispatch" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="apple-panel rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4 border border-white/[0.12]">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
-        <h3 class="font-semibold text-sm text-zinc-100">Tailscale Mesh Rooms</h3>
-        <button onclick="closeModal('modal-room-switcher')" class="text-zinc-400 hover:text-zinc-200">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="space-y-2 text-xs">
-        <div class="p-3 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-between">
-          <div>
-            <div class="font-semibold text-white">agi-distributed-whitepaper</div>
-            <div class="text-[11px] text-zinc-400">4 nodes synced (Beijing, London, Tokyo, Silicon Valley)</div>
-          </div>
-          <span class="text-[10px] text-emerald-400 font-mono">Active</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] flex items-center justify-between cursor-pointer">
-          <div>
-            <div class="font-semibold text-zinc-300">quantum-error-mitigation-spec</div>
-            <div class="text-[11px] text-zinc-500">3 nodes synced • Draft</div>
-          </div>
-          <button class="px-2.5 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 text-xs">Switch</button>
-        </div>
-      </div>
-
-      <div class="pt-2 border-t border-white/[0.06] flex items-center justify-end space-x-2">
-        <button onclick="closeModal('modal-room-switcher')" class="px-3.5 py-1.5 rounded-lg bg-white/[0.05] text-zinc-300 text-xs hover:bg-white/[0.08]">Close</button>
-        <button onclick="closeModal('modal-room-switcher')" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-500">New Room</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: INVITE (Clean Apple Dialog) -->
-  <div id="modal-invite" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="apple-panel rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4 border border-white/[0.12]">
-      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
-        <h3 class="font-semibold text-sm text-zinc-100">Invite Node or Collaborator</h3>
-        <button onclick="closeModal('modal-invite')" class="text-zinc-400 hover:text-zinc-200">
+        <h3 class="font-semibold text-sm text-zinc-100">Dispatch Task to Agent Swarm</h3>
+        <button onclick="closeModal('modal-dispatch')" class="text-zinc-400 hover:text-zinc-200">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-zinc-400 mb-1">Tailscale Node / MagicDNS / Email</label>
-          <input type="text" placeholder="e.g. node-frankfurt.synapseforge.ts.net" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-blue-500 font-mono text-xs">
+          <label class="block text-zinc-400 mb-1">Target Agent</label>
+          <select id="dispatch-agent-select" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-blue-500">
+            <option value="Drafter">Drafter Agent (Drafting & Writing)</option>
+            <option value="Critic">Critic Agent (Adversarial Fact-Check & Quality Gates)</option>
+            <option value="Harmonizer">Harmonizer Agent (Tone Harmonization)</option>
+          </select>
         </div>
-      </div>
 
-      <div class="pt-2 border-t border-white/[0.06] flex items-center justify-end space-x-2">
-        <button onclick="closeModal('modal-invite')" class="px-3.5 py-1.5 rounded-lg bg-white/[0.05] text-zinc-300 text-xs hover:bg-white/[0.08]">Cancel</button>
-        <button onclick="closeModal('modal-invite')" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-500">Send Invite</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: NEW TASK (Clean Apple Dialog) -->
-  <div id="modal-new-task" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="apple-panel rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4 border border-white/[0.12]">
-      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
-        <h3 class="font-semibold text-sm text-zinc-100">Dispatch Section Task</h3>
-        <button onclick="closeModal('modal-new-task')" class="text-zinc-400 hover:text-zinc-200">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-zinc-400 mb-1">Section ID</label>
-            <input type="text" value="sec_07_evaluations" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 font-mono text-xs">
+            <label class="block text-zinc-400 mb-1">Section</label>
+            <input type="text" value="sec_06_conclusion" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 font-mono text-xs">
           </div>
           <div>
             <label class="block text-zinc-400 mb-1">Word Budget</label>
-            <input type="number" value="1200" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 font-mono text-xs">
+            <input type="number" value="500" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 font-mono text-xs">
           </div>
         </div>
 
         <div>
-          <label class="block text-zinc-400 mb-1">Task Title</label>
-          <input type="text" value="Empirical Convergence Latency under Variable Packet Drop" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 text-xs">
+          <label class="block text-zinc-400 mb-1">Directive & Context</label>
+          <textarea rows="3" class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-zinc-200 text-xs focus:outline-none focus:border-blue-500">Synthesize section 4 and section 5 findings into a rigorous concluding thesis. Maintain zero AI clichés and academic booktabs style.</textarea>
         </div>
       </div>
 
       <div class="pt-2 border-t border-white/[0.06] flex items-center justify-end space-x-2">
-        <button onclick="closeModal('modal-new-task')" class="px-3.5 py-1.5 rounded-lg bg-white/[0.05] text-zinc-300 text-xs hover:bg-white/[0.08]">Cancel</button>
-        <button onclick="closeModal('modal-new-task')" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-500">Dispatch Task</button>
+        <button onclick="closeModal('modal-dispatch')" class="px-3.5 py-1.5 rounded-lg bg-white/[0.05] text-zinc-300 text-xs hover:bg-white/[0.08]">Cancel</button>
+        <button onclick="closeModal('modal-dispatch')" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-500">Execute Task</button>
       </div>
     </div>
   </div>
@@ -695,6 +633,11 @@
 
     function closeModal(id) {
       document.getElementById(id).classList.add('hidden');
+    }
+
+    function dispatchTo(agent) {
+      document.getElementById('dispatch-agent-select').value = agent;
+      openModal('modal-dispatch');
     }
 
     function selectFile(secId) {
