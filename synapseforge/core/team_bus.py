@@ -58,7 +58,7 @@ CANONICAL_AGENTS = {"codex", "grok", "antigravity"}
 ONLINE_TTL_S = 75
 STALE_LOCK_S = 120
 DEDUP_WINDOW_S = 8
-PROTOCOL = [
+PROTOCOL = TEAM_PROTOCOL = [
     "Read the shared document, recent messages, and any human directive before acting.",
     "kind=directive from human is the current user instruction; act on it immediately, ahead of peer debate.",
     "If the user is talking to you in your own session, that is also a human directive: post it to the room and act. Do not wait for agent-team say.",
@@ -711,7 +711,11 @@ class TeamBus:
         item["age_seconds"] = round(age, 1)
         pid_alive = self._pid_alive(item.get("pid"))
         item["pid_alive"] = pid_alive
-        item["online"] = age <= ONLINE_TTL_S and pid_alive is not False
+        # last_seen is the heartbeat. A one-shot CLI process that just exited is
+        # still "online" until TTL; already_online / seat takeover uses _occupant_live
+        # (pid must still be alive) so sequential CLI commands can take the seat.
+        item["online"] = age <= ONLINE_TTL_S
+        item["process_live"] = age <= ONLINE_TTL_S and pid_alive is not False
         item["silent"] = age > ONLINE_TTL_S
         item["stale"] = age > STALE_LOCK_S
         if not item["online"]:
