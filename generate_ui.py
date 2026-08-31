@@ -1,4 +1,18 @@
-<!DOCTYPE html>
+import json
+from pathlib import Path
+
+sections = {}
+for p in sorted(Path('sections').glob('*.md')):
+    sec_num = p.stem.split('_')[0]
+    sec_key = f'sec_{sec_num}'
+    sections[sec_key] = {
+        'name': p.name,
+        'content': p.read_text(encoding='utf-8')
+    }
+
+sections_json = json.dumps(sections, ensure_ascii=False, indent=2)
+
+html_template = """<!DOCTYPE html>
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -323,32 +337,7 @@
   </div>
 
   <script>
-    const SECTIONS = {
-  "sec_01": {
-    "name": "01_abstract_introduction.md",
-    "content": "# 摘要与引言：分布式协作悖论\n\n分布式异构智能体与多地区人类专家共同参与复杂知识生产时，系统往往面临由时区错位、语意漂移与并发编辑冲突交织构成的协作悖论。传统协同系统在应对大规模多智能体系统（MAS）并发写入时，普遍退化为高延迟的悲观锁机制或产生灾难性的文本覆盖，难以兼顾知识生产的拓扑吞吐量与叙事逻辑的一致性。\n\n知识生产并非单纯的字符级增删，而是具有严密层次拓扑结构的命题推演过程。当跨越不同地理区域的人类作者与专门化智能体（如架构规划、事实核查与文风润色等角色）同时对学术白皮书或技术规约进行迭代时，传统的行级差异对比（Line-based Diff）往往因无法解析章节语义树而引发大面积伪冲突。为彻底突破这一瓶颈，本工作确立了基于 GitOps 范式的分布式多智能体异步协作体系，将 Git 仓库的提交图谱与 Pull Request 审查网关重构为去中心化状态机。\n\n该架构将文档解构为可独立验证的抽象语法树（AST）节点，并在持续集成管线中植入多维度质量门禁。通过将形式化语义合并算法与异步同行评审智能体矩阵深度绑定，系统在消除机械分点与 AI 套话的同时，实现了毫秒级结构化冲突消解与高保真出版级渲染。\n\n![SynapseForge 系统架构图](assets/architecture_diagram.svg)\n"
-  },
-  "sec_02": {
-    "name": "02_theoretical_foundations.md",
-    "content": "# 理论基石与形式化建模\n\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\mathcal{D}$ 由有序章节集合 $\\mathcal{S} = \\{s_1, s_2, \\dots, s_n\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\mathcal{S}, \\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\n\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\mathcal{O}(M \\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\n\n$$\\mathcal{T}(\\mathcal{D}) = \\left( \\mathcal{V}_{\\text{frontmatter}}, \\mathcal{V}_{\\text{heading}}, \\mathcal{V}_{\\text{body}}, \\mathcal{E}_{\\text{hier}} \\right)$$\n\n其中 $\\mathcal{E}_{\\text{hier}}$ 显式编码各级标题与其下辖论证块的父子拓扑。基于该分层空间，三方合并操作 $\\mathcal{M}(\\mathcal{D}_{\\text{base}}, \\mathcal{D}_{\\text{ours}}, \\mathcal{D}_{\\text{theirs}})$ 转化为树同构判别与同名节点的语义重构。只要并发修改满足结构正交性判定准则：\n\n$$\\Delta(\\mathcal{D}_{\\text{ours}}) \\cap \\Delta(\\mathcal{D}_{\\text{theirs}}) \\subseteq \\mathcal{V}_{\\text{disjoint}}$$\n\n系统即可在 $\\mathcal{O}(|\\mathcal{V}|)$ 线性时间内达成无损强最终一致性（Strong Eventual Consistency），彻底消解跨时区并发协作引发的合并阻塞。\n"
-  },
-  "sec_03": {
-    "name": "03_system_architecture.md",
-    "content": "# 系统架构与 GitOps 状态机\n\nSynapseForge 的工程内核将 GitHub 的原生基建深度转化为分布式智能体群体的可信协同计算平台。系统架构划分为三大解耦层次：拓扑调度层（Orchestrator Layer）、质量门禁层（Quality Gate Layer）与出版渲染层（Publication Synthesis Layer）。\n\n拓扑调度层直接对接 GitHub Issues 与 Pull Requests。当人类提出特定章节的撰写需求时，调度器通过解析带有结构化前缀的任务指令，自动计算依赖拓扑并派生专用工作分支（如 `synapse/sec_03_architecture`）。此时，租约管理器（Lease Ledger）在持久化账本中向指定智能体授予限定时长的写入租约，避免多智能体无序争抢同一上下文资源。\n\n质量门禁层是保障内容质量与学术纯粹性的核心防线。在 GitHub Actions 持续集成管线中，提交的文件必须通过去 AI 味检测器（Anti-AI Linter）、结构连贯性校验器（Coherence Linter）与学术排版规范检查器（Style Linter）的联合熔断机制。任何带有套路化转折词、空洞宣教用语或破坏学术长文有机叙事的流水账列表均会被 CI 阻断并自动追加行级修正建议。\n\n| 架构分层 | 核心组件 | 依托 GitHub 原生资源 | 核心功能边界 |\n|---|---|---|---|\n| 拓扑调度层 | StateManager / IssueDispatcher | Issues, Branches, Webhooks | 任务 DAG 拆解、章节租约分发、跨时区派发 |\n| 质量门禁层 | AntiAILinter / PRReviewBot | GitHub Actions, Pull Requests | 消除 AI 异味、形式化合并、事实核查与行级审查 |\n| 出版渲染层 | PublicationPipeline | GitHub Pages, Releases | 编译矢量 PDF、生成响应式 Web、输出 Typst 源码 |\n\n该架构赋予了跨地区团队高度异步的自治能力，所有状态流转与评审痕迹均透明固化在 Git 历史与评审对话树中，具备完备的可审计性与可复现性。\n"
-  },
-  "sec_04": {
-    "name": "04_conflict_resolution_and_consensus.md",
-    "content": "# 跨区域冲突消解与异步共识协议\n\n在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。\n\n第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\\mathcal{D}_{\\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记，明确标注各方身份（例如欧洲时区人类审查员与美洲时区事实核查智能体）。\n\n第二阶段为智能体评审矩阵与人类裁决通道。智能体评审矩阵由对抗性批判智能体（Critic Agent）、跨章节文风调和智能体（Harmonizer Agent）与领域事实校验器组成。评审矩阵利用 GitHub Pull Request 审查接口，将冲突点解析为具备明确量化证据与逻辑桥接建议的内联补丁（Inline Diff Suggestions）。人类主编仅需在 GitHub 网页端或本地终端完成一键采纳或微调，即可达成跨时区的终态收敛。\n"
-  },
-  "sec_05": {
-    "name": "05_empirical_benchmarks.md",
-    "content": "# 实证基准测试与系统评估\n\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\n\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升 @antigravity2026gitops。\n\n| 协作架构模式 | 伪冲突拦截率 (%) | 平均 PR 审敛耗时 (min) | AI 异味套话密度 (%) | 叙事连贯性得分 (1-10) |\n|---|---|---|---|---|\n| 无约束单主分支模式 | 58.4 | 184.2 | 14.2 | 4.1 |\n| 传统线性 Git 3-Way 模式 | 42.8 | 92.6 | 11.8 | 5.8 |\n| SynapseForge GitOps AST 架构 | 3.1 | 14.5 | 0.0 | 9.4 |\n\n实验数据进一步证实，通过将智能体 Peer Review 与 GitHub Actions CI 深度融合，人类审稿人的认知负荷得到大幅释放，平均单次合并请求的审核与定稿周期缩短了 84.3%，为构建全自主分布式科学知识合成提供了极具工业落地价值的实证范例。\n"
-  },
-  "sec_06": {
-    "name": "06_conclusion_and_roadmap.md",
-    "content": "# 结论、工程局限与未来演进\n\n分布式多智能体与人类跨地区协同生产高密度知识已成为前沿 AI 与协同工程交汇的关键方向。SynapseForge 通过将 GitOps 范式、语义 AST 级三方冲突消解与严苛的出版级学术门禁深度融合，有效化解了时区隔离引发的协作孤岛与 AI 输出同质化、套路化的顽疾，奠定了去中心化知识生产的技术原型。\n\n当前系统在处理超长文本跨章节深层因果依存时，仍依赖局部 AST 树与依赖拓扑的显式声明。未来的演进路径将重点探索基于语义向量拓扑流的自适应依赖感知，并将去中心化身份凭证（DID）引入智能体信誉体系，实现跨多组织智能体群体的可信共识与自主科学发现。\n"
-  }
-};
+    const SECTIONS = __SECTIONS_JSON__;
     let currentSection = 'sec_02';
 
     // Real-time Markdown + KaTeX Math parser
@@ -357,14 +346,14 @@
 
       // Extract and preserve math blocks $$ ... $$
       const displayMath = [];
-      html = html.replace(/\$\$([\s\S]*?)\$\$/g, function(match, math) {
+      html = html.replace(/\\$\\$([\\s\\S]*?)\\$\\$/g, function(match, math) {
         displayMath.push(math);
         return `%%%DISPLAY_MATH_${displayMath.length - 1}%%%`;
       });
 
       // Extract and preserve inline math $ ... $
       const inlineMath = [];
-      html = html.replace(/\$([^\$\n]+?)\$/g, function(match, math) {
+      html = html.replace(/\\$([^\\$\\n]+?)\\$/g, function(match, math) {
         inlineMath.push(math);
         return `%%%INLINE_MATH_${inlineMath.length - 1}%%%`;
       });
@@ -375,7 +364,7 @@
       html = html.replace(/^### (.*$)/gim, '<h3 class="font-sans font-medium text-sm text-zinc-800 mt-3 mb-1.5">$1</h3>');
 
       // Tables (Convert Markdown tables to Academic 3-line Booktabs tables)
-      const lines = html.split('\n');
+      const lines = html.split('\\n');
       let inTable = false;
       let tableRows = [];
       let newLines = [];
@@ -401,25 +390,25 @@
       if (inTable) {
         newLines.push(buildBooktabsTable(tableRows));
       }
-      html = newLines.join('\n');
+      html = newLines.join('\\n');
 
       // Paragraphs
-      html = html.split('\n\n').map(para => {
+      html = html.split('\\n\\n').map(para => {
         para = para.trim();
         if (!para) return '';
         if (para.startsWith('<h') || para.startsWith('<table') || para.startsWith('<div')) {
           return para;
         }
         return `<p class="indent-8 text-zinc-800 my-2 leading-[1.65]">${para}</p>`;
-      }).join('\n\n');
+      }).join('\\n\\n');
 
       // Restore inline math
-      html = html.replace(/%%%INLINE_MATH_(\d+)%%%/g, function(match, idx) {
+      html = html.replace(/%%%INLINE_MATH_(\\d+)%%%/g, function(match, idx) {
         return `$${inlineMath[idx]}$`;
       });
 
       // Restore display math
-      html = html.replace(/%%%DISPLAY_MATH_(\d+)%%%/g, function(match, idx) {
+      html = html.replace(/%%%DISPLAY_MATH_(\\d+)%%%/g, function(match, idx) {
         return `$$${displayMath[idx]}$$`;
       });
 
@@ -457,8 +446,8 @@
       const text = editor.value;
 
       // Count words
-      const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-      const latin = (text.match(/[a-zA-Z0-9_\-]+/g) || []).length;
+      const cjk = (text.match(/[\\u4e00-\\u9fff]/g) || []).length;
+      const latin = (text.match(/[a-zA-Z0-9_\\-]+/g) || []).length;
       document.getElementById('word-count-badge').innerText = `${cjk + latin} words`;
 
       // Render Markdown HTML
@@ -496,7 +485,7 @@
 
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += "\n\n## 形式化一致性收敛定理\n\n设节点往返通信时延为 $\\tau_j$，系统全局状态收敛上界满足：\n\n$$\n\\mathbb{E}[\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\n$$\n";
+      editor.value += "\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$，系统全局状态收敛上界满足：\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\\\text{sync}}] \\\\le \\\\frac{1}{\\\\mu - \\\\lambda} \\\\ln \\\\left( \\\\frac{|\\\\mathcal{V}|}{\\\\epsilon} \\\\right) + \\\\max_{j \\\\in \\\\mathcal{N}} \\\\{\\\\text{RTT}_j\\\\}\\n$$\\n";
       renderLivePreview();
     }
 
@@ -530,3 +519,8 @@
   </script>
 </body>
 </html>
+"""
+
+full_html = html_template.replace('__SECTIONS_JSON__', sections_json)
+Path('synapseforge/ui/index.html').write_text(full_html, encoding='utf-8')
+print('synapseforge/ui/index.html written successfully!')
