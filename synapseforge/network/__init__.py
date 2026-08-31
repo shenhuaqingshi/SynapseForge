@@ -1,15 +1,18 @@
 """
-Tailscale Mesh Networking & Multi-Node Shared Room Sync Layer for SynapseForge.
+SynapseForge Network Layer:
+- TailscaleMeshManager: WireGuard P2P encrypted mesh telemetry & discovery
+- DistributedRoomManager: Multi-node collaborative room sync
+- OutboxQueue, ResilientTransportManager: Network jitter tolerance, local outbox buffer & auto-reconnect
 """
 
-from synapseforge.network.room_sync import DistributedRoomManager, RoomMember, SharedRoom
-from synapseforge.network.tailscale_mesh import MeshNode, MeshTopology, TailscaleMeshManager
+from synapseforge.network.resilient_transport import OutboxQueue, ResilientTransportManager, SyncEvent
+from synapseforge.network.room_sync import DistributedRoomManager
+from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 
 __all__ = [
-    "MeshNode",
-    "MeshTopology",
     "TailscaleMeshManager",
     "DistributedRoomManager",
-    "SharedRoom",
-    "RoomMember",
+    "OutboxQueue",
+    "ResilientTransportManager",
+    "SyncEvent",
 ]
