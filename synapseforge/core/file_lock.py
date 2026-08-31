@@ -1,7 +1,17 @@
 """
-Atomic Section File Locking and Auto-Unlock Context Manager for SynapseForge.
-Guarantees strict exclusivity when an AI Agent modifies a document section.
-Cross-Platform Support for Windows (msvcrt), macOS (fcntl), and Linux (fcntl).
+Atomic section file locking for SynapseForge.
+
+The previous acquire path checked a JSON lease, then opened the lock file
+with ``w+`` (truncating it) and only then took an OS lock. Two agents could
+pass the JSON check, the second truncate could wipe the first writer's
+metadata, and a dead PID could hold a lease until wall-clock expiry.
+
+This implementation:
+- Opens without truncating, then takes an exclusive OS lock (fcntl / msvcrt)
+- Reads existing metadata under that lock
+- Treats a dead holder PID as stale even if the lease has not expired
+- Refreshes ``expires_at`` via ``heartbeat()``
+- Releases on context-manager exit, including exceptions
 """
 
 from __future__ import annotations
@@ -11,11 +21,11 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-# Cross-platform OS lock imports
 try:
     import fcntl
+
     HAS_FCNTL = True
 except ImportError:
     fcntl = None  # type: ignore
@@ -23,6 +33,7 @@ except ImportError:
 
 try:
     import msvcrt
+
     HAS_MSVCRT = True
 except ImportError:
     msvcrt = None  # type: ignore
@@ -31,17 +42,45 @@ except ImportError:
 
 class SectionLockedError(Exception):
     """Raised when an agent attempts to modify a section currently locked by another actor."""
-    pass
+
+
+def pid_alive(pid: Any) -> Optional[bool]:
+    """Return True if pid is alive, False if known-dead, None if unknown."""
+    try:
+        pid_i = int(pid or 0)
+    except (TypeError, ValueError):
+        return None
+    if pid_i <= 0:
+        return None
+    try:
+        os.kill(pid_i, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return None
+
+
+def _holder_is_live(data: Dict[str, Any], now: float) -> bool:
+    if float(data.get("expires_at") or 0) <= now:
+        return False
+    alive = pid_alive(data.get("pid"))
+    if alive is False:
+        return False
+    return True
 
 
 class AutoSectionLock:
     """
     Context manager for atomic section file locking across Windows, macOS, and Linux.
-    
-    Usage:
-        with AutoSectionLock("sec_04_consensus", "Drafter-Narrative") as lock:
-            lock.write_draft("# New Section Draft\n\n...")
-            # Auto-unlocked upon exiting context!
+
+    Usage::
+
+        with AutoSectionLock("sec_04_consensus", "Drafter-Narrative", workspace) as lock:
+            lock.heartbeat()
+            lock.write_draft("# New Section Draft\\n\\n...")
     """
 
     def __init__(
@@ -53,114 +92,178 @@ class AutoSectionLock:
     ):
         self.section_id = section_id
         self.agent_name = agent_name
-        self.workspace_root = workspace_root or Path.cwd()
+        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self.timeout_seconds = timeout_seconds
 
         self.locks_dir = self.workspace_root / ".synapse" / "locks"
         self.locks_dir.mkdir(parents=True, exist_ok=True)
         self.lock_file_path = self.locks_dir / f"{section_id}.lock"
         self._file_handle = None
+        self._acquired = False
 
-    def acquire(self) -> bool:
-        """Atomically acquires the section lock across Windows, macOS, and Linux."""
-        now = time.time()
-
-        # 1. Check logical JSON lease
-        if self.lock_file_path.exists():
-            try:
-                data = json.loads(self.lock_file_path.read_text(encoding="utf-8"))
-                holder = data.get("agent_name", "unknown")
-                expires_at = data.get("expires_at", 0)
-
-                # If held by another agent and not expired
-                if holder != self.agent_name and expires_at > now:
-                    remaining = int(expires_at - now)
-                    raise SectionLockedError(
-                        f"Section '{self.section_id}' is locked by agent '{holder}'. Lock expires in {remaining}s."
-                    )
-            except (json.JSONDecodeError, KeyError):
-                pass  # Corrupted lock file, will overwrite
-
-        # 2. Open lock file with exclusive OS file lock
-        self._file_handle = open(self.lock_file_path, "w+", encoding="utf-8")
-
-        # POSIX (Linux / macOS)
+    def _os_lock(self) -> None:
+        assert self._file_handle is not None
         if HAS_FCNTL and fcntl is not None:
             try:
                 fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except (BlockingIOError, OSError):
-                self._file_handle.close()
-                self._file_handle = None
-                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the OS level.")
-
-        # Windows (msvcrt)
-        elif HAS_MSVCRT and msvcrt is not None:
+                return
+            except (BlockingIOError, OSError) as exc:
+                raise SectionLockedError(
+                    f"Section '{self.section_id}' is concurrently locked at the OS level."
+                ) from exc
+        if HAS_MSVCRT and msvcrt is not None:
             try:
                 self._file_handle.seek(0)
                 msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_NBLCK, 1)
-            except (BlockingIOError, OSError, IOError):
-                self._file_handle.close()
-                self._file_handle = None
-                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the Windows OS level.")
+                return
+            except (BlockingIOError, OSError, IOError) as exc:
+                raise SectionLockedError(
+                    f"Section '{self.section_id}' is concurrently locked at the Windows OS level."
+                ) from exc
 
-        # 3. Write lock metadata
+    def _os_unlock(self) -> None:
+        if self._file_handle is None:
+            return
+        try:
+            if HAS_FCNTL and fcntl is not None:
+                fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_UN)
+            elif HAS_MSVCRT and msvcrt is not None:
+                self._file_handle.seek(0)
+                msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+        except Exception:
+            pass
+
+    def _read_metadata(self) -> Optional[Dict[str, Any]]:
+        assert self._file_handle is not None
+        try:
+            self._file_handle.seek(0)
+            raw = self._file_handle.read()
+            if not raw.strip():
+                return None
+            data = json.loads(raw)
+            return data if isinstance(data, dict) else None
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            return None
+
+    def _write_metadata(self, now: Optional[float] = None) -> Dict[str, Any]:
+        assert self._file_handle is not None
+        now = time.time() if now is None else now
         metadata = {
             "section_id": self.section_id,
             "agent_name": self.agent_name,
             "locked_at": now,
             "expires_at": now + self.timeout_seconds,
+            "last_heartbeat": now,
             "pid": os.getpid(),
             "platform": sys.platform,
         }
+        payload = json.dumps(metadata, indent=2)
         self._file_handle.seek(0)
         self._file_handle.truncate()
-        self._file_handle.write(json.dumps(metadata, indent=2))
+        self._file_handle.write(payload)
         self._file_handle.flush()
+        try:
+            os.fsync(self._file_handle.fileno())
+        except OSError:
+            pass
+        return metadata
 
+    def acquire(self) -> bool:
+        """Atomically acquire the section lock. Raises SectionLockedError on conflict."""
+        now = time.time()
+        self._file_handle = open(self.lock_file_path, "a+", encoding="utf-8")
+        try:
+            self._os_lock()
+        except SectionLockedError:
+            self._file_handle.close()
+            self._file_handle = None
+            raise
+
+        existing = self._read_metadata()
+        if existing:
+            holder = existing.get("agent_name", "unknown")
+            if holder != self.agent_name and _holder_is_live(existing, now):
+                remaining = int(float(existing.get("expires_at", 0)) - now)
+                self._os_unlock()
+                self._file_handle.close()
+                self._file_handle = None
+                raise SectionLockedError(
+                    f"Section '{self.section_id}' is locked by agent '{holder}'. "
+                    f"Lock expires in {max(remaining, 0)}s."
+                )
+
+        self._write_metadata(now)
+        self._acquired = True
         return True
 
+    def heartbeat(self) -> Dict[str, Any]:
+        """Refresh lease expiry so long-running agents are not stolen mid-edit."""
+        if not self._acquired or self._file_handle is None:
+            raise SectionLockedError(f"Section '{self.section_id}' is not held by this lock.")
+        return self._write_metadata()
+
     def release(self) -> bool:
-        """Releases the section lock and cleans up lock file."""
-        if self._file_handle is not None:
+        """Release the section lock and clean up the lock file if we still own it."""
+        owned = self._acquired
+        agent = self.agent_name
+        handle = self._file_handle
+        self._acquired = False
+        self._file_handle = None
+
+        if handle is not None:
             try:
-                if HAS_FCNTL and fcntl is not None:
-                    fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_UN)
-                elif HAS_MSVCRT and msvcrt is not None:
-                    self._file_handle.seek(0)
-                    msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_UNLCK, 1)
-                self._file_handle.close()
+                handle.seek(0)
+                raw = handle.read()
+                data = json.loads(raw) if raw.strip() else {}
+                still_ours = data.get("agent_name") == agent
+            except Exception:
+                still_ours = True
+            self._file_handle = handle
+            self._os_unlock()
+            try:
+                handle.close()
             except Exception:
                 pass
             self._file_handle = None
-
-        if self.lock_file_path.exists():
+            if owned and still_ours and self.lock_file_path.exists():
+                try:
+                    self.lock_file_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+        elif owned and self.lock_file_path.exists():
             try:
-                # Only delete if we own it
                 data = json.loads(self.lock_file_path.read_text(encoding="utf-8"))
-                if data.get("agent_name") == self.agent_name:
+                if data.get("agent_name") == agent:
                     self.lock_file_path.unlink(missing_ok=True)
             except Exception:
-                self.lock_file_path.unlink(missing_ok=True)
-
+                try:
+                    self.lock_file_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
         return True
 
     def write_draft(self, content: str, target_file_path: Optional[Path] = None) -> Dict[str, Any]:
-        """Safely writes drafted content to section file under lock."""
+        """Safely write drafted content to a section file while the lock is held."""
+        if not self._acquired:
+            raise SectionLockedError(
+                f"Section '{self.section_id}' must be locked before writing."
+            )
         sec_dir = self.workspace_root / "sections"
         sec_dir.mkdir(parents=True, exist_ok=True)
 
         if target_file_path:
-            p = Path(target_file_path)
+            path = Path(target_file_path)
         else:
-            # Find matching file in sections/
             matches = list(sec_dir.glob(f"*{self.section_id}*.md"))
-            p = matches[0] if matches else (sec_dir / f"{self.section_id}.md")
+            path = matches[0] if matches else (sec_dir / f"{self.section_id}.md")
 
-        p.write_text(content, encoding="utf-8")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        self.heartbeat()
         return {
             "ok": True,
             "section_id": self.section_id,
-            "target_file": str(p),
+            "target_file": str(path),
             "bytes_written": len(content.encode("utf-8")),
             "agent_name": self.agent_name,
         }
@@ -174,42 +277,67 @@ class AutoSectionLock:
 
 
 class SectionLockManager:
-    """Utility class to inspect, query, and manage active section locks across Windows, macOS, and Linux."""
+    """Inspect, query, heartbeat-aware reclaim, and list active section locks."""
 
     def __init__(self, workspace_root: Optional[Path] = None):
-        self.workspace_root = workspace_root or Path.cwd()
+        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self.locks_dir = self.workspace_root / ".synapse" / "locks"
         self.locks_dir.mkdir(parents=True, exist_ok=True)
 
-    def is_locked(self, section_id: str) -> Optional[Dict[str, Any]]:
-        """Returns lock metadata if section is actively locked, or None."""
-        lock_file = self.locks_dir / f"{section_id}.lock"
-        if not lock_file.exists():
-            return None
-
+    def _load(self, lock_file: Path) -> Optional[Dict[str, Any]]:
         try:
             data = json.loads(lock_file.read_text(encoding="utf-8"))
-            if data.get("expires_at", 0) > time.time():
-                return data
-            else:
-                # Expired lock
-                lock_file.unlink(missing_ok=True)
-                return None
+            return data if isinstance(data, dict) else None
         except Exception:
             return None
 
+    def is_locked(self, section_id: str) -> Optional[Dict[str, Any]]:
+        """Return lock metadata if the section is actively locked, else None."""
+        lock_file = self.locks_dir / f"{section_id}.lock"
+        if not lock_file.exists():
+            return None
+        data = self._load(lock_file)
+        if not data:
+            return None
+        if _holder_is_live(data, time.time()):
+            return data
+        try:
+            lock_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return None
+
     def list_active_locks(self) -> List[Dict[str, Any]]:
-        """Lists all currently active non-expired section locks."""
-        active = []
+        """List currently live (non-expired, non-dead-PID) section locks."""
+        active: List[Dict[str, Any]] = []
         now = time.time()
-        for p in self.locks_dir.glob("*.lock"):
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                if data.get("expires_at", 0) > now:
-                    data["remaining_seconds"] = int(data["expires_at"] - now)
-                    active.append(data)
-                else:
-                    p.unlink(missing_ok=True)
-            except Exception:
-                pass
+        for path in self.locks_dir.glob("*.lock"):
+            data = self._load(path)
+            if not data:
+                continue
+            if _holder_is_live(data, now):
+                data["remaining_seconds"] = int(float(data.get("expires_at", 0)) - now)
+                active.append(data)
+            else:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
         return active
+
+    def reclaim_stale(self) -> Dict[str, Any]:
+        """Drop expired or dead-PID locks. Returns how many were reclaimed."""
+        reclaimed = 0
+        remaining = []
+        now = time.time()
+        for path in self.locks_dir.glob("*.lock"):
+            data = self._load(path)
+            if not data or not _holder_is_live(data, now):
+                try:
+                    path.unlink(missing_ok=True)
+                    reclaimed += 1
+                except OSError:
+                    pass
+            else:
+                remaining.append(data)
+        return {"reclaimed": reclaimed, "remaining": remaining}
