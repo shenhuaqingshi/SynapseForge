@@ -34,6 +34,7 @@ from synapseforge.core.figure_linker import FigureLinker
 from synapseforge.core.ingest import DocumentIngestor
 from synapseforge.core.llm_router import LLMRouter
 from synapseforge.core.snapshot import SnapshotManager
+from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
@@ -584,6 +585,53 @@ def cmd_provider(args):
             print()
 
 
+def cmd_variant(args):
+    vm = VariantManager()
+    syn = MultiDocumentSynthesizer()
+
+    if args.variant_action == "create":
+        res = vm.create_variant(
+            variant_id=args.id,
+            name=args.name,
+            target_section=args.section,
+            base_file=Path(args.base) if args.base else None,
+            author=args.author or "Drafter",
+        )
+    elif args.variant_action == "list" or not args.variant_action:
+        res = {"ok": True, "variants": vm.list_variants(target_section=args.section)}
+    elif args.variant_action == "merge":
+        input_files = [Path(p.strip()) for p in args.inputs.split(",") if p.strip()]
+        res = syn.merge_variants(
+            variant_files=input_files,
+            output_file=Path(args.output),
+            strategy=args.strategy or "harmonize",
+        )
+    else:
+        res = {"ok": False, "error": f"Unknown variant action: {args.variant_action}"}
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if args.variant_action == "create":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Document variant created: '{res['name']}' ({res['file']}){Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Failed: {res.get('error')}{Color.RESET}")
+        elif args.variant_action == "merge":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Successfully synthesized {len(res['source_variants'])} variants into '{res['output_file']}':{Color.RESET}")
+                print(f"  - Strategy: {res['strategy']}")
+                print(f"  - Word count: {res['total_words']}")
+                print(f"  - Citations preserved: {len(res['citations_preserved'])}")
+            else:
+                print(f"{Color.RED}✖ Merge failed: {res.get('error')}{Color.RESET}")
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}Parallel Document Draft Variants ({len(res.get('variants', []))} variants):{Color.RESET}")
+            for v in res.get("variants", []):
+                print(f"  • [{v['variant_id']}] {v['name']:<25} (Section: {v['target_section']}) | {v['author']} | {v['word_count']} words")
+            print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -894,6 +942,35 @@ def main():
     p_pr_ping.add_argument("--provider-id", required=True, help="Provider ID (e.g. deepseek, ollama_local)")
     p_pr_ping.add_argument("--json", action="store_true", default=True)
     p_pr_ping.set_defaults(func=cmd_provider)
+
+    # ==========================================
+    # MULTI-DOCUMENT VARIANTS & SYNTHESIS
+    # ==========================================
+    p_var = subparsers.add_parser("variant", help="Create independent candidate drafts and synthesize/merge them")
+    p_var.add_argument("--json", action="store_true", default=True)
+    p_var.set_defaults(func=cmd_variant)
+    p_var_subs = p_var.add_subparsers(dest="variant_action", help="Variant action")
+
+    p_vr_create = p_var_subs.add_parser("create", help="Create an independent document variant draft")
+    p_vr_create.add_argument("--id", required=True, help="Variant ID (e.g. var_theory_proofs)")
+    p_vr_create.add_argument("--name", required=True, help="Variant human readable name")
+    p_vr_create.add_argument("--section", required=True, help="Target section ID")
+    p_vr_create.add_argument("--base", default=None, help="Optional base file to branch from")
+    p_vr_create.add_argument("--author", default="Drafter", help="Author agent name")
+    p_vr_create.add_argument("--json", action="store_true", default=True)
+    p_vr_create.set_defaults(func=cmd_variant)
+
+    p_vr_list = p_var_subs.add_parser("list", help="List all candidate document variants")
+    p_vr_list.add_argument("--section", default=None, help="Filter by section ID")
+    p_vr_list.add_argument("--json", action="store_true", default=True)
+    p_vr_list.set_defaults(func=cmd_variant)
+
+    p_vr_merge = p_var_subs.add_parser("merge", help="Synthesize multiple candidate variants into master document")
+    p_vr_merge.add_argument("--inputs", required=True, help="Comma-separated variant files to merge")
+    p_vr_merge.add_argument("--output", required=True, help="Target merged master document path")
+    p_vr_merge.add_argument("--strategy", default="harmonize", choices=["harmonize", "union", "concatenate"], help="Synthesis strategy")
+    p_vr_merge.add_argument("--json", action="store_true", default=True)
+    p_vr_merge.set_defaults(func=cmd_variant)
 
     args = parser.parse_args()
     if not args.command:
