@@ -283,3 +283,39 @@ def handle_agent_patch(args):
         print(f"✓ Applied patch to '{target_path.name}' at line {args.line} (lock auto-released)")
         print(f"  - Original: {original_line}")
         print(f"  + Replaced: {args.replace}")
+
+
+def handle_agent_roles(args):
+    """Lists all pre-designed agent roles and their descriptions."""
+    from synapseforge.core.agent_roles import AgentRoleManager
+    mgr = AgentRoleManager()
+    roles = mgr.list_roles()
+
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": True, "roles": roles}, indent=2, ensure_ascii=False))
+    else:
+        print(f"\nPre-Designed Swarm Agent Roles ({len(roles)} Personas):")
+        print(f"{'Role ID':<12} | {'Name':<32} | {'Recommended Model':<30}")
+        print("-" * 80)
+        for r in roles:
+            print(f"{r['role_id']:<12} | {r['name']:<32} | {r['recommended_model']:<30}")
+        print()
+
+
+def handle_agent_prompt(args):
+    """Fetches the full pre-designed system prompt markdown for an agent role."""
+    from synapseforge.core.agent_roles import AgentRoleManager
+    mgr = AgentRoleManager()
+    try:
+        prompt_text = mgr.get_system_prompt(args.role)
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "role": args.role, "system_prompt": prompt_text}, indent=2, ensure_ascii=False))
+        else:
+            print(prompt_text)
+    except KeyError as e:
+        res = {"ok": False, "error": str(e)}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2))
+        else:
+            print(f"✖ Error: {e}")
+        sys.exit(1)

@@ -20,7 +20,9 @@ from synapseforge.cli.agent_cmds import (
     handle_agent_draft,
     handle_agent_list,
     handle_agent_patch,
+    handle_agent_prompt,
     handle_agent_release,
+    handle_agent_roles,
 )
 from synapseforge.cli.doc_cmds import handle_doc_get, handle_doc_stats
 from synapseforge.config import ProjectConfig, load_config
@@ -809,6 +811,17 @@ def main():
     p_ag_patch.add_argument("--replace", required=True, help="New line content")
     p_ag_patch.add_argument("--json", action="store_true", default=True)
     p_ag_patch.set_defaults(func=handle_agent_patch)
+
+    # agent roles
+    p_ag_roles = agent_subs.add_parser("roles", help="List all pre-designed agent roles & personas")
+    p_ag_roles.add_argument("--json", action="store_true", default=True)
+    p_ag_roles.set_defaults(func=handle_agent_roles)
+
+    # agent prompt
+    p_ag_prompt = agent_subs.add_parser("prompt", help="Get pre-designed system prompt for an agent role")
+    p_ag_prompt.add_argument("--role", required=True, choices=["drafter", "critic", "architect", "harmonizer", "sci_plot"], help="Role ID")
+    p_ag_prompt.add_argument("--json", action="store_true", default=True)
+    p_ag_prompt.set_defaults(func=handle_agent_prompt)
 
     # ==========================================
     # DOCUMENT TOOLKIT COMMANDS (For AI Agents)
