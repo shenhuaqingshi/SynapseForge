@@ -43,6 +43,6 @@ def test_pdf_tool_typst_compilation(tmp_path):
     out_pdf = tmp_path / "doc.pdf"
 
     res = tool.compile_markdown_to_pdf(md_file, out_pdf, title="测试文档")
-    assert res["ok"] is True
+    assert res.get("ok") is True, f"Typst compile failed: {res.get('error')}"
     assert out_pdf.exists()
     assert res["file_size"] > 0

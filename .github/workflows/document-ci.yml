@@ -26,7 +26,7 @@ jobs:
       - name: Set up Typst CLI
         uses: typst-community/setup-typst@v3
         with:
-          typst-version: 'v0.12.0'
+          typst-version: 'latest'
 
       - name: Install SynapseForge and Dependencies
         run: |

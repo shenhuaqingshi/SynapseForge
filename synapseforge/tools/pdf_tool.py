@@ -21,7 +21,7 @@ TYPST_ACADEMIC_TEMPLATE = """// SynapseForge Publication-Grade PDF Layout
   margin: (x: 2.0cm, top: 2.4cm, bottom: 2.4cm),
   fill: rgb("#ffffff"),
   header: align(right)[#text(size: 10pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"), fill: rgb("#666666"))[{{HEADER_TITLE}}]],
-  footer: align(center)[#context text(size: 10pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#counter(page).display()]],
+  footer: align(center)[#text(size: 10pt, font: ("Times New Roman", "KaiTi", "FZKai-Z03", "AR PL UKai CN", "LXGW WenKai"))[#counter(page).display()]],
 )
 
 // 正文设定：楷体 + Times，14pt舒适出版级字号
@@ -35,7 +35,7 @@ TYPST_ACADEMIC_TEMPLATE = """// SynapseForge Publication-Grade PDF Layout
 
 #set par(
   leading: 0.88em,
-  first-line-indent: (amount: 2em, all: true),
+  first-line-indent: 2em,
   justify: true,
 )
 
