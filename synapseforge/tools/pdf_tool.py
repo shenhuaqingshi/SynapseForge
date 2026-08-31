@@ -251,7 +251,7 @@ class PDFTool:
         typst_content = typst_content.replace("# ", "= ")
 
         # If bibliography exists and document has citations, link it
-        has_citations = bool(re.search(r'@[a-zA-Z0-9_\-]+', raw_md))
+        has_citations = bool(re.search(r'(?<![\w.@])@[a-zA-Z0-9_\-]+', raw_md))
         bib_file = Path.cwd() / "bibliography.bib"
         if has_citations and bib_file.exists():
             try:
@@ -260,7 +260,7 @@ class PDFTool:
             except Exception:
                 pass
         else:
-            typst_content = re.sub(r'@([a-zA-Z0-9_\-]+)', r'[\1]', typst_content)
+            typst_content = re.sub(r'(?<![\w.@])@([a-zA-Z0-9_\-]+)', r'[\1]', typst_content)
 
         full_typst = TYPST_ACADEMIC_TEMPLATE.replace("{{HEADER_TITLE}}", title).replace("{{CONTENT}}", typst_content)
         

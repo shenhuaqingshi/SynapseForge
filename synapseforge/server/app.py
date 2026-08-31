@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import urllib.parse
@@ -208,10 +209,16 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
     def _handle_api_save(self, data: Dict[str, Any]):
         section_id = data.get("section_id", "")
-        content = data.get("content", "")
-        if not section_id or not content:
-            self._send_json({"ok": False, "error": "Missing section_id or content"}, status=HTTPStatus.BAD_REQUEST)
+        if not isinstance(section_id, str) or not re.fullmatch(r"[A-Za-z0-9_\-]+", section_id):
+            self._send_json(
+                {"ok": False, "error": "Invalid section_id: must be non-empty and contain only [A-Za-z0-9_-]"},
+                status=HTTPStatus.BAD_REQUEST,
+            )
             return
+        if "content" not in data:
+            self._send_json({"ok": False, "error": "Missing content"}, status=HTTPStatus.BAD_REQUEST)
+            return
+        content = data["content"]
 
         sec_dir = self.root_dir / "sections"
         target_file = None
