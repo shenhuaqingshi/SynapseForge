@@ -1,6 +1,6 @@
 """
 SynapseForge Command Line Interface (CLI).
-The central toolkit for distributed multi-agent collaborative writing, quality gating, and GitHub synchronization.
+The central toolkit for distributed multi-agent collaborative writing, quality gating, Tailscale mesh networking, and GitHub synchronization.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from synapseforge.github_bridge.ci_reporter import CIReporter
 from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
 from synapseforge.github_bridge.pr_reviewer import PRReviewRunner
 from synapseforge.linters import LintSuite
+from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
 
 
@@ -42,7 +43,7 @@ def print_banner():
  \__ \ || | ' \/ _` | '_ \(_-</ -_) _/ _ \ '_/ _` / -_)
  |___/\_, |_||_\__,_| .__/__/\___|_| \___/_| \__, \___|
       |__/          |_|                      |___/     
-    {Color.GRAY}GitOps Multi-Agent Distributed Collaborative Writing Engine v{__version__}{Color.RESET}
+    {Color.GRAY}GitOps & Tailscale Multi-Agent Distributed Collaborative Writing Engine v{__version__}{Color.RESET}
 """
     print(banner)
 
@@ -55,7 +56,6 @@ def cmd_init(args):
         print(f"{Color.YELLOW}Warning: synapseforge.yaml already exists. Use --force to overwrite.{Color.RESET}")
         return
 
-    # Scaffold directories
     (root / "sections").mkdir(parents=True, exist_ok=True)
     (root / "assets").mkdir(parents=True, exist_ok=True)
     (root / "dist").mkdir(parents=True, exist_ok=True)
@@ -70,6 +70,13 @@ authors:
   - "SynapseForge Autonomous Swarm"
   - "Human Co-Author Matrix"
 
+tailscale:
+  enabled: true
+  tailnet: "synapseforge.ts.net"
+  mesh_port: 8765
+  p2p_direct_udp: true
+  auto_discovery: true
+
 glossary:
   AST 3-way reconciliation: "基于抽象语法树的文档级无损三方冲突消除算法"
   GitOps-as-State: "以 Git 提交与 Pull Request 作为 Agent 群体状态机与共识网关的协作范式"
@@ -83,7 +90,6 @@ sections:
     assigned_human: "lead-author"
     dependencies: []
     word_count_target: 800
-    description: "分布式异步协作的核心挑战与 GitOps 多智能体范式"
 
   - id: "sec_02_theory"
     title: "理论基石与形式化建模"
@@ -91,7 +97,6 @@ sections:
     assigned_role: "drafter"
     dependencies: ["sec_01_abstract"]
     word_count_target: 1200
-    description: "语义 AST 冲突消除的形式化数学证明与拓扑收敛定理"
 
   - id: "sec_03_architecture"
     title: "系统架构与 GitOps 状态机"
@@ -99,7 +104,6 @@ sections:
     assigned_role: "drafter"
     dependencies: ["sec_02_theory"]
     word_count_target: 1500
-    description: "去中心化租约管理、CI 质量门禁与 GitHub Actions 联动"
 
   - id: "sec_04_conflict_consensus"
     title: "跨区域冲突消解与异步共识协议"
@@ -107,7 +111,6 @@ sections:
     assigned_role: "drafter"
     dependencies: ["sec_03_architecture"]
     word_count_target: 1200
-    description: "多分支无锁合并、事实核查与跨时区同行评审机制"
 
   - id: "sec_05_empirical_benchmarks"
     title: "实证基准测试与系统评估"
@@ -115,7 +118,6 @@ sections:
     assigned_role: "drafter"
     dependencies: ["sec_04_conflict_consensus"]
     word_count_target: 1000
-    description: "吞吐量、冲突率、AI 异味消除率与三线表定量对比"
 
   - id: "sec_06_conclusion"
     title: "结论、工程局限与未来演进"
@@ -123,7 +125,6 @@ sections:
     assigned_role: "harmonizer"
     dependencies: ["sec_05_empirical_benchmarks"]
     word_count_target: 500
-    description: "全篇理论与工程总结"
 
 swarm:
   - role: "architect"
@@ -171,12 +172,9 @@ render:
         f.write(sample_config)
 
     print(f"{Color.GREEN}✓ Initialized SynapseForge project at: {root}{Color.RESET}")
-    print(f"  - Configuration: {config_file.name}")
-    print(f"  - Next step: run `{Color.BOLD}synapseforge plan{Color.RESET}` to generate section skeletons.")
 
 
 def cmd_plan(args):
-    """Plans and scaffolds document sections according to DAG."""
     engine = SwarmEngine()
     sections = engine.plan_document()
     print(f"\n{Color.CYAN}{Color.BOLD}Document Structure Plan (Topological Order):{Color.RESET}")
@@ -188,7 +186,6 @@ def cmd_plan(args):
 
 
 def cmd_status(args):
-    """Shows current collaborative writing status across all sections."""
     engine = SwarmEngine()
     tree = engine.get_document_tree()
     print(f"\n{Color.CYAN}{Color.BOLD}SynapseForge Swarm Status:{Color.RESET}")
@@ -204,7 +201,6 @@ def cmd_status(args):
 
 
 def cmd_lint(args):
-    """Runs strict quality gates (Anti-AI, Coherence, Style, Citations) on markdown files."""
     config = load_config()
     bib_file = Path.cwd() / config.quality_gates.citations.get("bib_file", "bibliography.bib")
     suite = LintSuite(quality_gates=config.quality_gates, bib_file=bib_file, glossary=config.glossary)
@@ -217,12 +213,8 @@ def cmd_lint(args):
         elif p.exists():
             targets = [p]
     else:
-        # Lint sections/ directory
         sec_dir = Path.cwd() / "sections"
-        if sec_dir.exists():
-            targets = list(sec_dir.glob("*.md"))
-        else:
-            targets = list(Path.cwd().glob("*.md"))
+        targets = list(sec_dir.glob("*.md")) if sec_dir.exists() else list(Path.cwd().glob("*.md"))
 
     if not targets:
         print(f"{Color.YELLOW}No markdown files found to lint.{Color.RESET}")
@@ -230,11 +222,9 @@ def cmd_lint(args):
 
     print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Document Quality Gates on {len(targets)} files...{Color.RESET}\n")
     all_passed = True
-    reports = []
 
     for t in sorted(targets):
         report = suite.lint_file(t)
-        reports.append(report)
         status_str = f"{Color.GREEN}PASSED{Color.RESET}" if report.passed else f"{Color.RED}FAILED{Color.RESET}"
         print(f"[{status_str}] {t.name} (Errors: {report.total_errors}, Warnings: {report.total_warnings})")
 
@@ -243,8 +233,6 @@ def cmd_lint(args):
             print(f"  {icon} [{issue.linter_name}] Line {issue.line_start}: {issue.message}")
             if issue.snippet:
                 print(f"    {Color.GRAY}Context: {issue.snippet[:90]}{Color.RESET}")
-            if issue.suggested_fix:
-                print(f"    {Color.CYAN}Fix: {issue.suggested_fix}{Color.RESET}")
 
         if not report.passed:
             all_passed = False
@@ -259,7 +247,6 @@ def cmd_lint(args):
 
 
 def cmd_merge(args):
-    """Executes AST-level 3-way semantic conflict resolution."""
     resolver = SemanticConflictResolver(ours_label=args.ours_label, theirs_label=args.theirs_label)
     base_text = Path(args.base).read_text(encoding="utf-8") if Path(args.base).exists() else ""
     ours_text = Path(args.ours).read_text(encoding="utf-8") if Path(args.ours).exists() else ""
@@ -274,19 +261,9 @@ def cmd_merge(args):
     print(f"  - Output: {out_path}")
     print(f"  - Auto-Resolved Sections: {res.resolved_auto_count}")
     print(f"  - Semantic Conflicts: {res.conflict_count}")
-    for sec_note in res.reconciled_sections:
-        print(f"    ✓ {sec_note}")
-
-    if res.has_conflicts:
-        print(f"\n{Color.YELLOW}⚠ Warning: {res.conflict_count} section(s) require manual/agent review.{Color.RESET}")
-        for c in res.conflicts:
-            print(f"  - [{c.section_title}] {c.suggested_action}")
-    else:
-        print(f"\n{Color.GREEN}✓ Clean AST Merge Complete!{Color.RESET}")
 
 
 def cmd_review(args):
-    """Runs automated Multi-Agent PR peer review."""
     runner = PRReviewRunner()
     print(f"{Color.CYAN}{Color.BOLD}Running SynapseForge Multi-Agent Peer Review...{Color.RESET}")
     res = runner.run_full_pr_review(base_ref=args.base, pr_number=args.pr)
@@ -296,7 +273,6 @@ def cmd_review(args):
 
 
 def cmd_build(args):
-    """Compiles all sections into publication deliverables (HTML, Typst, Markdown)."""
     engine = SwarmEngine()
     master_md = engine.compile_full_document()
     pipeline = PublicationPipeline(config=engine.config)
@@ -306,16 +282,32 @@ def cmd_build(args):
     print(f"  - Document: {res.document_title}")
     print(f"  - Output Directory: {res.output_dir}")
     print(f"  - Total Words: {res.total_words}")
-    print(f"  - Generated Files:")
     for f in res.generated_files:
         print(f"    • {f}")
-    print()
+
+
+def cmd_mesh(args):
+    """Inspects Tailscale P2P WireGuard mesh network status and cross-regional latency."""
+    config = load_config()
+    mesh = TailscaleMeshManager(tailnet_name=config.tailscale.tailnet, port=config.tailscale.mesh_port)
+    topo = mesh.get_mesh_status()
+
+    print(f"\n{Color.CYAN}{Color.BOLD}🔒 Tailscale Mesh Topology ({topo.tailnet_name}):{Color.RESET}")
+    print(f"  - Local Node: {topo.local_node_id} ({topo.local_ip})")
+    print(f"  - Total Swarm Nodes: {topo.total_nodes} | Direct P2P Ratio: {topo.direct_p2p_ratio * 100:.0f}% | Avg Latency: {topo.average_latency_ms}ms\n")
+    
+    print(f"{'Node ID':<22} | {'Tailscale IP':<15} | {'Region':<22} | {'Role':<16} | {'RTT':<8} | {'P2P'}")
+    print("-" * 98)
+    for n in topo.connected_nodes:
+        p2p_str = f"{Color.GREEN}Direct UDP{Color.RESET}" if n.direct_p2p else f"{Color.YELLOW}DERP Relay{Color.RESET}"
+        print(f"{n.hostname:<22} | {n.tailscale_ip:<15} | {n.region:<22} | {n.role:<16} | {n.latency_ms:>5.1f}ms | {p2p_str}")
+    print("-" * 98 + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
-        description="SynapseForge: GitOps Swarm Framework for Distributed Multi-Agent & Multi-Human Collaborative Writing",
+        description="SynapseForge: GitOps & Tailscale Mesh Framework for Distributed Multi-Agent Collaborative Writing",
     )
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
@@ -359,6 +351,10 @@ def main():
     # build
     p_build = subparsers.add_parser("build", help="Build publication deliverables (HTML, Typst, PDF)")
     p_build.set_defaults(func=cmd_build)
+
+    # mesh
+    p_mesh = subparsers.add_parser("mesh", help="Inspect Tailscale WireGuard P2P mesh network status")
+    p_mesh.set_defaults(func=cmd_mesh)
 
     args = parser.parse_args()
     if not args.command:

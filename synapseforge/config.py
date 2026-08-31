@@ -70,6 +70,16 @@ class GitOpsConfig:
 
 
 @dataclass
+class TailscaleConfig:
+    enabled: bool = True
+    tailnet: str = "synapseforge.ts.net"
+    mesh_port: int = 8765
+    p2p_direct_udp: bool = True
+    auto_discovery: bool = True
+    nodes: List[Dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
 class RenderConfig:
     formats: List[str] = field(default_factory=lambda: ["html", "typst", "markdown"])
     output_dir: str = "dist"
@@ -105,6 +115,7 @@ class ProjectConfig:
     swarm: List[SwarmAgentConfig] = field(default_factory=list)
     quality_gates: QualityGateConfig = field(default_factory=QualityGateConfig)
     gitops: GitOpsConfig = field(default_factory=GitOpsConfig)
+    tailscale: TailscaleConfig = field(default_factory=TailscaleConfig)
     render: RenderConfig = field(default_factory=RenderConfig)
     root_dir: Path = field(default_factory=Path.cwd)
 
@@ -162,6 +173,17 @@ class ProjectConfig:
             bot_email=raw_gitops.get("bot_email", "synapseforge-swarm[bot]@users.noreply.github.com"),
         )
 
+        # Parse Tailscale
+        raw_ts = data.get("tailscale", {})
+        tailscale = TailscaleConfig(
+            enabled=raw_ts.get("enabled", True),
+            tailnet=raw_ts.get("tailnet", "synapseforge.ts.net"),
+            mesh_port=raw_ts.get("mesh_port", 8765),
+            p2p_direct_udp=raw_ts.get("p2p_direct_udp", True),
+            auto_discovery=raw_ts.get("auto_discovery", True),
+            nodes=raw_ts.get("nodes", []),
+        )
+
         # Parse Render
         raw_render = data.get("render", {})
         render = RenderConfig(
@@ -186,84 +208,23 @@ class ProjectConfig:
             swarm=swarm,
             quality_gates=quality_gates,
             gitops=gitops,
+            tailscale=tailscale,
             render=render,
             root_dir=root,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "name": self.name,
-            "version": self.version,
-            "document_title": self.document_title,
-            "document_type": self.document_type,
-            "language": self.language,
-            "authors": self.authors,
-            "glossary": self.glossary,
-            "sections": [
-                {
-                    "id": s.id,
-                    "title": s.title,
-                    "file": s.file,
-                    "assigned_role": s.assigned_role,
-                    "assigned_human": s.assigned_human,
-                    "dependencies": s.dependencies,
-                    "word_count_target": s.word_count_target,
-                    "description": s.description,
-                }
-                for s in self.sections
-            ],
-            "swarm": [
-                {
-                    "role": a.role,
-                    "name": a.name,
-                    "model": a.model,
-                    "responsibilities": a.responsibilities,
-                    "system_prompt_override": a.system_prompt_override,
-                }
-                for a in self.swarm
-            ],
-            "quality_gates": {
-                "anti_ai": self.quality_gates.anti_ai,
-                "coherence": self.quality_gates.coherence,
-                "style": self.quality_gates.style,
-                "citations": self.quality_gates.citations,
-            },
-            "gitops": {
-                "base_branch": self.gitops.base_branch,
-                "branch_prefix": self.gitops.branch_prefix,
-                "enable_draft_prs": self.gitops.enable_draft_prs,
-                "auto_assign_reviewers": self.gitops.auto_assign_reviewers,
-                "required_agent_reviews": self.gitops.required_agent_reviews,
-                "bot_identity": self.gitops.bot_identity,
-                "bot_email": self.gitops.bot_email,
-            },
-            "render": {
-                "formats": self.render.formats,
-                "output_dir": self.render.output_dir,
-                "theme": self.render.theme,
-                "cjk_font": self.render.cjk_font,
-                "latin_font": self.render.latin_font,
-                "include_toc": self.render.include_toc,
-                "numbered_headings": self.render.numbered_headings,
-            },
-        }
-
 
 def load_config(config_path: Optional[Path | str] = None) -> ProjectConfig:
-    """Load configuration from a synapseforge.yaml file or search up directory tree."""
     if config_path:
         p = Path(config_path)
         if not p.exists():
             raise FileNotFoundError(f"Config file not found at: {p}")
     else:
-        # Search current and parent directories for synapseforge.yaml
         curr = Path.cwd()
         p = curr / "synapseforge.yaml"
         if not p.exists():
             p = curr / "synapseforge.yml"
-        
         if not p.exists():
-            # Return a default configuration
             return ProjectConfig()
 
     with open(p, "r", encoding="utf-8") as f:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge Studio - 3-Column Apple Collaborative Workspace</title>
+  <title>SynapseForge Studio - Apple Design & Tailscale Mesh Edition</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome -->
@@ -117,7 +117,7 @@
   <!-- macOS MAIN WINDOW CHROME -->
   <div class="w-full h-full max-w-[1760px] max-h-[1040px] rounded-[18px] apple-glass shadow-2xl flex flex-col overflow-hidden border border-white/10 relative">
 
-    <!-- macOS TOP TITLEBAR -->
+    <!-- macOS TOP TITLEBAR with Tailscale Mesh Badge -->
     <header class="h-11 bg-black/40 border-b border-white/[0.08] px-4 flex items-center justify-between shrink-0 z-40">
       
       <!-- Traffic lights & Room Info -->
@@ -137,26 +137,33 @@
           <span class="text-[10px] text-blue-300 px-1.5 py-0.2 rounded bg-blue-500/20 font-mono">Owner: @xb</span>
           <i class="fa-solid fa-chevron-down text-[9px] text-white/40"></i>
         </div>
+
+        <!-- Tailscale Mesh Network Badge -->
+        <div class="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs text-emerald-300 font-mono">
+          <i class="fa-solid fa-shield-halved text-[10px] text-emerald-400"></i>
+          <span>Tailscale WireGuard P2P (synapseforge.ts.net)</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
       </div>
 
       <!-- Center Status: 3-Panel Breadcrumb -->
       <div class="flex items-center space-x-2 text-xs text-white/50">
-        <span class="text-white/70 font-medium">【左】文件夹与智能体区</span>
+        <span class="text-white/70 font-medium">【左】文件与智能体</span>
         <span>➔</span>
-        <span class="text-blue-400 font-medium">【中】房间交互与任务认领区</span>
+        <span class="text-blue-400 font-medium">【中】房间交互与任务认领</span>
         <span>➔</span>
-        <span class="text-emerald-400 font-medium">【右】实时文档协作区</span>
+        <span class="text-emerald-400 font-medium">【右】实时文档协作</span>
       </div>
 
       <!-- Right Actions & Online Halo -->
       <div class="flex items-center space-x-3">
         <!-- Live Presence Avatars -->
         <div class="flex items-center -space-x-1.5">
-          <div class="w-6 h-6 rounded-full bg-blue-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="xb (Project Owner, Beijing UTC+8)">xb</div>
-          <div class="w-6 h-6 rounded-full bg-amber-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Elena_V (London UTC+0)">EL</div>
-          <div class="w-6 h-6 rounded-full bg-emerald-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Dr_Chen (Tokyo UTC+9)">DC</div>
-          <div class="w-6 h-6 rounded-full bg-purple-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🤖 Drafter-Narrative">🤖</div>
-          <div class="w-6 h-6 rounded-full bg-rose-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🛡️ Critic-Adversarial">🛡️</div>
+          <div class="w-6 h-6 rounded-full bg-blue-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="xb (Project Owner, Beijing UTC+8 - 100.64.0.1)">xb</div>
+          <div class="w-6 h-6 rounded-full bg-amber-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Elena_V (London UTC+0 - 100.64.0.2)">EL</div>
+          <div class="w-6 h-6 rounded-full bg-emerald-500 border border-white/40 flex items-center justify-center text-[10px] font-bold text-white shadow" title="Dr_Chen (Tokyo UTC+9 - 100.64.0.3)">DC</div>
+          <div class="w-6 h-6 rounded-full bg-purple-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🤖 Drafter-Narrative (100.64.0.10)">🤖</div>
+          <div class="w-6 h-6 rounded-full bg-rose-600 border border-white/40 flex items-center justify-center text-[9px] font-bold text-white shadow" title="🛡️ Critic-Adversarial (100.64.0.10)">🛡️</div>
         </div>
 
         <button onclick="openModal('modal-invite')" class="text-xs bg-white/[0.08] hover:bg-white/[0.14] text-white px-2.5 py-1 rounded-lg border border-white/[0.1] transition flex items-center space-x-1">
@@ -175,13 +182,13 @@
     <div class="flex-1 flex overflow-hidden">
 
       <!-- ======================================================== -->
-      <!-- 1. LEFT PANEL (最左边): 文件夹区 (Top) + 智能体区 (Bottom)  -->
+      <!-- 1. LEFT PANEL: 文件夹区 + 智能体集群区 + Tailscale 节点遥测 -->
       <!-- ======================================================== -->
       <aside class="w-72 bg-black/40 border-r border-white/[0.08] flex flex-col shrink-0 overflow-hidden">
         
-        <!-- Top Half: 文件夹与文件区 (File Explorer) -->
-        <div class="h-1/2 flex flex-col border-b border-white/[0.08] overflow-hidden">
-          <div class="px-3.5 py-2.5 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
+        <!-- Top Section: 文件夹与文件区 (File Explorer) -->
+        <div class="h-[40%] flex flex-col border-b border-white/[0.08] overflow-hidden">
+          <div class="px-3.5 py-2 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
             <span class="flex items-center space-x-1.5 text-white/80">
               <i class="fa-solid fa-folder-tree text-blue-400"></i>
               <span>文件夹与文件区</span>
@@ -190,172 +197,135 @@
           </div>
 
           <div class="flex-1 overflow-y-auto p-2 space-y-0.5 text-xs">
-            <!-- sections folder -->
-            <div class="flex items-center space-x-1.5 px-2 py-1 text-white/70 font-medium">
+            <div class="flex items-center space-x-1.5 px-2 py-0.5 text-white/70 font-medium">
               <i class="fa-solid fa-chevron-down text-[9px] text-white/40"></i>
               <i class="fa-solid fa-folder text-blue-400"></i>
               <span>sections/</span>
             </div>
 
             <div class="pl-4 space-y-0.5 border-l border-white/[0.06] ml-3.5">
-              <div onclick="selectFile('sec_01')" class="file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
-                  <span class="truncate">01_abstract.md</span>
-                </div>
+              <div onclick="selectFile('sec_01')" class="file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <span class="truncate">01_abstract.md</span>
                 <span class="text-[10px] text-white/30 font-mono">439w</span>
               </div>
-
-              <div onclick="selectFile('sec_02')" class="file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
-                  <span class="truncate">02_theory.md</span>
-                </div>
+              <div onclick="selectFile('sec_02')" class="file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <span class="truncate">02_theory.md</span>
                 <span class="text-[10px] text-white/30 font-mono">447w</span>
               </div>
-
-              <div onclick="selectFile('sec_03')" class="file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
-                  <span class="truncate">03_architecture.md</span>
-                </div>
+              <div onclick="selectFile('sec_03')" class="file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <span class="truncate">03_architecture.md</span>
                 <span class="text-[10px] text-white/30 font-mono">493w</span>
               </div>
-
               <!-- Active File -->
-              <div onclick="selectFile('sec_04')" class="file-item active flex items-center justify-between px-2 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-pen text-blue-400 text-[11px]"></i>
-                  <span class="truncate font-semibold">04_consensus.md</span>
-                </div>
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Live Sync"></span>
+              <div onclick="selectFile('sec_04')" class="file-item active flex items-center justify-between px-2 py-1 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition">
+                <span class="truncate font-semibold">04_consensus.md</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               </div>
-
-              <div onclick="selectFile('sec_05')" class="file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
-                  <span class="truncate">05_benchmarks.md</span>
-                </div>
+              <div onclick="selectFile('sec_05')" class="file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <span class="truncate">05_benchmarks.md</span>
                 <span class="text-[10px] text-white/30 font-mono">439w</span>
               </div>
-
-              <div onclick="selectFile('sec_06')" class="file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <i class="fa-solid fa-file-lines text-sky-400 text-[11px]"></i>
-                  <span class="truncate">06_conclusion.md</span>
-                </div>
+              <div onclick="selectFile('sec_06')" class="file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition">
+                <span class="truncate">06_conclusion.md</span>
                 <span class="text-[10px] text-white/30 font-mono">238w</span>
-              </div>
-            </div>
-
-            <!-- config & bib -->
-            <div class="pt-1.5 space-y-0.5">
-              <div class="flex items-center space-x-1.5 px-2 py-1 rounded-lg text-white/50 hover:text-white cursor-pointer transition">
-                <i class="fa-solid fa-bookmark text-indigo-400 text-[11px]"></i>
-                <span>bibliography.bib</span>
-              </div>
-              <div class="flex items-center space-x-1.5 px-2 py-1 rounded-lg text-white/50 hover:text-white cursor-pointer transition">
-                <i class="fa-solid fa-sliders text-teal-400 text-[11px]"></i>
-                <span>synapseforge.yaml</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Bottom Half: 智能体状态与指挥区 (Agent Swarm Area) -->
-        <div class="h-1/2 flex flex-col overflow-hidden bg-black/20">
-          <div class="px-3.5 py-2.5 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
+        <!-- Middle Section: 智能体集群区 (Agent Swarm Area) -->
+        <div class="h-[36%] flex flex-col border-b border-white/[0.08] overflow-hidden bg-black/20">
+          <div class="px-3.5 py-2 border-b border-white/[0.06] flex items-center justify-between text-xs text-white/50 font-semibold uppercase tracking-wider">
             <span class="flex items-center space-x-1.5 text-purple-300">
               <i class="fa-solid fa-robot text-purple-400"></i>
-              <span>智能体集群区 (Swarm)</span>
+              <span>智能体集群 (Swarm)</span>
             </span>
             <span class="text-[10px] text-emerald-400 font-mono">5 Active</span>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-2.5 space-y-2">
-            <!-- Agent 1: Drafter -->
-            <div class="apple-card p-2.5 border-purple-500/30 bg-purple-950/20 flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 text-xs shrink-0">
-                🤖
-              </div>
+          <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
+            <div class="apple-card p-2 border-purple-500/30 bg-purple-950/20 flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-md bg-purple-600/30 flex items-center justify-center text-xs">🤖</div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <span class="font-semibold text-xs text-white truncate">Drafter-Narrative</span>
-                  <span class="text-[9px] text-purple-300 bg-purple-900/60 px-1.5 py-0.2 rounded font-mono">Writing</span>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium text-white truncate">Drafter-Narrative</span>
+                  <span class="text-[9px] text-purple-300 font-mono">85 tok/s</span>
                 </div>
-                <div class="text-[10px] text-white/50 truncate mt-0.5">流式起草 sec_04 (85 tok/s)</div>
+                <div class="text-[10px] text-white/50 truncate">起草 sec_04 (P2P WireGuard)</div>
               </div>
             </div>
 
-            <!-- Agent 2: Critic -->
-            <div class="apple-card p-2.5 border-rose-500/30 bg-rose-950/20 flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-lg bg-rose-600/30 border border-rose-500/40 flex items-center justify-center text-rose-300 text-xs shrink-0">
-                🛡️
-              </div>
+            <div class="apple-card p-2 border-rose-500/30 bg-rose-950/20 flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-md bg-rose-600/30 flex items-center justify-center text-xs">🛡️</div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <span class="font-semibold text-xs text-white truncate">Critic-Adversarial</span>
-                  <span class="text-[9px] text-rose-300 bg-rose-900/60 px-1.5 py-0.2 rounded font-mono">Auditing</span>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium text-white truncate">Critic-Adversarial</span>
+                  <span class="text-[9px] text-rose-300 font-mono">Auditing</span>
                 </div>
-                <div class="text-[10px] text-white/50 truncate mt-0.5">审查 PR #14 事实引用</div>
+                <div class="text-[10px] text-white/50 truncate">审查 PR #14 事实引用</div>
               </div>
             </div>
 
-            <!-- Agent 3: Harmonizer -->
-            <div class="apple-card p-2.5 border-teal-500/20 bg-teal-950/10 flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-lg bg-teal-600/20 border border-teal-500/30 flex items-center justify-center text-teal-300 text-xs shrink-0">
-                ✨
-              </div>
+            <div class="apple-card p-2 border-teal-500/20 bg-teal-950/10 flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-md bg-teal-600/20 flex items-center justify-center text-xs">✨</div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <span class="font-semibold text-xs text-white truncate">Harmonizer-Voice</span>
-                  <span class="text-[9px] text-teal-300 bg-teal-900/40 px-1.5 py-0.2 rounded font-mono">Idle</span>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium text-white truncate">Harmonizer-Voice</span>
+                  <span class="text-[9px] text-teal-300 font-mono">Idle</span>
                 </div>
-                <div class="text-[10px] text-white/50 truncate mt-0.5">待命：就绪接管 sec_06</div>
-              </div>
-            </div>
-
-            <!-- Agent 4: Visualizer -->
-            <div class="apple-card p-2.5 border-blue-500/20 bg-blue-950/10 flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-300 text-xs shrink-0">
-                🎨
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <span class="font-semibold text-xs text-white truncate">Visualizer-Artisan</span>
-                  <span class="text-[9px] text-blue-300 bg-blue-900/40 px-1.5 py-0.2 rounded font-mono">Ready</span>
-                </div>
-                <div class="text-[10px] text-white/50 truncate mt-0.5">已生成矢量架构图 assets/</div>
+                <div class="text-[10px] text-white/50 truncate">就绪接管 sec_06</div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="p-2.5 bg-black/40 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-white/50">
-            <span>Swarm 自主性模式: 全自动</span>
-            <span class="text-emerald-400 font-mono">● 0 冲突阻塞</span>
+        <!-- Bottom Section: Tailscale P2P Mesh 节点遥测区 (Tailscale P2P Nodes) -->
+        <div class="h-[24%] flex flex-col overflow-hidden bg-black/40 p-2.5 space-y-1.5 text-[10px]">
+          <div class="flex items-center justify-between text-white/60 font-semibold uppercase tracking-wider">
+            <span class="flex items-center space-x-1 text-emerald-400">
+              <i class="fa-solid fa-network-wired"></i>
+              <span>Tailscale P2P 节点</span>
+            </span>
+            <span class="text-white/40 font-mono">Direct UDP</span>
+          </div>
+
+          <div class="space-y-1 font-mono text-white/70 overflow-y-auto">
+            <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
+              <span>node-beijing (100.64.0.1)</span>
+              <span class="text-emerald-400 font-bold">2.4ms</span>
+            </div>
+            <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
+              <span>node-london (100.64.0.2)</span>
+              <span class="text-blue-400 font-bold">84.2ms</span>
+            </div>
+            <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
+              <span>node-tokyo (100.64.0.3)</span>
+              <span class="text-emerald-400 font-bold">38.6ms</span>
+            </div>
+            <div class="flex items-center justify-between bg-white/[0.04] px-2 py-1 rounded">
+              <span>agent-swarm (100.64.0.10)</span>
+              <span class="text-purple-400 font-bold">118ms</span>
+            </div>
           </div>
         </div>
 
       </aside>
 
       <!-- ======================================================== -->
-      <!-- 2. CENTER PANEL (中间): 房间交互区 (Chat, Task, PR Review) -->
+      <!-- 2. CENTER PANEL: 房间交互区 (对齐聊天、任务认领、PR 审查) -->
       <!-- ======================================================== -->
       <section class="w-[490px] border-r border-white/[0.08] bg-[#0c0e18]/80 flex flex-col shrink-0 overflow-hidden">
         
-        <!-- Room Interaction Header & Mode Picker -->
+        <!-- Header & Tab Picker -->
         <div class="p-3 border-b border-white/[0.08] space-y-2 shrink-0 bg-black/30">
           <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-1.5">
-              <span class="text-xs font-bold text-white flex items-center space-x-1.5">
-                <i class="fa-solid fa-comments text-blue-400"></i>
-                <span>房间交互区 (Room Interaction)</span>
-              </span>
-            </div>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">8 Humans • 5 Agents</span>
+            <span class="text-xs font-bold text-white flex items-center space-x-1.5">
+              <i class="fa-solid fa-comments text-blue-400"></i>
+              <span>房间交互区 (Room Interaction)</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">Tailscale Mesh Active</span>
           </div>
 
-          <!-- Apple Segmented Tab Switcher for Room Center -->
           <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/[0.08] text-xs">
             <button onclick="switchCenterTab('chat')" id="tab-center-chat" class="segmented-btn active flex-1 py-1 font-medium text-white text-center">
               💬 实时对齐聊天
@@ -369,12 +339,11 @@
           </div>
         </div>
 
-        <!-- Center View 1: 实时对齐聊天与事件流 (Chat & Event Stream) -->
+        <!-- Center View 1: 实时对齐聊天与事件流 -->
         <div id="center-view-chat" class="flex-1 flex flex-col min-h-0">
-          <!-- Chat Message Feed -->
           <div class="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs">
             
-            <!-- Message from Owner -->
+            <!-- Message 1 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white">xb</div>
@@ -382,11 +351,11 @@
                 <span class="text-[10px] text-white/30">16:10</span>
               </div>
               <div class="apple-card p-2.5 text-white/90 text-xs ml-7 leading-relaxed">
-                欢迎大家加入本白皮书协作房间！第 4 章由 🤖 Drafter 和 @Elena_V 联合起草，请严格遵循学术专业散文体，杜绝分点流水账。
+                欢迎大家加入本白皮书协作房间！已通过 Tailscale WireGuard 建立北京-伦敦-东京-硅谷 P2P 全互联网络。第 4 章由 🤖 Drafter 和 @Elena_V 联合起草。
               </div>
             </div>
 
-            <!-- Message from Drafter Agent with streaming card -->
+            <!-- Message 2 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center text-[9px] text-white">🤖</div>
@@ -394,14 +363,14 @@
                 <span class="text-[10px] text-white/30">16:12</span>
               </div>
               <div class="apple-card p-2.5 border-purple-500/30 bg-purple-950/20 text-white/90 text-xs ml-7 space-y-2">
-                <p>已锁定章节 <code class="text-blue-300 font-mono">04_conflict_resolution.md</code> 写入租约（3600s）。正在以 85 tok/s 进行两阶段自适应共识算法的流式推演。</p>
+                <p>已锁定章节 <code class="text-blue-300 font-mono">04_conflict_resolution.md</code> 写入租约。正在通过 Tailscale Direct UDP 管道以 85 tok/s 进行两阶段自适应共识算法的流式推演。</p>
                 <div class="w-full bg-white/[0.08] h-1 rounded-full overflow-hidden">
                   <div class="bg-purple-500 h-full rounded-full animate-pulse" style="width: 82%"></div>
                 </div>
               </div>
             </div>
 
-            <!-- Message from Human Scholar Elena -->
+            <!-- Message 3 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-[9px] font-bold text-white">EL</div>
@@ -409,11 +378,11 @@
                 <span class="text-[10px] text-white/30">16:14</span>
               </div>
               <div class="apple-card p-2.5 text-white/90 text-xs ml-7 leading-relaxed">
-                I am reviewing the mathematical definitions in Section 2 now. The CRDT equation looks solid!
+                Tailscale connection to Tokyo & Beijing is ultra low latency (84ms). The CRDT proof in Section 2 is verified!
               </div>
             </div>
 
-            <!-- Message from Critic Agent with Inline Suggestion Action Card -->
+            <!-- Message 4 -->
             <div class="space-y-1">
               <div class="flex items-center space-x-2">
                 <div class="w-5 h-5 rounded-full bg-rose-600 flex items-center justify-center text-[9px] text-white">🛡️</div>
@@ -437,7 +406,6 @@
 
           </div>
 
-          <!-- Bottom Chat Input Bar -->
           <div class="p-2.5 border-t border-white/[0.08] bg-black/40">
             <div class="flex items-center bg-white/[0.06] rounded-xl px-3 py-2 border border-white/[0.08]">
               <input type="text" placeholder="输入消息对齐，或键入 @Agent 派发指令..." class="bg-transparent text-xs text-white placeholder-white/30 focus:outline-none flex-1">
@@ -446,7 +414,7 @@
           </div>
         </div>
 
-        <!-- Center View 2: 任务发布与实时认领看板 (Task Dispatch & Claiming) -->
+        <!-- Center View 2: 任务发布与实时认领看板 -->
         <div id="center-view-tasks" class="hidden flex-1 p-3 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
             <span class="text-xs font-bold text-white">实时任务分发列表 (Task Queue)</span>
@@ -455,7 +423,6 @@
             </button>
           </div>
 
-          <!-- Task Card 1: Backlog -->
           <div class="apple-card p-3 space-y-2 border-white/[0.08]">
             <div class="flex items-center justify-between text-[10px]">
               <span class="px-1.5 py-0.5 rounded bg-white/[0.08] text-white/70 font-mono">sec_06_conclusion</span>
@@ -471,7 +438,6 @@
             </div>
           </div>
 
-          <!-- Task Card 2: In Progress -->
           <div class="apple-card p-3 space-y-2 border-blue-500/30 bg-blue-950/20">
             <div class="flex items-center justify-between text-[10px]">
               <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">sec_04_consensus</span>
@@ -489,25 +455,9 @@
               <span class="text-blue-400 font-mono">430 / 1200 字</span>
             </div>
           </div>
-
-          <!-- Task Card 3: Review -->
-          <div class="apple-card p-3 space-y-2 border-amber-500/30 bg-amber-950/20">
-            <div class="flex items-center justify-between text-[10px]">
-              <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">PR #14</span>
-              <span class="text-amber-400 font-medium">评审中 (Reviewing)</span>
-            </div>
-            <h4 class="font-semibold text-xs text-white">实证基准测试数据与三线表校验</h4>
-            <p class="text-[11px] text-white/50">Critic 智能体提出 1 处定量结论文献引用补全建议。</p>
-            <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px]">
-              <span class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i>CI Quality Passed</span>
-              <button onclick="switchCenterTab('prs')" class="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded-md font-medium transition">
-                进入 PR 审核
-              </button>
-            </div>
-          </div>
         </div>
 
-        <!-- Center View 3: GitHub PR 审查网关 (PR Review Gateway) -->
+        <!-- Center View 3: GitHub PR 审查网关 -->
         <div id="center-view-prs" class="hidden flex-1 p-3 overflow-y-auto space-y-3">
           <div class="flex items-center justify-between pb-1">
             <span class="text-xs font-bold text-white">GitHub PR 审查矩阵</span>
@@ -520,18 +470,11 @@
               <span class="text-white/40 text-[11px] font-mono">synapse/sec-05 ➔ main</span>
             </div>
             <h4 class="font-semibold text-xs text-white">feat(sec_05): 完善基准测试对比与消除 AI 套话</h4>
-            
             <div class="grid grid-cols-2 gap-2 text-[10px]">
-              <div class="bg-white/[0.04] p-1.5 rounded border border-white/[0.06] text-emerald-400">
-                Anti-AI: 0 Clichés
-              </div>
-              <div class="bg-white/[0.04] p-1.5 rounded border border-white/[0.06] text-blue-400">
-                Booktabs: Verified
-              </div>
+              <div class="bg-white/[0.04] p-1.5 rounded text-emerald-400">Anti-AI: 0 Clichés</div>
+              <div class="bg-white/[0.04] p-1.5 rounded text-blue-400">Booktabs: Verified</div>
             </div>
-
             <div class="pt-2 border-t border-white/[0.06] flex items-center justify-end space-x-2">
-              <button class="bg-white/[0.08] hover:bg-white/[0.14] text-white text-[11px] px-3 py-1 rounded-md">查看 Diff</button>
               <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] px-3 py-1 rounded-md font-medium shadow">
                 Approve & Merge
               </button>
@@ -542,7 +485,7 @@
       </section>
 
       <!-- ======================================================== -->
-      <!-- 3. RIGHT PANEL (右侧): 实时文档区 (Live Document Area)   -->
+      <!-- 3. RIGHT PANEL: 实时文档区 (Live Document Area)         -->
       <!-- ======================================================== -->
       <main class="flex-1 flex flex-col bg-[#0b0c12]/70 overflow-hidden relative">
         
@@ -557,7 +500,6 @@
             <span class="text-[10px] px-2 py-0.5 bg-blue-500/15 text-blue-300 rounded-md border border-blue-500/20 font-mono">Branch: synapse/sec-04-consensus</span>
           </div>
 
-          <!-- Quality Gate Status Pill & Action -->
           <div class="flex items-center space-x-3">
             <div class="flex items-center space-x-2 text-[11px] bg-white/[0.05] px-2.5 py-1 rounded-lg border border-white/[0.08]">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -565,7 +507,7 @@
               <span class="text-white/20">|</span>
               <span class="text-blue-300 font-mono">430 字</span>
               <span class="text-white/20">|</span>
-              <span class="text-white/50">实时同步中</span>
+              <span class="text-purple-300 font-mono">Tailscale P2P Sync</span>
             </div>
 
             <button class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-lg font-medium shadow transition flex items-center space-x-1">
@@ -578,7 +520,7 @@
         <!-- Split View: Source Code with Live Presence & Apple Books Preview -->
         <div class="flex-1 flex overflow-hidden">
           
-          <!-- Left Half: Markdown Source with Live Human / Agent Cursors -->
+          <!-- Left Half: Markdown Source with Live Cursors -->
           <div class="w-1/2 border-r border-white/[0.06] flex flex-col font-mono text-xs overflow-hidden bg-black/20">
             <div class="h-7 bg-white/[0.02] px-3 flex items-center justify-between text-[10px] text-white/40 border-b border-white/[0.04]">
               <span>MARKDOWN SOURCE (实时编辑)</span>
@@ -594,7 +536,7 @@
               <!-- Paragraph 1 with Elena Presence Marker -->
               <div class="relative pl-3.5 border-l-2 border-amber-500/80 bg-amber-500/[0.04] p-2.5 rounded-r-lg">
                 <div class="absolute -top-2.5 right-2 bg-amber-500 text-slate-950 font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm font-sans">
-                  👤 Elena_V (Reviewing London)
+                  👤 Elena_V (Reviewing London 100.64.0.2)
                 </div>
                 <p class="text-white/80">在跨时区分布式协同场景中，不同地区的人类专家与智能体往往在互不感知的状态下对同一章节提出互补或相左的修订意见。传统的集中式锁机制严重损害了系统的协作弹性，而盲目的自动化合并则容易引入逻辑断层。为此，SynapseForge 提出了两阶段自适应共识协议（Two-Phase Adaptive Consensus Protocol）。</p>
               </div>
@@ -602,7 +544,7 @@
               <!-- Paragraph 2 with Drafter Live Streaming Cursor -->
               <div class="relative pl-3.5 border-l-2 border-purple-500/80 bg-purple-500/[0.04] p-2.5 rounded-r-lg">
                 <div class="absolute -top-2.5 right-2 bg-purple-600 text-white font-bold text-[9px] px-2 py-0.2 rounded-full shadow-sm flex items-center space-x-1 font-sans">
-                  <span>🤖 Drafter-Narrative (Streaming 85 tok/s)</span>
+                  <span>🤖 Drafter-Narrative (Streaming 85 tok/s via WireGuard)</span>
                 </div>
                 <p class="text-white/80">第一阶段为结构化 AST 自动重组阶段。当检测到分支分叉点 $\mathcal{D}_{\text{base}}$ 存在并发演进时，合并引擎首先以段落块为单位进行局部指纹对比。对于独立增补的论据或对不同微观论点的修饰，算法在保留章节逻辑链完整性的前提下自动完成穿插合并；对于涉及同一论述块的冲突修改，系统将自动注入结构化的多角色审议标记。<span class="inline-block w-1.5 h-3.5 bg-purple-400 animate-pulse ml-0.5 align-middle"></span></p>
               </div>
@@ -680,7 +622,7 @@
 
   </div>
 
-  <!-- MODAL: CREATE ROOM (macOS Sheet Style) -->
+  <!-- MODALS -->
   <div id="modal-create-room" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
       <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
@@ -696,12 +638,8 @@
           <input type="text" value="sci-fi-universe-lore-bible" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none font-mono">
         </div>
         <div>
-          <label class="block font-medium text-white/70 mb-1">文档类型 (Document Type)</label>
-          <select class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
-            <option>Academic Whitepaper / Research Paper</option>
-            <option>Creative Novel / Lore Bible</option>
-            <option>Technical System Specification</option>
-          </select>
+          <label class="block font-medium text-white/70 mb-1">Tailnet 网络拓扑</label>
+          <input type="text" value="synapseforge.ts.net (WireGuard P2P)" readonly class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl p-2.5 text-emerald-400 font-mono text-[11px]">
         </div>
       </div>
 
@@ -712,7 +650,6 @@
     </div>
   </div>
 
-  <!-- MODAL: INVITE MEMBERS (macOS Sheet Style) -->
   <div id="modal-invite" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="apple-glass rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-white/20">
       <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
@@ -724,16 +661,8 @@
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block font-medium text-white/70 mb-1">GitHub 用户名或电子邮箱</label>
-          <input type="text" placeholder="e.g. 361487867@qq.com, @octocat" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block font-medium text-white/70 mb-1">分配权限角色</label>
-          <select class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
-            <option>Co-Author (可认领任务与提交 PR)</option>
-            <option>Lead Reviewer (PR 批准合并权限)</option>
-            <option>Observer / Reader (只读权限)</option>
-          </select>
+          <label class="block font-medium text-white/70 mb-1">Tailscale MagicDNS / 邮箱</label>
+          <input type="text" placeholder="e.g. node-london.synapseforge.ts.net, 361487867@qq.com" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
         </div>
       </div>
 
@@ -744,7 +673,6 @@
     </div>
   </div>
 
-  <!-- MODAL: PUBLISH TASK (macOS Sheet Style) -->
   <div id="modal-publish-task" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="apple-glass rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 border border-white/20">
       <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
@@ -769,11 +697,6 @@
         <div>
           <label class="block font-medium text-white/70 mb-1">任务标题</label>
           <input type="text" value="大规模超长上下文下的语义漂移收敛测试" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">
-        </div>
-
-        <div>
-          <label class="block font-medium text-white/70 mb-1">写作要求与机理提示 (Prompt Guidelines)</label>
-          <textarea rows="3" class="w-full bg-white/[0.06] border border-white/[0.1] rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none">要求全篇采用专业散文长文叙事，杜绝流水账列表；对比实验必须使用学术三线表呈现，严格核验 BibTeX 引用。</textarea>
         </div>
       </div>
 
@@ -810,9 +733,9 @@
 
     function selectFile(secId) {
       document.querySelectorAll('.file-item').forEach(el => {
-        el.className = 'file-item flex items-center justify-between px-2 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition';
+        el.className = 'file-item flex items-center justify-between px-2 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.05] cursor-pointer transition';
       });
-      event.currentTarget.className = 'file-item active flex items-center justify-between px-2 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition';
+      event.currentTarget.className = 'file-item active flex items-center justify-between px-2 py-1 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 cursor-pointer transition';
     }
   </script>
 </body>
