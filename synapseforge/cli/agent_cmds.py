@@ -130,35 +130,47 @@ def handle_agent_draft(args):
     if args.content_file:
         content = Path(args.content_file).read_text(encoding="utf-8")
 
-    sec_file.parent.mkdir(parents=True, exist_ok=True)
-    sec_file.write_text(content, encoding="utf-8")
+    from synapseforge.core.file_lock import AutoSectionLock, SectionLockedError
 
-    # Parse AST and word count
-    parser = MarkdownASTParser()
-    blocks = parser.parse_blocks(content)
-    words = parser.count_words(content)
+    try:
+        with AutoSectionLock(section_id=args.section, agent_name=args.agent) as lock:
+            # File is strictly locked while writing
+            lock.write_draft(content, target_file_path=sec_file)
+            
+            # Parse AST and word count
+            parser = MarkdownASTParser()
+            blocks = parser.parse_blocks(content)
+            words = parser.count_words(content)
 
-    state_mgr.update_section(
-        section_id=args.section,
-        status=SectionStatus.DRAFTING,
-        assigned_actor=args.agent,
-        word_count=words,
-    )
+            state_mgr.update_section(
+                section_id=args.section,
+                status=SectionStatus.DRAFTING,
+                assigned_actor=args.agent,
+                word_count=words,
+            )
 
-    res = {
-        "ok": True,
-        "section_id": args.section,
-        "agent": args.agent,
-        "file": str(sec_file.relative_to(Path.cwd())),
-        "word_count": words,
-        "ast_block_count": len(blocks),
-        "citations": parser.extract_citations(content),
-    }
+            res = {
+                "ok": True,
+                "section_id": args.section,
+                "agent": args.agent,
+                "file": str(sec_file.relative_to(Path.cwd())),
+                "word_count": words,
+                "ast_block_count": len(blocks),
+                "citations": parser.extract_citations(content),
+                "lock_status": "auto_released",
+            }
+    except SectionLockedError as e:
+        res = {"ok": False, "error": str(e), "section_id": args.section}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2))
+        else:
+            print(f"✖ Lock Error: {e}")
+        sys.exit(1)
 
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2, ensure_ascii=False))
     else:
-        print(f"✓ Draft saved to '{sec_file.name}' ({words} words, {len(blocks)} AST blocks, {len(res['citations'])} citations)")
+        print(f"✓ Draft saved to '{sec_file.name}' ({words} words, {len(blocks)} AST blocks, lock auto-released)")
 
 
 def handle_agent_audit(args):
@@ -225,34 +237,49 @@ def handle_agent_patch(args):
             print(f"✖ File not found: {target_path}")
         sys.exit(1)
 
-    lines = target_path.read_text(encoding="utf-8").splitlines()
-    line_idx = args.line - 1
+    from synapseforge.core.file_lock import AutoSectionLock, SectionLockedError
 
-    if line_idx < 0 or line_idx >= len(lines):
-        res = {"ok": False, "error": f"Line {args.line} out of range (total lines: {len(lines)})"}
+    agent_name = getattr(args, "agent", "Critic-Adversarial")
+    section_id = target_path.stem
+
+    try:
+        with AutoSectionLock(section_id=section_id, agent_name=agent_name) as lock:
+            lines = target_path.read_text(encoding="utf-8").splitlines()
+            line_idx = args.line - 1
+
+            if line_idx < 0 or line_idx >= len(lines):
+                res = {"ok": False, "error": f"Line {args.line} out of range (total lines: {len(lines)})"}
+                if getattr(args, "json", False):
+                    print(json.dumps(res, indent=2))
+                else:
+                    print(f"✖ Line {args.line} out of range")
+                sys.exit(1)
+
+            original_line = lines[line_idx]
+            lines[line_idx] = args.replace
+
+            new_content = "\n".join(lines) + "\n"
+            target_path.write_text(new_content, encoding="utf-8")
+
+            res = {
+                "ok": True,
+                "file": str(target_path),
+                "line": args.line,
+                "original": original_line,
+                "replaced": args.replace,
+                "lock_status": "auto_released",
+            }
+    except SectionLockedError as e:
+        res = {"ok": False, "error": str(e), "file": str(target_path)}
         if getattr(args, "json", False):
             print(json.dumps(res, indent=2))
         else:
-            print(f"✖ Line {args.line} out of range")
+            print(f"✖ Lock Error: {e}")
         sys.exit(1)
-
-    original_line = lines[line_idx]
-    lines[line_idx] = args.replace
-
-    new_content = "\n".join(lines) + "\n"
-    target_path.write_text(new_content, encoding="utf-8")
-
-    res = {
-        "ok": True,
-        "file": str(target_path),
-        "line": args.line,
-        "original": original_line,
-        "replaced": args.replace,
-    }
 
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2, ensure_ascii=False))
     else:
-        print(f"✓ Applied patch to '{target_path.name}' at line {args.line}")
+        print(f"✓ Applied patch to '{target_path.name}' at line {args.line} (lock auto-released)")
         print(f"  - Original: {original_line}")
         print(f"  + Replaced: {args.replace}")
