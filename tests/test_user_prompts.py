@@ -4,7 +4,7 @@ from synapseforge.core.user_prompts import UserPromptManager
 
 
 def test_user_prompt_manager_lifecycle(tmp_path):
-    mgr = UserPromptManager(workspace_root=tmp_path)
+    mgr = UserPromptManager(workspace_root=tmp_path, auto_init_report_spec=False)
     
     # 1. User sets a custom prompt
     custom_text = "# Role: Senior Cryptographer\n\nMust use rigorous sigma-algebra notation."

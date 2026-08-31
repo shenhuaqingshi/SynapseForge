@@ -180,6 +180,24 @@ synapseforge vault list
 synapseforge vault import --file ~/Downloads/external_paper.md
 ```
 
+### Report Specification Engine (Built-in `report-spec`)
+```bash
+# Display built-in Report-Spec standards and Seven Major Prohibitions
+synapseforge report spec
+
+# Generate a publication-grade report template adhering to Report-Spec
+synapseforge report new --title "分布式系统白皮书" --topic "状态机共识" --type whitepaper --output sections/01_whitepaper.md
+
+# Audit document strictly against Report-Spec rules (Zero AI Flavor & Narrative Triad)
+synapseforge report lint --file sections/01_whitepaper.md
+
+# Compile report to publication-grade PDF using Publication PDF Layout
+synapseforge report build --file sections/01_whitepaper.md --output dist/whitepaper.pdf
+
+# List or export built-in Report-Spec multi-agent system prompts
+synapseforge report prompts
+```
+
 ### Document Quality Scorecard & Multi-Format Export
 ```bash
 # Compute academic rigor, Anti-AI flow, citation density, and KaTeX math scorecard
@@ -239,6 +257,7 @@ See [docs/LOCAL_AGENT_COLLAB.md](docs/LOCAL_AGENT_COLLAB.md) for seats, heartbea
 7. **10 大专属文件夹集中管理与外部文件自动沙盒副本**：规范化管理资产，打开外部文件自动复制归档，绝不污染源文件。
 8. **企业科研级多层保密机制**：敏感密钥/PII 双向脱敏还原、文档静态对称加密（PBKDF2/AES）、HMAC-SHA256 房间准入签名。
 9. **一键多格式投稿包导出与严谨度量化雷达**：单指令产出出版级 PDF、Word docx、独立网页与 ZIP 包，输出 Anti-AI 与公式严谨度雷达评分。
+10. **原生内置顶刊级报告规范引擎（Report-Spec）**：默认以最高标准生成报告（彻底祛除 AI 味、严禁套路与机械过渡词、彻底摒弃机械分点、单段 150~300 字三位一体长文叙事、学术三线表、顶刊科研绘图联动与出版级 PDF 排版）。
 
 ---
 

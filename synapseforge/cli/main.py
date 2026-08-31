@@ -908,6 +908,115 @@ def cmd_security(args):
             print(f"{Color.GREEN}✓ Added confidential keyword '{args.term}' to redaction registry{Color.RESET}")
 
 
+def cmd_report(args):
+    action = getattr(args, "report_action", "spec")
+
+    if action == "new":
+        from synapseforge.report import ReportGenerator
+        from synapseforge.report.spec import ReportType
+        gen = ReportGenerator()
+        rep_type = ReportType(getattr(args, "type", "whitepaper"))
+        res = gen.generate_report_template(
+            title=args.title,
+            topic=args.topic,
+            report_type=rep_type,
+            author=getattr(args, "author", "SynapseForge Swarm Contributors"),
+        )
+        out_path = Path(args.output) if getattr(args, "output", None) else (Path.cwd() / "sections" / "01_report_spec.md")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(res["content"], encoding="utf-8")
+        res["output_file"] = str(out_path)
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}{Color.BOLD}✓ Report-Spec Publication Document Created:{Color.RESET} {out_path}")
+            print(f"  • Title: {res['title']}")
+            print(f"  • Quality Score: {res['audit']['total_score']}/100 (Anti-AI: {res['audit']['anti_ai_score']}, Narrative: {res['audit']['narrative_score']})")
+
+    elif action == "lint":
+        from synapseforge.report.spec import ReportSpecification
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        text = file_path.read_text(encoding="utf-8")
+        audit = ReportSpecification.audit_document(text)
+        res = {
+            "ok": True,
+            "file": str(file_path),
+            "passed": audit.passed,
+            "total_score": audit.total_score,
+            "anti_ai_score": audit.anti_ai_score,
+            "narrative_score": audit.narrative_score,
+            "structure_score": audit.structure_score,
+            "violations": audit.violations,
+            "suggestions": audit.suggestions,
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            status_color = Color.GREEN if audit.passed else Color.RED
+            print(f"\n{status_color}{Color.BOLD}Report-Spec Quality Gate: {'PASSED' if audit.passed else 'FAILED'} (Score: {audit.total_score}/100){Color.RESET}")
+            print(f"  • Anti-AI Score: {audit.anti_ai_score}/100")
+            print(f"  • Narrative Prose Score: {audit.narrative_score}/100")
+            print(f"  • Structure Score: {audit.structure_score}/100")
+            if audit.violations:
+                print(f"\n{Color.YELLOW}Violations ({len(audit.violations)}):{Color.RESET}")
+                for v in audit.violations:
+                    print(f"  • Line {v['line']}: [{v['rule_name']}] {v['snippet']} -> {v['advice']}")
+            print()
+
+    elif action == "build":
+        from synapseforge.report import ReportGenerator
+        gen = ReportGenerator()
+        inp = Path(args.file)
+        if not inp.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        out = Path(args.output) if getattr(args, "output", None) else (Path.cwd() / "dist" / f"{inp.stem}.pdf")
+        res = gen.compile_report_to_pdf(markdown_path=inp, output_pdf=out, title=getattr(args, "title", None))
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            if res.get("ok"):
+                print(f"{Color.GREEN}{Color.BOLD}✓ Publication-Grade PDF Compiled:{Color.RESET} {res['output_pdf']}")
+                print(f"  • Standard: {res.get('page_standard')}")
+                print(f"  • Audit Score: {res.get('audit_score')}/100 (Passed: {res.get('audit_passed')})")
+            else:
+                print(f"{Color.RED}✖ PDF Compilation Failed: {res.get('error')}{Color.RESET}")
+
+    elif action == "spec":
+        from synapseforge.report.spec import ReportStandard
+        res = {
+            "standard_name": "Report Specification (Report-Spec)",
+            "seven_prohibitions": ReportStandard.SEVEN_PROHIBITIONS,
+            "paragraph_triad_rule": ReportStandard.PARAGRAPH_TRIAD_RULE,
+            "booktabs_rule": ReportStandard.BOOKTABS_RULE,
+            "scientific_plot_rules": ReportStandard.SCIENTIFIC_PLOT_RULES,
+            "publication_pdf_layout_rules": ReportStandard.PUBLICATION_PDF_LAYOUT_RULES,
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}📋 SynapseForge Report Specification (Report-Spec) Standards:{Color.RESET}\n")
+            for p in ReportStandard.SEVEN_PROHIBITIONS:
+                print(f"  {Color.BOLD}• {p['name']}:{Color.RESET} {p['rule']}")
+            print(f"\n  {Color.BOLD}• 散文段落三位一体法:{Color.RESET} {ReportStandard.PARAGRAPH_TRIAD_RULE}")
+            print(f"  {Color.BOLD}• 出版级三线表规范:{Color.RESET} {ReportStandard.BOOKTABS_RULE}")
+            print(f"  {Color.BOLD}• 顶刊科研绘图联动:{Color.RESET} {ReportStandard.SCIENTIFIC_PLOT_RULES}")
+            print(f"  {Color.BOLD}• 出版级 PDF 排版:{Color.RESET} {ReportStandard.PUBLICATION_PDF_LAYOUT_RULES}\n")
+
+    elif action == "prompts":
+        from synapseforge.report.prompts import REPORT_SPEC_PROMPTS
+        if getattr(args, "json", False):
+            print(json.dumps(REPORT_SPEC_PROMPTS, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}🤖 Report-Spec Built-in Multi-Agent Prompts:{Color.RESET}\n")
+            for role, info in REPORT_SPEC_PROMPTS.items():
+                print(f"  {Color.BOLD}[{role.upper()}] {info['display_name']}{Color.RESET}: {info['desc']}")
+            print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -1504,6 +1613,43 @@ def main():
     p_sc_term.add_argument("--term", required=True, help="Classified term or project codename")
     p_sc_term.add_argument("--json", action="store_true", default=True)
     p_sc_term.set_defaults(func=cmd_security)
+
+    # ==========================================
+    # REPORT SPECIFICATION & PUBLICATION ENGINE
+    # ==========================================
+    p_rep = subparsers.add_parser("report", help="Report Specification engine (Zero AI flavor, narrative prose, publication PDF)")
+    p_rep.add_argument("--json", action="store_true", default=True)
+    p_rep.set_defaults(func=cmd_report)
+    rep_subs = p_rep.add_subparsers(dest="report_action", help="Report action")
+
+    p_rp_new = rep_subs.add_parser("new", help="Generate a publication-grade report template adhering to Report-Spec")
+    p_rp_new.add_argument("--title", required=True, help="Report title")
+    p_rp_new.add_argument("--topic", required=True, help="Core subject or research topic")
+    p_rp_new.add_argument("--type", default="whitepaper", choices=["whitepaper", "academic_review", "industry_analysis", "tech_survey", "empirical_study"], help="Report type")
+    p_rp_new.add_argument("--output", default=None, help="Output markdown path")
+    p_rp_new.add_argument("--author", default="SynapseForge Swarm Contributors", help="Author name")
+    p_rp_new.add_argument("--json", action="store_true", default=True)
+    p_rp_new.set_defaults(func=cmd_report)
+
+    p_rp_lint = rep_subs.add_parser("lint", help="Audit a report against Report-Spec seven prohibitions and narrative prose")
+    p_rp_lint.add_argument("--file", required=True, help="Path to markdown document to audit")
+    p_rp_lint.add_argument("--json", action="store_true", default=True)
+    p_rp_lint.set_defaults(func=cmd_report)
+
+    p_rp_build = rep_subs.add_parser("build", help="Compile a Report-Spec markdown document to a publication-grade PDF")
+    p_rp_build.add_argument("--file", required=True, help="Path to markdown document")
+    p_rp_build.add_argument("--output", default=None, help="Output PDF path")
+    p_rp_build.add_argument("--title", default=None, help="Document header title")
+    p_rp_build.add_argument("--json", action="store_true", default=True)
+    p_rp_build.set_defaults(func=cmd_report)
+
+    p_rp_spec = rep_subs.add_parser("spec", help="Display the complete Report-Spec standards and seven prohibitions")
+    p_rp_spec.add_argument("--json", action="store_true", default=True)
+    p_rp_spec.set_defaults(func=cmd_report)
+
+    p_rp_prompts = rep_subs.add_parser("prompts", help="Display or export built-in Report-Spec multi-agent system prompts")
+    p_rp_prompts.add_argument("--json", action="store_true", default=True)
+    p_rp_prompts.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
     if not args.command:
