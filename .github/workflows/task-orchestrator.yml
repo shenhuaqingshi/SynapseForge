@@ -1,0 +1,44 @@
+name: Issue Task Dispatcher
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  orchestrate-task:
+    name: Dispatch Section Drafting Task
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.title, '[Task:') || contains(github.event.issue.labels.*.name, 'synapse:task')
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SynapseForge
+        run: |
+          pip install -e .
+          pip install pyyaml requests
+
+      - name: Orchestrate Issue Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: |
+          python -c "
+          import os, json
+          from synapseforge.github_bridge.issue_orchestrator import IssueTaskOrchestrator
+          orch = IssueTaskOrchestrator()
+          payload = orch.parse_issue_payload(os.environ['GITHUB_EVENT_PATH'])
+          if payload:
+              orch.process_issue(payload.get('issue', {}))
+          "

@@ -1,0 +1,14 @@
+# Global Default Reviewers
+* @xinghewumeng
+
+# Section-Specific Domain Ownership
+/sections/01_abstract_introduction.md @xinghewumeng
+/sections/02_theoretical_foundations.md @xinghewumeng
+/sections/03_system_architecture.md @xinghewumeng
+/sections/04_conflict_resolution_and_consensus.md @xinghewumeng
+/sections/05_empirical_benchmarks.md @xinghewumeng
+/sections/06_conclusion_and_roadmap.md @xinghewumeng
+
+# Quality Gates & CI Configurations
+/.github/ @xinghewumeng
+/synapseforge/ @xinghewumeng

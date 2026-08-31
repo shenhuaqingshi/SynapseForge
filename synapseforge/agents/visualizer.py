@@ -1,0 +1,110 @@
+"""
+Scientific Figure and System Architecture Diagram Agent.
+Generates SVG diagrams, Mermaid syntax, and publication-ready visual assets.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from synapseforge.agents.base import AgentRole, BaseAgent
+
+
+class VisualizerAgent(BaseAgent):
+    def __init__(self, name: str = "Visualizer-Artisan", model: str = "inherit"):
+        super().__init__(name=name, role=AgentRole.VISUALIZER, model=model)
+
+    def _default_system_prompt(self) -> str:
+        return (
+            "You are a Scientific Visualization Agent. You produce clean, Nature/IEEE-grade "
+            "architecture diagrams, SVG vector graphics, and data visualizations for whitepapers."
+        )
+
+    def generate_architecture_svg(self, title: str = "SynapseForge Architecture") -> str:
+        """Generates clean vector SVG diagram for the GitOps Swarm architecture."""
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gradHeader" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="gradNode1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="gradNode2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="gradNode3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="900" height="420" rx="16" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+
+  <!-- Title -->
+  <text x="450" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="bold" fill="#0f172a" text-anchor="middle">{title}</text>
+  <text x="450" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">GitOps-Native Multi-Agent &amp; Multi-Human Distributed Writing Loop</text>
+
+  <!-- Left: Swarm Authors -->
+  <g transform="translate(40, 100)" filter="url(#dropShadow)">
+    <rect width="220" height="270" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <rect width="220" height="40" rx="12" fill="url(#gradHeader)"/>
+    <text x="110" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#ffffff" text-anchor="middle">1. Distributed Authors</text>
+    
+    <rect x="20" y="60" width="180" height="42" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="110" y="86" font-family="sans-serif" font-size="12" font-weight="500" fill="#1e40af" text-anchor="middle">Agent Swarm (Drafters)</text>
+    
+    <rect x="20" y="115" width="180" height="42" rx="8" fill="#f0fdf4" stroke="#86efac"/>
+    <text x="110" y="141" font-family="sans-serif" font-size="12" font-weight="500" fill="#166534" text-anchor="middle">Human Domain Experts</text>
+
+    <rect x="20" y="170" width="180" height="42" rx="8" fill="#faf5ff" stroke="#d8b4fe"/>
+    <text x="110" y="196" font-family="sans-serif" font-size="12" font-weight="500" fill="#6b21a8" text-anchor="middle">Regional Reviewers</text>
+    
+    <text x="110" y="245" font-family="sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Asynchronous Commits / PRs</text>
+  </g>
+
+  <!-- Center: GitOps Core & CI Quality Gate -->
+  <g transform="translate(340, 100)" filter="url(#dropShadow)">
+    <rect width="220" height="270" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <rect width="220" height="40" rx="12" fill="url(#gradNode1)"/>
+    <text x="110" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#ffffff" text-anchor="middle">2. GitOps Quality Gate</text>
+
+    <rect x="20" y="60" width="180" height="38" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="110" y="84" font-family="sans-serif" font-size="12" fill="#334155" text-anchor="middle">Anti-AI &amp; Cliché Linter</text>
+
+    <rect x="20" y="108" width="180" height="38" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="110" y="132" font-family="sans-serif" font-size="12" fill="#334155" text-anchor="middle">Semantic AST 3-Way Merge</text>
+
+    <rect x="20" y="156" width="180" height="38" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="110" y="180" font-family="sans-serif" font-size="12" fill="#334155" text-anchor="middle">Citation &amp; BibTeX Guard</text>
+
+    <rect x="20" y="204" width="180" height="38" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="110" y="228" font-family="sans-serif" font-size="12" fill="#334155" text-anchor="middle">Multi-Agent PR Review Matrix</text>
+  </g>
+
+  <!-- Right: Publication Artifacts -->
+  <g transform="translate(640, 100)" filter="url(#dropShadow)">
+    <rect width="220" height="270" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <rect width="220" height="40" rx="12" fill="url(#gradNode2)"/>
+    <text x="110" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#ffffff" text-anchor="middle">3. Publication Synthesis</text>
+
+    <rect x="20" y="65" width="180" height="45" rx="8" fill="#f0fdf4" stroke="#a7f3d0"/>
+    <text x="110" y="93" font-family="sans-serif" font-size="12" font-weight="600" fill="#065f46" text-anchor="middle">Publication-Grade PDF</text>
+
+    <rect x="20" y="125" width="180" height="45" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+    <text x="110" y="153" font-family="sans-serif" font-size="12" font-weight="600" fill="#1e40af" text-anchor="middle">Interactive HTML Portal</text>
+
+    <rect x="20" y="185" width="180" height="45" rx="8" fill="#faf5ff" stroke="#e9d5ff"/>
+    <text x="110" y="213" font-family="sans-serif" font-size="12" font-weight="600" fill="#581c87" text-anchor="middle">Typst / LaTeX Formats</text>
+  </g>
+
+  <!-- Arrows -->
+  <path d="M 260 235 L 340 235" stroke="#64748b" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <path d="M 560 235 L 640 235" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead)"/>
+</svg>'''

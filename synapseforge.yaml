@@ -1,0 +1,106 @@
+# SynapseForge Project Configuration
+name: "distributed-agent-consensus-whitepaper"
+version: "1.0.0"
+document_title: "Distributed Multi-Agent Consensus and Autonomous Knowledge Synthesis in Cross-Regional Environments"
+document_type: "whitepaper"
+language: "zh-CN"
+authors:
+  - "SynapseForge Autonomous Swarm"
+  - "Human Co-Author Matrix"
+
+glossary:
+  AST 3-way reconciliation: "基于抽象语法树的文档级无损三方冲突消除算法"
+  GitOps-as-State: "以 Git 提交与 Pull Request 作为 Agent 群体状态机与共识网关的协作范式"
+  Anti-AI Flavor: "彻底去除机械套话与分点狂热症的学术专业散文体规范"
+
+sections:
+  - id: "sec_01_abstract"
+    title: "摘要与引言：分布式协作悖论"
+    file: "sections/01_abstract_introduction.md"
+    assigned_role: "drafter"
+    assigned_human: "lead-author"
+    dependencies: []
+    word_count_target: 800
+    description: "分布式异步协作的核心挑战与 GitOps 多智能体范式"
+
+  - id: "sec_02_theory"
+    title: "理论基石与形式化建模"
+    file: "sections/02_theoretical_foundations.md"
+    assigned_role: "drafter"
+    dependencies: ["sec_01_abstract"]
+    word_count_target: 1200
+    description: "语义 AST 冲突消除的形式化数学证明与拓扑收敛定理"
+
+  - id: "sec_03_architecture"
+    title: "系统架构与 GitOps 状态机"
+    file: "sections/03_system_architecture.md"
+    assigned_role: "drafter"
+    dependencies: ["sec_02_theory"]
+    word_count_target: 1500
+    description: "去中心化租约管理、CI 质量门禁与 GitHub Actions 联动"
+
+  - id: "sec_04_conflict_consensus"
+    title: "跨区域冲突消解与异步共识协议"
+    file: "sections/04_conflict_resolution_and_consensus.md"
+    assigned_role: "drafter"
+    dependencies: ["sec_03_architecture"]
+    word_count_target: 1200
+    description: "多分支无锁合并、事实核查与跨时区同行评审机制"
+
+  - id: "sec_05_empirical_benchmarks"
+    title: "实证基准测试与系统评估"
+    file: "sections/05_empirical_benchmarks.md"
+    assigned_role: "drafter"
+    dependencies: ["sec_04_conflict_consensus"]
+    word_count_target: 1000
+    description: "吞吐量、冲突率、AI 异味消除率与三线表定量对比"
+
+  - id: "sec_06_conclusion"
+    title: "结论、工程局限与未来演进"
+    file: "sections/06_conclusion_and_roadmap.md"
+    assigned_role: "harmonizer"
+    dependencies: ["sec_05_empirical_benchmarks"]
+    word_count_target: 500
+    description: "全篇理论与工程总结"
+
+swarm:
+  - role: "architect"
+    name: "Architect-Prime"
+    model: "inherit"
+  - role: "drafter"
+    name: "Drafter-Narrative"
+    model: "inherit"
+  - role: "critic"
+    name: "Critic-Adversarial"
+    model: "inherit"
+  - role: "harmonizer"
+    name: "Harmonizer-Voice"
+    model: "inherit"
+  - role: "visualizer"
+    name: "Visualizer-Artisan"
+    model: "inherit"
+
+quality_gates:
+  anti_ai:
+    enabled: true
+    ban_cliches: true
+    ban_formulaic_lists: true
+    require_narrative_prose: true
+  coherence:
+    enabled: true
+    enforce_glossary: true
+    check_cross_references: true
+  style:
+    enabled: true
+    enforce_cjk_latin_spacing: true
+    enforce_booktabs_tables: true
+  citations:
+    enabled: true
+    bib_file: "bibliography.bib"
+
+render:
+  formats: ["html", "typst", "markdown"]
+  output_dir: "dist"
+  theme: "academic_clean"
+  cjk_font: "KaiTi"
+  latin_font: "Times New Roman"
