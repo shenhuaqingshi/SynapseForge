@@ -43,6 +43,7 @@ from synapseforge.core.notifier import NotificationDispatcher
 from synapseforge.core.scorecard import QualityScorecard
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.core.user_prompts import UserPromptManager
+from synapseforge.core.vault import WorkspaceVault
 from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
@@ -757,6 +758,52 @@ def cmd_user_prompts(args):
                 print(f"{Color.RED}✖ Role '{args.role}' did not exist{Color.RESET}")
 
 
+def cmd_vault(args):
+    vault = WorkspaceVault()
+    action = getattr(args, "vault_action", "list")
+
+    if action == "list":
+        res = vault.list_vault_files()
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}📁 SynapseForge Centralized Workspace Vault:{Color.RESET}")
+            print(f"  Root: {res['workspace_root']}\n")
+            for cat, data in res["categories"].items():
+                print(f"  📂 {Color.BOLD}{cat:<14}{Color.RESET} ({data['file_count']} files) — {data['description']}")
+                for f in data["files"][:4]:
+                    print(f"     • {f['relative_path']} ({f['size_bytes']} bytes)")
+                if len(data["files"]) > 4:
+                    print(f"     • ... and {len(data['files']) - 4} more files")
+            print()
+
+    elif action == "import":
+        res = vault.import_external_file(
+            external_path=args.file,
+            target_category=getattr(args, "category", None),
+            overwrite=getattr(args, "overwrite", False),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Successfully imported external file into dedicated vault:{Color.RESET}")
+                print(f"  - Source:      {res['original_path']}")
+                print(f"  - Vault Path:  {res['vault_path']} ({res.get('file_size', 0)} bytes)")
+                print(f"  - Category:    {res['category']}")
+                print(f"  - SHA-256:     {res['sha256'][:16]}...")
+            else:
+                print(f"{Color.RED}✖ Import failed: {res.get('error')}{Color.RESET}")
+
+    elif action == "init":
+        vault.ensure_vault_structure()
+        res = {"ok": True, "workspace_root": str(vault.workspace_root), "status": "all_dedicated_folders_created"}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Initialized all 10 dedicated vault directories at '{vault.workspace_root}'{Color.RESET}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
@@ -1194,6 +1241,29 @@ def main():
     p_pmt_del.add_argument("--role", required=True, help="Role ID")
     p_pmt_del.add_argument("--json", action="store_true", default=True)
     p_pmt_del.set_defaults(func=cmd_user_prompts)
+
+    # ==========================================
+    # CENTRALIZED WORKSPACE VAULT & FILE MANAGER
+    # ==========================================
+    p_vlt = subparsers.add_parser("vault", help="Centralized workspace vault & auto-copy external files manager")
+    p_vlt.add_argument("--json", action="store_true", default=True)
+    p_vlt.set_defaults(func=cmd_vault)
+    vlt_subs = p_vlt.add_subparsers(dest="vault_action", help="Vault action")
+
+    p_vlt_list = vlt_subs.add_parser("list", help="List all workspace files categorized by dedicated directories")
+    p_vlt_list.add_argument("--json", action="store_true", default=True)
+    p_vlt_list.set_defaults(func=cmd_vault)
+
+    p_vlt_import = vlt_subs.add_parser("import", help="Auto-copy an external file into the dedicated vault")
+    p_vlt_import.add_argument("--file", required=True, help="Path to external file")
+    p_vlt_import.add_argument("--category", default=None, help="Target dedicated directory (sections, imports, references, figures...)")
+    p_vlt_import.add_argument("--overwrite", action="store_true", default=False)
+    p_vlt_import.add_argument("--json", action="store_true", default=True)
+    p_vlt_import.set_defaults(func=cmd_vault)
+
+    p_vlt_init = vlt_subs.add_parser("init", help="Ensure all dedicated vault folders are initialized")
+    p_vlt_init.add_argument("--json", action="store_true", default=True)
+    p_vlt_init.set_defaults(func=cmd_vault)
 
     args = parser.parse_args()
     if not args.command:

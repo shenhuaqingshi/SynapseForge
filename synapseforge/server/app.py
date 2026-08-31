@@ -75,6 +75,12 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True, "prompts": mgr.list_prompts()})
             return
 
+        elif path == "/api/vault/files":
+            from synapseforge.core.vault import WorkspaceVault
+            vault = WorkspaceVault(self.root_dir)
+            self._send_json(vault.list_vault_files())
+            return
+
         elif path.startswith("/assets/") or path.startswith("/dist/"):
             super().do_GET()
             return
@@ -94,6 +100,15 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/session":
             self._handle_api_save_session(data)
+        elif path == "/api/vault/import":
+            from synapseforge.core.vault import WorkspaceVault
+            vault = WorkspaceVault(self.root_dir)
+            res = vault.import_external_file(
+                external_path=data.get("file_path", ""),
+                target_category=data.get("category"),
+                overwrite=data.get("overwrite", False),
+            )
+            self._send_json(res)
         elif path == "/api/prompts":
             from synapseforge.core.user_prompts import UserPromptManager
             mgr = UserPromptManager(self.root_dir)
