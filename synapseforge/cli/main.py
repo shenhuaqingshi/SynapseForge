@@ -17,12 +17,15 @@ from synapseforge import __version__
 from synapseforge.cli.agent_cmds import (
     handle_agent_audit,
     handle_agent_claim,
+    handle_agent_detect_clis,
     handle_agent_draft,
     handle_agent_list,
     handle_agent_patch,
     handle_agent_prompt,
+    handle_agent_register_cli,
     handle_agent_release,
     handle_agent_roles,
+    handle_agent_run_cli,
 )
 from synapseforge.cli.doc_cmds import handle_doc_get, handle_doc_stats
 from synapseforge.config import ProjectConfig, load_config
@@ -890,6 +893,30 @@ def main():
     p_ag_prompt.add_argument("--role", required=True, choices=["drafter", "critic", "architect", "harmonizer", "sci_plot"], help="Role ID")
     p_ag_prompt.add_argument("--json", action="store_true", default=True)
     p_ag_prompt.set_defaults(func=handle_agent_prompt)
+
+    # agent detect
+    p_ag_detect = agent_subs.add_parser("detect", help="Detect installed local Agent CLIs (Antigravity, Claude Code, Codex, Grok, Aider)")
+    p_ag_detect.add_argument("--json", action="store_true", default=True)
+    p_ag_detect.set_defaults(func=handle_agent_detect_clis)
+
+    # agent run-cli
+    p_ag_run = agent_subs.add_parser("run-cli", help="Dispatch section writing task to a local Agent CLI tool")
+    p_ag_run.add_argument("--agent", required=True, help="Agent CLI name (e.g. antigravity, claude, codex, grok)")
+    p_ag_run.add_argument("--section", required=True, help="Section ID to edit/draft")
+    p_ag_run.add_argument("--instruction", required=True, help="Task instruction prompt")
+    p_ag_run.add_argument("--preset", default=None, help="Optional user prompt preset role (e.g. drafter, critic)")
+    p_ag_run.add_argument("--timeout", type=int, default=120, help="Execution timeout in seconds")
+    p_ag_run.add_argument("--json", action="store_true", default=True)
+    p_ag_run.set_defaults(func=handle_agent_run_cli)
+
+    # agent register-cli
+    p_ag_reg = agent_subs.add_parser("register-cli", help="Register or customize a local Agent CLI command template")
+    p_ag_reg.add_argument("--name", required=True, help="Agent identifier")
+    p_ag_reg.add_argument("--cmd", required=True, help="Command executable (e.g. agy, claude, cursor-agent)")
+    p_ag_reg.add_argument("--pattern", required=True, help="Args pattern (e.g. '-p {instruction}')")
+    p_ag_reg.add_argument("--desc", default=None, help="Agent description")
+    p_ag_reg.add_argument("--json", action="store_true", default=True)
+    p_ag_reg.set_defaults(func=handle_agent_register_cli)
 
     # ==========================================
     # DOCUMENT TOOLKIT COMMANDS (For AI Agents)

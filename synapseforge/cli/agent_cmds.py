@@ -319,3 +319,67 @@ def handle_agent_prompt(args):
         else:
             print(f"✖ Error: {e}")
         sys.exit(1)
+
+
+def handle_agent_detect_clis(args):
+    """Scans and lists local Agent CLI tools installed on the user's host machine."""
+    from synapseforge.core.local_agent_cli import LocalAgentCLIManager
+    mgr = LocalAgentCLIManager()
+    clis = mgr.detect_available_clis()
+
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": True, "local_agent_clis": clis}, indent=2, ensure_ascii=False))
+    else:
+        print(f"\nLocal Agent CLI Fleet Detected ({len(clis)} registered engines):")
+        print(f"{'Agent Name':<15} | {'Installed':<10} | {'Binary / Executable Path':<40}")
+        print("-" * 75)
+        for c in clis:
+            status = "✓ READY" if c["installed"] else "✖ Missing"
+            path_str = c["executable_path"] or f"({c['binary']} not in PATH)"
+            print(f"{c['agent_name']:<15} | {status:<10} | {path_str:<40}")
+        print()
+
+
+def handle_agent_run_cli(args):
+    """Executes a section writing task by dispatching directly to a local Agent CLI tool."""
+    from synapseforge.core.local_agent_cli import LocalAgentCLIManager
+    mgr = LocalAgentCLIManager()
+    res = mgr.run_agent_cli(
+        agent_name=args.agent,
+        section_id=args.section,
+        user_instruction=args.instruction,
+        role_preset=getattr(args, "preset", None),
+        timeout=getattr(args, "timeout", 120),
+    )
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        if res.get("ok"):
+            print(f"✓ Local Agent CLI '{args.agent}' completed task on section '{args.section}'")
+            print(f"  - Executable: {res.get('binary')}")
+            print(f"  - Target file: {res.get('target_file')}")
+            print(f"  - Lock status: {res.get('lock_status')}")
+            if res.get("stdout"):
+                print(f"  - Output:\n{res['stdout'][:500]}")
+        else:
+            print(f"✖ Local Agent CLI execution failed: {res.get('error')}")
+            sys.exit(1)
+
+
+def handle_agent_register_cli(args):
+    """Registers or customizes a local Agent CLI template."""
+    from synapseforge.core.local_agent_cli import LocalAgentCLIManager
+    mgr = LocalAgentCLIManager()
+    pattern = args.pattern.split() if isinstance(args.pattern, str) else args.pattern
+    res = mgr.register_cli(
+        name=args.name,
+        binary=args.cmd,
+        args_pattern=pattern,
+        description=getattr(args, "desc", None),
+    )
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        print(f"✓ Registered local agent CLI '{args.name}' using command '{args.cmd}'")
