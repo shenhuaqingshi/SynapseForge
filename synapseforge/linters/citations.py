@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from synapseforge.core.ast_parser import MarkdownASTParser
+from synapseforge.core.ast_parser import BlockType, MarkdownASTParser
 from synapseforge.linters.anti_ai import LintIssue, LintResult
 
 
@@ -33,17 +33,21 @@ class CitationLinter:
         issues: List[LintIssue] = []
         known_keys = self.bib_keys | (extra_bib_keys or set())
         
-        # If no bib file was provided and no keys loaded, we emit info unless required
-        extracted_citations = MarkdownASTParser.extract_citations(text)
         blocks = MarkdownASTParser.parse_blocks(text)
 
         if self.bib_path and self.bib_path.exists() and len(known_keys) > 0:
             for b in blocks:
-                # Find all @key matches in content
-                for m in re.finditer(r'@([a-zA-Z0-9_:\-]+)', b.content):
+                if b.type in (BlockType.CODE_BLOCK, BlockType.FRONTMATTER):
+                    continue
+                # Strip inline code and comments from content before checking citations
+                clean_content = re.sub(r'`[^`\n]+`', '', b.content)
+                clean_content = re.sub(r'<!--[\s\S]*?-->', '', clean_content)
+                
+                # Find all @key matches with word boundaries
+                for m in re.finditer(r'(?<![\w.@])@([a-zA-Z0-9_:\-]+)', clean_content):
                     key = m.group(1)
-                    # Ignore emails or common decorators
-                    if key.lower() in ("import", "export", "param", "return", "note", "see", "example"):
+                    # Ignore programming decorators or directives
+                    if key.lower() in ("import", "export", "param", "return", "returns", "note", "see", "example", "type", "raises"):
                         continue
                     if key not in known_keys:
                         issues.append(LintIssue(

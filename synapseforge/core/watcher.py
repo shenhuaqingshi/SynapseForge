@@ -153,12 +153,12 @@ class DocumentWatcher:
         if self.auto_snapshot and change_type == FileChangeType.MODIFIED:
             try:
                 snap_res = self.snapshot_mgr.create_checkpoint(
-                    reason=f"Auto-snapshot on {file_path.name} {change_type.value}",
+                    message=f"Auto-snapshot on {file_path.name} {change_type.value}",
                     author="SynapseWatcher",
                 )
                 if snap_res.get("ok"):
-                    snap_created = True
-                    snap_hash = snap_res.get("hash")
+                    snap_created = snap_res.get("created", True)
+                    snap_hash = snap_res.get("commit_hash") or snap_res.get("hash")
             except Exception as e:
                 details["snapshot_error"] = str(e)
 

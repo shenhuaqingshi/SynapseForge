@@ -319,10 +319,23 @@ class MarkdownASTParser:
 
     @staticmethod
     def extract_citations(text: str) -> List[str]:
-        """Extract citation keys in @citationKey or [^citationKey] formats."""
+        """Extract citation keys in @citationKey or [^citationKey] formats, ignoring code and comments."""
+        if not text:
+            return []
+        # Strip fenced code blocks (``` or ~~~)
+        cleaned = re.sub(r'```[\s\S]*?```', '', text)
+        cleaned = re.sub(r'~~~[\s\S]*?~~~', '', cleaned)
+        # Strip HTML comments
+        cleaned = re.sub(r'<!--[\s\S]*?-->', '', cleaned)
+        # Strip inline code spans (`...`)
+        cleaned = re.sub(r'`[^`\n]+`', '', cleaned)
+
         keys = set()
-        for match in re.finditer(r'(?<![\w.@])@([a-zA-Z0-9_:\-]+)', text):
-            keys.add(match.group(1))
-        for match in re.finditer(r'\[\^([a-zA-Z0-9_:\-]+)\]', text):
+        for match in re.finditer(r'(?<![\w.@])@([a-zA-Z0-9_:\-]+)', cleaned):
+            k = match.group(1)
+            # Filter out common programming decorators or directives
+            if k.lower() not in ("param", "return", "returns", "type", "note", "see", "example", "raises", "deprecated"):
+                keys.add(k)
+        for match in re.finditer(r'\[\^([a-zA-Z0-9_:\-]+)\]', cleaned):
             keys.add(match.group(1))
         return sorted(list(keys))

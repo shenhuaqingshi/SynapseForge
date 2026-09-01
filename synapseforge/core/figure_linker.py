@@ -27,8 +27,12 @@ class FigureLinker:
         """Inserts a figure with caption and narrative discussion bridge into section Markdown."""
         sec_dir = self.workspace_root / "sections"
         target_file = None
+        clean_id = section_id.removeprefix("sec_")
         for p in sec_dir.glob("*.md"):
-            if p.stem.startswith(section_id.replace("sec_", "")) or section_id in p.stem:
+            if p.stem == section_id or p.stem == clean_id:
+                target_file = p
+                break
+            if p.stem.startswith(f"{clean_id}_") or p.stem.startswith(f"{clean_id.zfill(2)}_"):
                 target_file = p
                 break
 

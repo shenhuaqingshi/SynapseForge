@@ -17,11 +17,21 @@ class SnapshotManager:
     def __init__(self, repo_root: Optional[Path] = None):
         self.repo_root = repo_root or Path.cwd()
 
-    def create_checkpoint(self, message: str, section_id: Optional[str] = None, author: str = "SynapseForge") -> Dict[str, Any]:
+    def create_checkpoint(
+        self,
+        message: str = "",
+        section_id: Optional[str] = None,
+        author: str = "SynapseForge",
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Creates an atomic Git snapshot commit for current workspace changes."""
+        checkpoint_msg = message or reason or "Incremental snapshot"
         try:
-            # Stage markdown files and assets
-            subprocess.run(["git", "add", "sections/", "assets/", "synapseforge.yaml"], cwd=self.repo_root, check=False)
+            # Stage workspace files
+            stage_paths = ["sections/", "assets/", "bibliography.bib", "synapseforge.yaml", "synapseforge.yml"]
+            existing_stage = [p for p in stage_paths if (self.repo_root / p).exists()]
+            if existing_stage:
+                subprocess.run(["git", "add"] + existing_stage, cwd=self.repo_root, check=False)
             
             # Check if there are staged changes
             diff_res = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=self.repo_root)
@@ -32,10 +42,11 @@ class SnapshotManager:
                     "ok": True,
                     "created": False,
                     "commit_hash": head_hash,
+                    "hash": head_hash,
                     "message": "No new changes to snapshot",
                 }
 
-            full_msg = f"checkpoint({section_id or 'doc'}): {message} [by {author}]"
+            full_msg = f"checkpoint({section_id or 'doc'}): {checkpoint_msg} [by {author}]"
             res = subprocess.run(["git", "commit", "-m", full_msg], cwd=self.repo_root, capture_output=True, text=True)
             head_hash = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.repo_root, capture_output=True, text=True).stdout.strip()
 
@@ -43,6 +54,7 @@ class SnapshotManager:
                 "ok": res.returncode == 0,
                 "created": True,
                 "commit_hash": head_hash,
+                "hash": head_hash,
                 "message": full_msg,
                 "timestamp": time.time(),
             }

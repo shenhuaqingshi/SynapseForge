@@ -29,10 +29,15 @@ class StyleLinter:
             if self.enforce_cjk_spacing and b.type in (BlockType.PARAGRAPH, BlockType.HEADING, BlockType.BLOCKQUOTE):
                 lines = b.content.splitlines()
                 for idx, line in enumerate(lines, b.line_start):
+                    # Mask code, inline math, html tags, and markdown links
+                    masked_line = re.sub(r'`[^`\n]+`', lambda m: ' ' * len(m.group(0)), line)
+                    masked_line = re.sub(r'\$[^\$\n]+\$', lambda m: ' ' * len(m.group(0)), masked_line)
+                    masked_line = re.sub(r'<[^>\n]+>', lambda m: ' ' * len(m.group(0)), masked_line)
+                    masked_line = re.sub(r'\[([^\]]+)\]\([^\)\n]+\)', r'\1', masked_line)
+
                     # Chinese immediately followed by English/Number without space
-                    zh_to_en = re.finditer(r'([\u4e00-\u9fff])([a-zA-Z0-9])', line)
+                    zh_to_en = re.finditer(r'([\u4e00-\u9fff])([a-zA-Z0-9])', masked_line)
                     for m in zh_to_en:
-                        # Exclude markdown link anchors or citation tags
                         snippet_pos = m.start()
                         sub = line[max(0, snippet_pos - 10):min(len(line), snippet_pos + 10)]
                         if "@" in sub or "http" in sub or "](#" in sub:
@@ -48,7 +53,7 @@ class StyleLinter:
                         ))
                     
                     # English/Number immediately followed by Chinese without space
-                    en_to_zh = re.finditer(r'([a-zA-Z0-9])([\u4e00-\u9fff])', line)
+                    en_to_zh = re.finditer(r'([a-zA-Z0-9])([\u4e00-\u9fff])', masked_line)
                     for m in en_to_zh:
                         snippet_pos = m.start()
                         sub = line[max(0, snippet_pos - 10):min(len(line), snippet_pos + 10)]
