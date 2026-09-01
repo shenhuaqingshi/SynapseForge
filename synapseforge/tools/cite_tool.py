@@ -1,23 +1,29 @@
 """
 Citation and BibTeX Management Tool for SynapseForge.
-Enables AI Agents and human authors to search, validate, and append clean BibTeX references.
+Enables AI Agents and human authors to search, validate, and append clean BibTeX references,
+resolve DOIs via CrossRef APIs, and validate citation graphs across document sections.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
+
+from synapseforge.core.ast_parser import MarkdownASTParser
 
 
 class CiteTool:
-    """Manages BibTeX citations, DOI lookups, and citation graph references."""
+    """Manages BibTeX citations, DOI lookups, CrossRef search, and citation graph references."""
 
-    def __init__(self, bib_path: Optional[Path] = None):
-        self.bib_file = bib_path or Path.cwd() / "bibliography.bib"
+    def __init__(self, bib_path: Optional[Path] = None, workspace_root: Optional[Path] = None):
+        self.workspace_root = workspace_root or Path.cwd()
+        self.bib_file = bib_path or self.workspace_root / "bibliography.bib"
+        self.parser = MarkdownASTParser()
 
     def list_citations(self) -> List[Dict[str, str]]:
         """Parses all existing entries in bibliography.bib."""
@@ -31,44 +37,49 @@ class CiteTool:
             entry_type = match.group(1)
             cite_key = match.group(2)
             body = match.group(3)
-            
-            # Extract title if present
+
+            # Extract title, author, year, journal if present
             title_match = re.search(r'title\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
             author_match = re.search(r'author\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
             year_match = re.search(r'year\s*=\s*[\{"]?(\d{4})[\}"]?', body, re.IGNORECASE)
+            journal_match = re.search(r'(?:journal|booktitle)\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
 
             entries.append({
                 "key": cite_key,
                 "type": entry_type,
-                "title": title_match.group(1) if title_match else "",
-                "author": author_match.group(1) if author_match else "",
-                "year": year_match.group(1) if year_match else "",
+                "title": title_match.group(1).strip() if title_match else "",
+                "author": author_match.group(1).strip() if author_match else "",
+                "year": year_match.group(1).strip() if year_match else "",
+                "journal": journal_match.group(1).strip() if journal_match else "",
                 "raw": match.group(0),
             })
         return entries
 
-    def add_bibtex_entry(self, key: str, entry_type: str, title: str, author: str, year: str, journal_or_book: str = "") -> Dict[str, Any]:
+    def add_bibtex_entry(
+        self, key: str, entry_type: str, title: str, author: str, year: str, journal_or_book: str = "", doi: str = ""
+    ) -> Dict[str, Any]:
         """Appends a well-formed BibTeX entry to bibliography.bib."""
         self.bib_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Check if already exists
         existing = [c["key"] for c in self.list_citations()]
         if key in existing:
             return {"ok": False, "error": f"Citation key '@{key}' already exists in bibliography.bib"}
 
+        doi_field = f"\n  doi       = {{{doi}}}," if doi else ""
         bib_text = f"""
 @{entry_type}{{{key},
   author    = {{{author}}},
   title     = {{{title}}},
   year      = {{{year}}},
-  journal   = {{{journal_or_book}}}
+  journal   = {{{journal_or_book}}}{doi_field}
 }}
 """
         with open(self.bib_file, "a", encoding="utf-8") as f:
             f.write(bib_text)
 
         try:
-            rel_file = str(self.bib_file.relative_to(Path.cwd()))
+            rel_file = str(self.bib_file.relative_to(self.workspace_root))
         except ValueError:
             rel_file = str(self.bib_file)
 
@@ -79,4 +90,178 @@ class CiteTool:
             "author": author,
             "year": year,
             "file": rel_file,
+        }
+
+    def clean_doi(self, raw_doi: str) -> str:
+        """Strips URL prefixes or doi: protocol prefix to yield standard DOI string."""
+        doi = raw_doi.strip()
+        doi = re.sub(r'^(?:https?://)?(?:dx\.)?doi\.org/', '', doi, flags=re.IGNORECASE)
+        doi = re.sub(r'^doi:\s*', '', doi, flags=re.IGNORECASE)
+        return doi.strip()
+
+    def lookup_doi(self, raw_doi: str, timeout: float = 8.0) -> Dict[str, Any]:
+        """Queries CrossRef API for a given DOI and generates clean BibTeX metadata."""
+        doi = self.clean_doi(raw_doi)
+        if not doi:
+            return {"ok": False, "error": "Empty or invalid DOI string provided"}
+
+        url = f"https://api.crossref.org/works/{urllib.parse.quote(doi)}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "SynapseForge-CiteTool/0.2.0 (mailto:dev@synapseforge.org)",
+                "Accept": "application/json",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            
+            message = data.get("message", {})
+            title_list = message.get("title", [])
+            title = title_list[0] if title_list else "Untitled"
+            
+            # Extract authors
+            authors_list = message.get("author", [])
+            formatted_authors = []
+            first_author_surname = "Author"
+            for i, a in enumerate(authors_list):
+                given = a.get("given", "")
+                family = a.get("family", "")
+                name = f"{given} {family}".strip() or a.get("name", "")
+                if name:
+                    formatted_authors.append(name)
+                if i == 0 and family:
+                    first_author_surname = re.sub(r'[^a-zA-Z0-9]', '', family)
+
+            author_str = " and ".join(formatted_authors) if formatted_authors else "Unknown"
+
+            # Extract year
+            published_date = message.get("published-print") or message.get("published-online") or message.get("created", {})
+            date_parts = published_date.get("date-parts", [[]])[0]
+            year = str(date_parts[0]) if date_parts else "2026"
+
+            # Extract container / journal
+            containers = message.get("container-title", [])
+            journal = containers[0] if containers else message.get("publisher", "")
+
+            # Generate canonical cite key
+            clean_title_word = re.sub(r'[^a-zA-Z0-9]', '', (title_list[0].split()[0] if title_list else "paper")).lower()
+            key = f"{first_author_surname.lower()}{year}{clean_title_word}"
+
+            entry_type = "article" if message.get("type") in ("journal-article", "article") else "inproceedings"
+
+            return {
+                "ok": True,
+                "doi": doi,
+                "key": key,
+                "type": entry_type,
+                "title": title,
+                "author": author_str,
+                "year": year,
+                "journal": journal,
+                "url": message.get("URL", f"https://doi.org/{doi}"),
+            }
+        except urllib.error.HTTPError as e:
+            return {"ok": False, "error": f"CrossRef HTTP Error {e.code}: {e.reason}", "doi": doi}
+        except urllib.error.URLError as e:
+            return {"ok": False, "error": f"Network Error: {str(e.reason)}", "doi": doi}
+        except Exception as e:
+            return {"ok": False, "error": f"DOI Lookup failed: {str(e)}", "doi": doi}
+
+    def search_crossref(self, query: str, limit: int = 5, timeout: float = 8.0) -> Dict[str, Any]:
+        """Searches CrossRef works for query and returns list of candidate references."""
+        if not query.strip():
+            return {"ok": False, "error": "Query string is required"}
+
+        encoded_q = urllib.parse.quote(query.strip())
+        url = f"https://api.crossref.org/works?query={encoded_q}&rows={limit}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "SynapseForge-CiteTool/0.2.0 (mailto:dev@synapseforge.org)",
+                "Accept": "application/json",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            items = data.get("message", {}).get("items", [])
+            results = []
+            for item in items:
+                title_list = item.get("title", [])
+                title = title_list[0] if title_list else "Untitled"
+                authors_list = item.get("author", [])
+                authors = [f"{a.get('given', '')} {a.get('family', '')}".strip() for a in authors_list if a.get('family')]
+                author_str = " and ".join(authors) if authors else "Unknown"
+                pub_date = item.get("published-print") or item.get("published-online") or item.get("created", {})
+                date_parts = pub_date.get("date-parts", [[]])[0]
+                year = str(date_parts[0]) if date_parts else ""
+                doi = item.get("DOI", "")
+                containers = item.get("container-title", [])
+                journal = containers[0] if containers else ""
+
+                first_surname = re.sub(r'[^a-zA-Z0-9]', '', authors_list[0].get("family", "paper")) if authors_list else "paper"
+                clean_title_word = re.sub(r'[^a-zA-Z0-9]', '', (title.split()[0] if title else "item")).lower()
+                key = f"{first_surname.lower()}{year or '2026'}{clean_title_word}"
+
+                results.append({
+                    "key": key,
+                    "doi": doi,
+                    "title": title,
+                    "author": author_str,
+                    "year": year,
+                    "journal": journal,
+                    "url": item.get("URL", f"https://doi.org/{doi}" if doi else ""),
+                })
+
+            return {"ok": True, "query": query, "count": len(results), "results": results}
+        except Exception as e:
+            return {"ok": False, "error": f"Search failed: {str(e)}", "query": query}
+
+    def validate_citations(self, sections_dir: Optional[Path] = None) -> Dict[str, Any]:
+        """Cross-checks citations in sections/*.md against bibliography.bib."""
+        s_dir = sections_dir or self.workspace_root / "sections"
+        bib_entries = self.list_citations()
+        bib_keys = {entry["key"]: entry for entry in bib_entries}
+
+        cited_keys: Set[str] = set()
+        citations_by_file: Dict[str, List[str]] = {}
+
+        if s_dir.exists():
+            for p in sorted(s_dir.glob("*.md")):
+                content = p.read_text(encoding="utf-8")
+                extracted = self.parser.extract_citations(content)
+                cited_keys.update(extracted)
+                citations_by_file[p.name] = extracted
+
+        # Identify issues
+        unresolved = [k for k in sorted(cited_keys) if k not in bib_keys]
+        unused = [k for k in sorted(bib_keys.keys()) if k not in cited_keys]
+        incomplete = []
+        for k, entry in bib_keys.items():
+            missing_fields = []
+            if not entry.get("title"):
+                missing_fields.append("title")
+            if not entry.get("author"):
+                missing_fields.append("author")
+            if not entry.get("year"):
+                missing_fields.append("year")
+            if missing_fields:
+                incomplete.append({"key": k, "missing": missing_fields})
+
+        is_valid = len(unresolved) == 0 and len(incomplete) == 0
+
+        return {
+            "ok": True,
+            "valid": is_valid,
+            "total_cited_in_document": len(cited_keys),
+            "total_in_bibliography": len(bib_keys),
+            "unresolved_citations": unresolved,
+            "unused_in_bibliography": unused,
+            "incomplete_entries": incomplete,
+            "by_file": citations_by_file,
         }

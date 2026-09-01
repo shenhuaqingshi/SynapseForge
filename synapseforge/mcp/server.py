@@ -10,7 +10,9 @@ import os
 import sys
 import traceback
 
+from synapseforge.core.semantic_diff import SemanticASTDiffer
 from synapseforge.core.team_bus import open_bus
+from synapseforge.tools.cite_tool import CiteTool
 
 
 SERVER_NAME = "synapseforge-team"
@@ -142,6 +144,24 @@ TOOLS = [
         "inputSchema": obj_schema({"room": ROOM, "agent": AGENT, "action_key": {"type": "string"}, "ttl_seconds": {"type": "integer", "minimum": 5, "maximum": 3600, "default": 600}}, ["agent", "action_key"]),
         "annotations": {"readOnlyHint": False, "destructiveHint": False},
     },
+    {
+        "name": "team_semantic_diff",
+        "description": "Perform semantic AST block-level diff comparison between two text documents or files.",
+        "inputSchema": obj_schema({"text_a": {"type": "string"}, "text_b": {"type": "string"}, "file_a": {"type": "string"}, "file_b": {"type": "string"}}),
+        "annotations": {"readOnlyHint": True, "destructiveHint": False},
+    },
+    {
+        "name": "team_cite_lookup",
+        "description": "Lookup academic literature metadata and clean BibTeX by DOI or keyword query via CrossRef.",
+        "inputSchema": obj_schema({"doi": {"type": "string"}, "query": {"type": "string"}, "add_to_bib": {"type": "boolean", "default": False}}),
+        "annotations": {"readOnlyHint": False, "destructiveHint": False},
+    },
+    {
+        "name": "team_cite_validate",
+        "description": "Validate document citation graph (@keys) against project bibliography.bib.",
+        "inputSchema": obj_schema({}),
+        "annotations": {"readOnlyHint": True, "destructiveHint": False},
+    },
 ]
 
 
@@ -262,6 +282,35 @@ def call_tool(store, name, args):
         "team_reclaim_stale_locks": store.reclaim_stale_locks,
         "team_claim_action": store.claim_action,
     }
+    if name == "team_semantic_diff":
+        differ = SemanticASTDiffer()
+        if "file_a" in args and "file_b" in args:
+            res = differ.diff_files(args["file_a"], args["file_b"])
+        else:
+            res = differ.diff_texts(args.get("text_a", ""), args.get("text_b", ""), "Doc A", "Doc B")
+        return {"ok": True, "diff": res.to_dict()}
+    if name == "team_cite_lookup":
+        cite = CiteTool()
+        if "doi" in args and args["doi"]:
+            lookup_res = cite.lookup_doi(args["doi"])
+            if lookup_res.get("ok") and args.get("add_to_bib"):
+                cite.add_bibtex_entry(
+                    key=lookup_res["key"],
+                    entry_type=lookup_res.get("type", "article"),
+                    title=lookup_res["title"],
+                    author=lookup_res["author"],
+                    year=lookup_res["year"],
+                    journal_or_book=lookup_res.get("journal", ""),
+                    doi=lookup_res.get("doi", ""),
+                )
+            return lookup_res
+        elif "query" in args and args["query"]:
+            return cite.search_crossref(args["query"])
+        return {"ok": False, "error": "Either 'doi' or 'query' must be provided"}
+    if name == "team_cite_validate":
+        cite = CiteTool()
+        return cite.validate_citations()
+
     if name not in dispatch:
         raise ValueError("unknown tool: %s" % name)
     return dispatch[name](room=room, **args)
