@@ -171,7 +171,8 @@ class MultiDocumentSynthesizer:
                             final_blocks.append(b)
                     else:
                         # Calculate semantic fingerprint across all content block types
-                        fp = f"{b.type.value}:{re.sub(r'\\s+', '', b.content)}"
+                        clean_content = re.sub(r"\s+", "", b.content)
+                        fp = f"{b.type.value}:{clean_content}"
                         if fp not in seen_block_fingerprints:
                             seen_block_fingerprints.add(fp)
                             final_blocks.append(b)
