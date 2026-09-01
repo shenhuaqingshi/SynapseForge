@@ -9,3 +9,9 @@ build/
 .synapse/
 .venv/
 .DS_Store
+prompts/
+variants/
+rooms/
+snapshots/
+locks/
+imports/

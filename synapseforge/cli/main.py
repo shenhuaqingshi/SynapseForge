@@ -42,10 +42,12 @@ from synapseforge.core.ingest import DocumentIngestor
 from synapseforge.core.llm_router import LLMRouter
 from synapseforge.core.notifier import NotificationDispatcher
 from synapseforge.core.scorecard import QualityScorecard
+from synapseforge.core.semantic_diff import SemanticASTDiffer
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.core.user_prompts import UserPromptManager
 from synapseforge.core.vault import WorkspaceVault
 from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
+from synapseforge.core.watcher import DocumentWatcher
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
@@ -53,6 +55,7 @@ from synapseforge.security.acl import NodeAccessController
 from synapseforge.security.crypto_vault import CryptoVault
 from synapseforge.security.redactor import ConfidentialityRedactor
 from synapseforge.tools import CiteTool, OfficeTool, PDFTool, SciPlotTool
+import time
 
 
 # ANSI Terminal Colors
@@ -492,12 +495,30 @@ def cmd_cite(args):
     elif args.cite_action == "add":
         res = cite.add_bibtex_entry(
             key=args.key,
-            entry_type=args.type or "article",
+            entry_type=getattr(args, "type", "article") or "article",
             title=args.title,
             author=args.author,
-            year=args.year,
-            journal_or_book=args.journal or "",
+            year=getattr(args, "year", "2026") or "2026",
+            journal_or_book=getattr(args, "journal", "") or "",
+            doi=getattr(args, "doi", "") or "",
         )
+    elif args.cite_action == "lookup":
+        res = cite.lookup_doi(args.doi)
+        if res.get("ok") and getattr(args, "add", False):
+            add_res = cite.add_bibtex_entry(
+                key=res["key"],
+                entry_type=res.get("type", "article"),
+                title=res["title"],
+                author=res["author"],
+                year=res["year"],
+                journal_or_book=res.get("journal", ""),
+                doi=res.get("doi", ""),
+            )
+            res["added_to_bibliography"] = add_res.get("ok", False)
+    elif args.cite_action == "search":
+        res = cite.search_crossref(args.query, limit=getattr(args, "limit", 5) or 5)
+    elif args.cite_action == "validate":
+        res = cite.validate_citations()
     else:
         res = {"ok": False, "error": f"Unknown cite action: {args.cite_action}"}
 
@@ -509,6 +530,37 @@ def cmd_cite(args):
                 print(f"{Color.GREEN}✓ Added citation '@{args.key}' to bibliography.bib{Color.RESET}")
             else:
                 print(f"{Color.RED}✖ Error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "lookup":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Found DOI metadata: @{res['key']}{Color.RESET}")
+                print(f"  • Title:   {res['title']}")
+                print(f"  • Author:  {res['author']}")
+                print(f"  • Year:    {res['year']}")
+                print(f"  • Journal: {res.get('journal', 'N/A')}")
+                if res.get("added_to_bibliography"):
+                    print(f"{Color.GREEN}✓ Added automatically to bibliography.bib{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Lookup error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "search":
+            if res.get("ok"):
+                print(f"\n{Color.CYAN}{Color.BOLD}CrossRef Search Results ({res.get('count', 0)} found):{Color.RESET}")
+                for r in res.get("results", []):
+                    print(f"  • @{r['key']:<22} | {r['author'][:25]:<25} | {r['year']} | {r['title']}")
+                    if r.get("doi"):
+                        print(f"    DOI: https://doi.org/{r['doi']}")
+            else:
+                print(f"{Color.RED}✖ Search error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "validate":
+            if res.get("valid"):
+                print(f"{Color.GREEN}✓ All {res['total_cited_in_document']} citations in document are valid and resolved in bibliography.bib!{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}⚠ Citation Validation Issues Detected:{Color.RESET}")
+                if res.get("unresolved_citations"):
+                    print(f"  {Color.RED}✖ Unresolved in document: {', '.join(res['unresolved_citations'])}{Color.RESET}")
+                if res.get("unused_in_bibliography"):
+                    print(f"  {Color.GRAY}• Unused in bibliography: {', '.join(res['unused_in_bibliography'])}{Color.RESET}")
+                if res.get("incomplete_entries"):
+                    print(f"  {Color.YELLOW}• Incomplete entries: {res['incomplete_entries']}{Color.RESET}")
         else:
             print(f"\n{Color.CYAN}{Color.BOLD}BibTeX Bibliography Citations ({len(res['citations'])} entries):{Color.RESET}")
             for c in res["citations"]:
@@ -697,10 +749,90 @@ def cmd_export(args):
             print(f"{Color.RED}✖ Export failed: {res.get('error')}{Color.RESET}")
 
 
+def cmd_diff(args):
+    differ = SemanticASTDiffer()
+    file1 = getattr(args, "file1", None)
+    file2 = getattr(args, "file2", None)
+    variant = getattr(args, "variant", None)
+
+    if variant and file1:
+        var_path = Path.cwd() / "variants" / f"{variant}.md"
+        if not var_path.exists():
+            res = {"ok": False, "error": f"Variant file not found: {var_path}"}
+            if getattr(args, "json", False):
+                print(json.dumps(res, indent=2, ensure_ascii=False))
+            else:
+                print(f"{Color.RED}✖ Variant not found: {var_path}{Color.RESET}")
+            return
+        file2 = str(var_path)
+
+    if not file1 or not file2:
+        res = {"ok": False, "error": "Two files or a file and --variant must be specified"}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.RED}✖ Error: Please specify two files to diff.{Color.RESET}")
+        return
+
+    try:
+        diff_res = differ.diff_files(file1, file2)
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "diff": diff_res.to_dict()}, indent=2, ensure_ascii=False))
+        else:
+            print(diff_res.render_terminal(use_color=True))
+    except Exception as e:
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.RED}✖ Diff error: {e}{Color.RESET}")
+
+
+def cmd_watch(args):
+    watcher = DocumentWatcher(
+        auto_snapshot=getattr(args, "auto_snapshot", False),
+        debounce_seconds=getattr(args, "debounce", 0.5),
+    )
+    interval = getattr(args, "interval", 1.0)
+    once = getattr(args, "once", False)
+
+    if once:
+        events = watcher.poll_once()
+        res = {"ok": True, "events": [e.to_dict() for e in events]}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.CYAN}Polled once: {len(events)} change events detected.{Color.RESET}")
+            for ev in events:
+                print(f"  • {ev.change_type.value.upper()} {ev.path.name} (lint: {'PASS' if ev.linter_passed else 'FAIL'})")
+        return
+
+    print(f"{Color.CYAN}{Color.BOLD}⚡ SynapseForge Watch Daemon active (interval: {interval}s, auto-snapshot: {getattr(args, 'auto_snapshot', False)})...{Color.RESET}")
+    print(f"{Color.GRAY}Press Ctrl+C to stop watching.{Color.RESET}\n")
+
+    def handle_ev(ev):
+        status_icon = f"{Color.GREEN}✓{Color.RESET}" if ev.linter_passed else f"{Color.RED}✖{Color.RESET}"
+        snap_msg = f" | {Color.MAGENTA}snapshot {ev.snapshot_hash[:7]}{Color.RESET}" if ev.snapshot_created else ""
+        print(f"[{time.strftime('%H:%M:%S')}] {status_icon} {ev.change_type.value.upper()}: {Color.BOLD}{ev.path.name}{Color.RESET} (issues: {ev.linter_issues_count}){snap_msg}")
+
+    try:
+        watcher.watch_loop(interval=interval, on_event=handle_ev)
+    except KeyboardInterrupt:
+        print(f"\n{Color.YELLOW}Stopped watcher daemon.{Color.RESET}")
+
+
 def cmd_scorecard(args):
     scorecard = QualityScorecard()
-    res = scorecard.evaluate_document()
+    html_out = getattr(args, "html", None)
+    if html_out:
+        p = scorecard.generate_html_report(output_path=html_out)
+        res = {"ok": True, "html_report": str(p)}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Quality audit HTML report generated at: {p}{Color.RESET}")
+        return
 
+    res = scorecard.evaluate_document()
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2, ensure_ascii=False))
     else:
@@ -1109,6 +1241,23 @@ def main():
     p_review.add_argument("--json", action="store_true", help="Output JSON")
     p_review.set_defaults(func=cmd_review)
 
+    # diff
+    p_diff = subparsers.add_parser("diff", help="Semantic AST block difference analysis between documents or variants")
+    p_diff.add_argument("file1", nargs="?", default=None, help="Base document file path")
+    p_diff.add_argument("file2", nargs="?", default=None, help="Target document file path")
+    p_diff.add_argument("--variant", default=None, help="Compare file1 against a variant in variants/")
+    p_diff.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_diff.set_defaults(func=cmd_diff)
+
+    # watch
+    p_watch = subparsers.add_parser("watch", help="Continuous quality gate daemon watching sections for changes")
+    p_watch.add_argument("--interval", type=float, default=1.0, help="Polling interval in seconds")
+    p_watch.add_argument("--once", action="store_true", help="Poll once and exit immediately")
+    p_watch.add_argument("--auto-snapshot", action="store_true", help="Create an atomic checkpoint snapshot on each save")
+    p_watch.add_argument("--debounce", type=float, default=0.5, help="Debounce window in seconds")
+    p_watch.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_watch.set_defaults(func=cmd_watch)
+
     # build
     p_build = subparsers.add_parser("build", help="Build publication deliverables (HTML, Typst, PDF)")
     p_build.add_argument("--json", action="store_true", help="Output JSON")
@@ -1331,6 +1480,7 @@ def main():
 
     # doc scorecard
     p_doc_sc = doc_subs.add_parser("scorecard", help="Get academic quality scorecard & radar metrics")
+    p_doc_sc.add_argument("--html", default=None, help="Export quality audit scorecard to standalone HTML report")
     p_doc_sc.add_argument("--json", action=argparse.BooleanOptionalAction, default=None)
     p_doc_sc.set_defaults(func=cmd_scorecard)
 
@@ -1417,8 +1567,25 @@ def main():
     p_ct_add.add_argument("--year", default="2026", help="Publication year")
     p_ct_add.add_argument("--journal", default="", help="Journal or venue name")
     p_ct_add.add_argument("--type", default="article", help="Entry type")
+    p_ct_add.add_argument("--doi", default="", help="Optional DOI")
     p_ct_add.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ct_add.set_defaults(func=cmd_cite)
+
+    p_ct_lookup = p_cite_subs.add_parser("lookup", help="Query CrossRef API for a given DOI")
+    p_ct_lookup.add_argument("doi", help="Digital Object Identifier (DOI)")
+    p_ct_lookup.add_argument("--add", action="store_true", help="Automatically append to bibliography.bib")
+    p_ct_lookup.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_lookup.set_defaults(func=cmd_cite)
+
+    p_ct_search = p_cite_subs.add_parser("search", help="Search CrossRef literature by keyword/title")
+    p_ct_search.add_argument("query", help="Search query string")
+    p_ct_search.add_argument("--limit", type=int, default=5, help="Maximum search results")
+    p_ct_search.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_search.set_defaults(func=cmd_cite)
+
+    p_ct_val = p_cite_subs.add_parser("validate", help="Validate document citation graph against bibliography.bib")
+    p_ct_val.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_val.set_defaults(func=cmd_cite)
 
     # ==========================================
     # SNAPSHOT & ROLLBACK TOOLKIT
@@ -1543,6 +1710,7 @@ def main():
     # ACADEMIC QUALITY SCORECARD & RADAR
     # ==========================================
     p_sc = subparsers.add_parser("scorecard", help="Compute quantitative Anti-AI, citation, and mathematical rigor scorecard")
+    p_sc.add_argument("--html", default=None, help="Export quality audit scorecard to standalone HTML report")
     p_sc.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc.set_defaults(func=cmd_scorecard)
 
