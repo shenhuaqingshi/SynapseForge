@@ -104,14 +104,21 @@ class PDFTool:
 
     def _convert_latex_math_to_typst(self, md: str) -> str:
         """Sanitizes LaTeX math formulas into Typst compatible math syntax."""
-        # Convert display math blocks $$ ... $$ to Typst block math
-        def repl_display(match):
-            m = match.group(1).strip()
+        def sanitize_formula(m: str) -> str:
+            m = m.strip()
             m = m.replace(r'\left(', '(').replace(r'\right)', ')')
             m = m.replace(r'\left[', '[').replace(r'\right]', ']')
             m = m.replace(r'\left\{', '(').replace(r'\right\}', ')')
             m = m.replace(r'\left', '').replace(r'\right', '')
             m = m.replace(r'\dots', 'dots').replace(r'\cdots', 'dots')
+            
+            # Fractions and roots
+            for _ in range(5):
+                m = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'(\1) / (\2)', m)
+            m = re.sub(r'\\sqrt\[([^\]]+)\]\{([^{}]+)\}', r'root(\1, \2)', m)
+            m = re.sub(r'\\sqrt\{([^{}]+)\}', r'sqrt(\1)', m)
+
+            # Standard functions & operators
             m = re.sub(r'\\operatorname\{([^}]+)\}', r'op("\1")', m)
             m = re.sub(r'\\mathrm\{([^}]+)\}', r'upright("\1")', m)
             m = re.sub(r'\\arg\\min|\\argmin', r'op("arg min")', m)
@@ -121,60 +128,67 @@ class PDFTool:
             m = re.sub(r'\\mathbb\{([^}]+)\}', r'bb(\1)', m)
             m = re.sub(r'\\mathbf\{([^}]+)\}', r'bold(\1)', m)
             m = re.sub(r'\\text\{([^}]+)\}', r'"\1"', m)
+            
+            # Relations & symbols (using word boundaries or strict patterns)
             m = m.replace(r'\|', '||')
-            m = m.replace(r'\cap', r'inter')
-            m = m.replace(r'\cup', r'union')
-            m = m.replace(r'\in', ' in ')
-            m = m.replace(r'\subseteq', r'subset.eq')
-            m = m.replace(r'\le', r'<=')
-            m = m.replace(r'\ge', r'>=')
-            m = m.replace(r'\ln', r'ln')
-            m = m.replace(r'\max', r'max')
-            m = m.replace(r'\min', r'min')
-            m = m.replace(r'\sum', r'sum')
-            m = m.replace(r'\epsilon', r'epsilon')
-            m = m.replace(r'\tau', r'tau')
-            m = m.replace(r'\mu', r'mu')
-            m = m.replace(r'\lambda', r'lambda')
-            m = m.replace(r'\Delta', r'Delta')
-            m = m.replace(r'\Phi', r'Phi')
-            m = m.replace(r'\Omega', r'Omega')
-            m = m.replace(r'\prec', r'prec')
-            m = m.replace(r'\cdot', 'dot.c').replace('cdot', 'dot.c')
-            m = m.replace(r'\{', r'(').replace(r'\}', r')')
+            m = m.replace(r'\{', '(').replace(r'\}', ')')
+            m = re.sub(r'\\cap\b', 'inter', m)
+            m = re.sub(r'\\cup\b', 'union', m)
+            m = re.sub(r'\\subseteq\b', 'subset.eq', m)
+            m = re.sub(r'\\subset\b', 'subset', m)
+            m = re.sub(r'\\notin\b', ' not in ', m)
+            m = re.sub(r'\\in\b', ' in ', m)
+            m = re.sub(r'\\leq?\b', '<=', m)
+            m = re.sub(r'\\geq?\b', '>=', m)
+            m = re.sub(r'\\neq?\b', '!=', m)
+            m = re.sub(r'\\approx\b', 'approx', m)
+            m = re.sub(r'\\sim\b', 'tilde', m)
+            m = re.sub(r'\\times\b', 'times', m)
+            m = re.sub(r'\\cdot\b|cdot\b', 'dot.c', m)
+            m = re.sub(r'\\to\b|\\rightarrow\b', '->', m)
+            m = re.sub(r'\\leftarrow\b', '<-', m)
+            m = re.sub(r'\\infty\b', 'oo', m)
+            m = re.sub(r'\\forall\b', 'forall', m)
+            m = re.sub(r'\\exists\b', 'exists', m)
+            m = re.sub(r'\\ln\b', 'ln', m)
+            m = re.sub(r'\\log\b', 'log', m)
+            m = re.sub(r'\\max\b', 'max', m)
+            m = re.sub(r'\\min\b', 'min', m)
+            m = re.sub(r'\\sum\b', 'sum', m)
+            m = re.sub(r'\\prod\b', 'product', m)
+            m = re.sub(r'\\int\b', 'integral', m)
+            m = re.sub(r'\\partial\b', 'diff', m)
+            m = re.sub(r'\\nabla\b', 'nabla', m)
+            m = re.sub(r'\\prec\b', 'prec', m)
+            
+            # Greek letters
+            greek = [
+                ("alpha", "alpha"), ("beta", "beta"), ("gamma", "gamma"), ("delta", "delta"),
+                ("epsilon", "epsilon"), ("zeta", "zeta"), ("eta", "eta"), ("theta", "theta"),
+                ("iota", "iota"), ("kappa", "kappa"), ("lambda", "lambda"), ("mu", "mu"),
+                ("nu", "nu"), ("xi", "xi"), ("pi", "pi"), ("rho", "rho"), ("sigma", "sigma"),
+                ("tau", "tau"), ("upsilon", "upsilon"), ("phi", "phi"), ("chi", "chi"),
+                ("psi", "psi"), ("omega", "omega"),
+                ("Gamma", "Gamma"), ("Delta", "Delta"), ("Theta", "Theta"), ("Lambda", "Lambda"),
+                ("Xi", "Xi"), ("Pi", "Pi"), ("Sigma", "Sigma"), ("Phi", "Phi"), ("Psi", "Psi"),
+                ("Omega", "Omega"),
+            ]
+            for g_tex, g_typ in greek:
+                m = re.sub(rf'\\{g_tex}\b', g_typ, m)
+
             m = re.sub(r'\\([a-zA-Z]+)', r'\1', m)
+            return m
+
+        # Convert display math blocks $$ ... $$ to Typst block math
+        def repl_display(match):
+            m = sanitize_formula(match.group(1))
             return f"\n$ {m} $\n"
 
         md = re.sub(r'\$\$([\s\S]*?)\$\$', repl_display, md)
 
         # Inline math $ ... $
         def repl_inline(match):
-            m = match.group(1).strip()
-            m = m.replace(r'\left(', '(').replace(r'\right)', ')')
-            m = m.replace(r'\left[', '[').replace(r'\right]', ']')
-            m = m.replace(r'\left\{', '(').replace(r'\right\}', ')')
-            m = m.replace(r'\left', '').replace(r'\right', '')
-            m = m.replace(r'\dots', 'dots').replace(r'\cdots', 'dots')
-            m = re.sub(r'\\operatorname\{([^}]+)\}', r'op("\1")', m)
-            m = re.sub(r'\\mathrm\{([^}]+)\}', r'upright("\1")', m)
-            m = re.sub(r'\\arg\\min|\\argmin', r'op("arg min")', m)
-            m = re.sub(r'\\arg\\max|\\argmax', r'op("arg max")', m)
-            m = re.sub(r'\\hat\{([^}]+)\}', r'hat(\1)', m)
-            m = re.sub(r'\\mathcal\{([^}]+)\}', r'cal(\1)', m)
-            m = re.sub(r'\\mathbb\{([^}]+)\}', r'bb(\1)', m)
-            m = re.sub(r'\\mathbf\{([^}]+)\}', r'bold(\1)', m)
-            m = re.sub(r'\\text\{([^}]+)\}', r'"\1"', m)
-            m = m.replace(r'\|', '||')
-            m = m.replace(r'\in', ' in ')
-            m = m.replace(r'\le', r'<=').replace(r'\ge', r'>=')
-            m = m.replace(r'\cap', r'inter')
-            m = m.replace(r'\prec', r'prec')
-            m = m.replace(r'\Delta', r'Delta')
-            m = m.replace(r'\Phi', r'Phi')
-            m = m.replace(r'\Omega', r'Omega')
-            m = m.replace(r'\cdot', 'dot.c').replace('cdot', 'dot.c')
-            m = m.replace(r'\{', r'(').replace(r'\}', r')')
-            m = re.sub(r'\\([a-zA-Z]+)', r'\1', m)
+            m = sanitize_formula(match.group(1))
             return f"$ {m} $"
 
         md = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+)\$(?!\$)', repl_inline, md)

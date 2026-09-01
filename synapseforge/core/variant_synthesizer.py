@@ -160,7 +160,7 @@ class MultiDocumentSynthesizer:
         else:
             # Semantic AST union & reconciliation
             seen_heading_slugs = set()
-            seen_paragraph_fingerprints = set()
+            seen_block_fingerprints = set()
             final_blocks: List[DocBlock] = []
 
             for doc in parsed_docs:
@@ -169,14 +169,12 @@ class MultiDocumentSynthesizer:
                         if b.slug not in seen_heading_slugs:
                             seen_heading_slugs.add(b.slug)
                             final_blocks.append(b)
-                    elif b.type in (BlockType.PARAGRAPH, BlockType.MATH_BLOCK, BlockType.TABLE):
-                        # Calculate semantic fingerprint
-                        fp = re.sub(r'\s+', '', b.content)
-                        if fp not in seen_paragraph_fingerprints:
-                            seen_paragraph_fingerprints.add(fp)
-                            final_blocks.append(b)
                     else:
-                        final_blocks.append(b)
+                        # Calculate semantic fingerprint across all content block types
+                        fp = f"{b.type.value}:{re.sub(r'\\s+', '', b.content)}"
+                        if fp not in seen_block_fingerprints:
+                            seen_block_fingerprints.add(fp)
+                            final_blocks.append(b)
 
             merged_text = "\n\n".join(b.raw for b in final_blocks)
 

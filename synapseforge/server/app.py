@@ -201,8 +201,13 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         sections = {}
         for p in sorted(sec_dir.glob("*.md")):
             sec_num = p.stem.split("_")[0]
-            sections[f"sec_{sec_num}"] = {
+            sec_key = f"sec_{sec_num}" if not p.stem.startswith("sec_") else p.stem
+            if sec_key in sections:
+                sec_key = f"sec_{p.stem}"
+            sections[sec_key] = {
+                "id": sec_key,
                 "name": p.name,
+                "stem": p.stem,
                 "content": p.read_text(encoding="utf-8"),
             }
         self._send_json({"ok": True, "sections": sections})
@@ -222,8 +227,12 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         sec_dir = self.root_dir / "sections"
         target_file = None
+        clean_id = section_id.removeprefix("sec_")
         for p in sec_dir.glob("*.md"):
-            if p.stem.startswith(section_id.replace("sec_", "")) or section_id in p.stem:
+            if p.stem == section_id or p.stem == clean_id:
+                target_file = p
+                break
+            if p.stem.startswith(f"{clean_id}_") or p.stem.startswith(f"{clean_id.zfill(2)}_"):
                 target_file = p
                 break
 

@@ -67,32 +67,37 @@ class ConfidentialityRedactor:
     def scan_for_secrets(self, text: str) -> List[RedactionIssue]:
         """Audits document text for secrets, PII, and custom classified terms."""
         issues = []
-        lines = text.split("\n")
+        if not text:
+            return []
 
-        # 1. Check regex secret patterns
-        for line_idx, line in enumerate(lines, start=1):
-            for pattern, p_name in SECRET_PATTERNS:
-                for match in re.finditer(pattern, line):
-                    val = match.group(0)
-                    issues.append(RedactionIssue(
-                        line_number=line_idx,
-                        matched_type=p_name,
-                        redacted_preview=f"[REDACTED_{p_name}]",
-                        original_snippet=val[:4] + "***" + val[-4:] if len(val) > 8 else "***",
-                    ))
+        # 1. Check regex secret patterns across full text (supports multi-line patterns like SSH keys)
+        for pattern, p_name in SECRET_PATTERNS:
+            for match in re.finditer(pattern, text):
+                val = match.group(0)
+                line_idx = text[:match.start()].count("\n") + 1
+                issues.append(RedactionIssue(
+                    line_number=line_idx,
+                    matched_type=p_name,
+                    redacted_preview=f"[REDACTED_{p_name}]",
+                    original_snippet=val[:4] + "***" + val[-4:] if len(val) > 8 else "***",
+                ))
 
         # 2. Check user classified terms
         custom_terms = self._load_custom_keywords()
-        for line_idx, line in enumerate(lines, start=1):
-            for term in custom_terms:
-                if term and term in line:
-                    issues.append(RedactionIssue(
-                        line_number=line_idx,
-                        matched_type="CUSTOM_CLASSIFIED_TERM",
-                        redacted_preview=f"[CONFIDENTIAL:{term[0]}***]",
-                        original_snippet=term,
-                    ))
+        for term in custom_terms:
+            if not term:
+                continue
+            for match in re.finditer(re.escape(term), text):
+                line_idx = text[:match.start()].count("\n") + 1
+                issues.append(RedactionIssue(
+                    line_number=line_idx,
+                    matched_type="CUSTOM_CLASSIFIED_TERM",
+                    redacted_preview=f"[CONFIDENTIAL:{term[0]}***]",
+                    original_snippet=term,
+                ))
 
+        # Sort issues by line number
+        issues.sort(key=lambda x: x.line_number)
         return issues
 
     def redact(self, text: str) -> Tuple[str, Dict[str, str]]:
