@@ -29,9 +29,9 @@ def remote_server(tmp_path):
     dest_sections = workspace / "sections"
     dest_sections.mkdir()
     if src_sections.exists():
-        for path in list(src_sections.glob("*.md"))[:3]:
+        for path in sorted(src_sections.glob("*.md")):
             shutil.copy(path, dest_sections / path.name)
-    else:
+    if not any(dest_sections.glob("01*.md")):
         (dest_sections / "01_abstract.md").write_text("# Abstract\n\nHello.\n", encoding="utf-8")
     yaml_src = Path("synapseforge.yaml")
     if yaml_src.exists():
@@ -94,9 +94,10 @@ def test_server_post_save_api(remote_server):
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
         assert data["word_count"] > 0
-    saved = list((workspace / "sections").glob("01*.md"))
-    assert saved
-    assert "Updated Abstract" in saved[0].read_text(encoding="utf-8")
+    from synapseforge.core.section_paths import resolve_section_path
+    saved = resolve_section_path(workspace, "sec_01")
+    assert saved.exists()
+    assert "Updated Abstract" in saved.read_text(encoding="utf-8")
 
 
 def test_server_session_get_and_post(remote_server):
