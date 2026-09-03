@@ -5,8 +5,14 @@ from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.tools.cite_tool import CiteTool
 
 
-def test_snapshot_manager_checkpoint_and_history():
-    snap = SnapshotManager()
+def test_snapshot_manager_checkpoint_and_history(tmp_path):
+    import subprocess
+
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / "sections").mkdir()
+    (tmp_path / "sections" / "01.md").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    snap = SnapshotManager(tmp_path)
     res = snap.create_checkpoint(message="Unit test checkpoint", section_id="sec_01", author="TestRunner")
     assert res["ok"] is True
     assert "commit_hash" in res

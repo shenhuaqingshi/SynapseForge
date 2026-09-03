@@ -5,6 +5,7 @@ Enables fine-grained, non-destructive document versioning for solo human authors
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -47,11 +48,37 @@ class SnapshotManager:
                 }
 
             full_msg = f"checkpoint({section_id or 'doc'}): {checkpoint_msg} [by {author}]"
-            res = subprocess.run(["git", "commit", "-m", full_msg], cwd=self.repo_root, capture_output=True, text=True)
-            head_hash = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.repo_root, capture_output=True, text=True).stdout.strip()
+            env = os.environ.copy()
+            env.setdefault("GIT_AUTHOR_NAME", author)
+            env.setdefault("GIT_AUTHOR_EMAIL", "synapseforge@local")
+            env.setdefault("GIT_COMMITTER_NAME", author)
+            env.setdefault("GIT_COMMITTER_EMAIL", "synapseforge@local")
+            res = subprocess.run(
+                ["git", "commit", "-m", full_msg],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            head_hash = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if res.returncode != 0:
+                err = (res.stderr or res.stdout or "git commit failed").strip()
+                return {
+                    "ok": False,
+                    "created": False,
+                    "commit_hash": head_hash,
+                    "hash": head_hash,
+                    "error": err,
+                    "message": full_msg,
+                }
 
             return {
-                "ok": res.returncode == 0,
+                "ok": True,
                 "created": True,
                 "commit_hash": head_hash,
                 "hash": head_hash,
