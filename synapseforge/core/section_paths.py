@@ -37,6 +37,11 @@ def resolve_section_path(workspace_root: PathLike, section_id: str, create_dir: 
     section_id = (section_id or "").strip()
     if not section_id:
         return sec_dir / "untitled.md"
+    # Never let section_id walk out of sections/ via ../ or absolute paths.
+    if "/" in section_id or "\\" in section_id or section_id in {".", ".."}:
+        section_id = Path(section_id).name
+    if (not section_id) or section_id in {".", ".."} or "/" in section_id or "\\" in section_id:
+        return sec_dir / "untitled.md"
     clean = section_id[4:] if section_id.startswith("sec_") else section_id
     files = sorted(sec_dir.glob("*.md")) if sec_dir.exists() else []
     for path in files:
