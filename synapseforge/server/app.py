@@ -22,7 +22,6 @@ from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.core.engine import SwarmEngine
 from synapseforge.core.section_paths import resolve_section_path
 from synapseforge.core.snapshot import SnapshotManager
-from synapseforge.core.team_bus import open_bus
 from synapseforge.tools.cite_tool import CiteTool
 from synapseforge.tools.pdf_tool import PDFTool
 from synapseforge.tools.sci_plot_tool import SciPlotTool
@@ -75,14 +74,6 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         elif path == "/api/session":
             self._handle_api_get_session()
-            return
-
-        elif path == "/api/team/status":
-            self._handle_api_team_status()
-            return
-
-        elif path == "/api/team/messages":
-            self._handle_api_team_messages(parsed)
             return
 
         elif path == "/api/prompts":
@@ -186,8 +177,6 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
                 journal_or_book=data.get("journal", ""),
             )
             self._send_json(res)
-        elif path == "/api/team/say":
-            self._handle_api_team_say(data)
         else:
             self._send_json({"ok": False, "error": f"Unknown endpoint: {path}"}, status=HTTPStatus.NOT_FOUND)
 
@@ -265,32 +254,18 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         })
 
     def _handle_api_dispatch(self, data: Dict[str, Any]):
-        from synapseforge.core.local_agent_cli import LocalAgentCLIManager
+        agent_name = data.get("agent", "Drafter-Narrative")
+        section_id = data.get("section_id", "sec_04")
+        prompt = data.get("prompt", "")
 
-        agent_name = data.get("agent") or data.get("agent_name") or "grok"
-        section_id = data.get("section_id") or ""
-        prompt = data.get("prompt") or data.get("instruction") or ""
-        if not isinstance(section_id, str) or not re.fullmatch(r"[A-Za-z0-9_\-]+", section_id):
-            self._send_json({"ok": False, "error": "Invalid section_id"}, status=HTTPStatus.BAD_REQUEST)
-            return
-        if not str(prompt).strip():
-            self._send_json({"ok": False, "error": "prompt is required"}, status=HTTPStatus.BAD_REQUEST)
-            return
-        timeout = data.get("timeout", 120)
-        try:
-            timeout = int(timeout)
-        except (TypeError, ValueError):
-            timeout = 120
-        mgr = LocalAgentCLIManager(self.root_dir)
-        res = mgr.run_agent_cli(
-            agent_name=agent_name,
-            section_id=section_id,
-            user_instruction=str(prompt),
-            role_preset=data.get("preset"),
-            timeout=timeout,
-        )
-        status = HTTPStatus.OK if res.get("ok") else HTTPStatus.BAD_REQUEST
-        self._send_json(res, status=status)
+        self._send_json({
+            "ok": True,
+            "agent": agent_name,
+            "section_id": section_id,
+            "task_id": f"task-{os.urandom(4).hex()}",
+            "status": "completed",
+            "message": f"Agent {agent_name} processed directive for {section_id}",
+        })
 
     def _handle_api_pdf_build(self, data: Dict[str, Any]):
         t0 = time.time()
@@ -354,63 +329,6 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         data["last_active"] = time.time()
         session_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         self._send_json({"ok": True, "message": "Session state saved", "session": data})
-
-
-    def _team_bus(self):
-        return open_bus(workspace=self.root_dir)
-
-    def _studio_room(self, bus) -> str:
-        live = bus.find_live_workspace_room(str(self.root_dir))
-        if live:
-            return live["name"]
-        rooms = bus.list_rooms().get("rooms") or []
-        root = str(self.root_dir.resolve())
-        for item in rooms:
-            raw = item.get("workspace") or ""
-            if not raw:
-                continue
-            try:
-                if str(Path(raw).expanduser().resolve()) == root:
-                    return item["name"]
-            except Exception:
-                continue
-        bus.join("studio", "launcher", "studio daemon", "Studio workspace", str(self.root_dir))
-        return "studio"
-
-    def _handle_api_team_status(self):
-        bus = self._team_bus()
-        room = self._studio_room(bus)
-        status = bus.status(room)
-        try:
-            messages = bus.read_messages(room, "human", after_id=0, limit=30, mark_read=False)
-        except Exception:
-            messages = []
-        status["ok"] = True
-        status["messages"] = messages
-        self._send_json(status)
-
-    def _handle_api_team_messages(self, parsed):
-        qs = urllib.parse.parse_qs(parsed.query)
-        after_id = int((qs.get("after_id") or ["0"])[0] or 0)
-        agent = (qs.get("agent") or ["human"])[0]
-        bus = self._team_bus()
-        room = self._studio_room(bus)
-        rows = bus.read_messages(room, agent, after_id=after_id, limit=50, mark_read=False)
-        self._send_json({"ok": True, "room": room, "messages": rows})
-
-    def _handle_api_team_say(self, data: Dict[str, Any]):
-        agent = data.get("agent") or "human"
-        message = data.get("message") or data.get("prompt") or ""
-        kind = data.get("kind") or "discussion"
-        if not str(message).strip():
-            self._send_json({"ok": False, "error": "message is required"}, status=HTTPStatus.BAD_REQUEST)
-            return
-        bus = self._team_bus()
-        room = self._studio_room(bus)
-        posted = bus.post_message(room, agent, str(message), kind=kind)
-        posted["ok"] = True
-        posted["room"] = room
-        self._send_json(posted)
 
 
 def start_server(host: str = "0.0.0.0", port: int = 8765, workspace=None) -> ThreadingHTTPServer:

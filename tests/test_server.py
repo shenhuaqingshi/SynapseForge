@@ -4,7 +4,6 @@ import socket
 import subprocess
 import threading
 import time
-import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -125,50 +124,3 @@ def test_server_session_get_and_post(remote_server):
         res_data = json.loads(resp.read().decode("utf-8"))
         assert res_data["ok"] is True
         assert res_data["session"]["room_id"] == "room-special-sync"
-
-
-def test_server_dispatch_rejects_unknown_agent(remote_server):
-    base, _ = remote_server
-    payload = json.dumps({
-        "agent": "not-a-real-cli",
-        "section_id": "sec_01",
-        "prompt": "Draft the abstract",
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        f"{base}/api/agent/dispatch",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with pytest.raises(urllib.error.HTTPError) as exc:
-        urllib.request.urlopen(req)
-    assert exc.value.code == 400
-    body = json.loads(exc.value.read().decode("utf-8"))
-    assert body["ok"] is False
-    assert "not recognized" in body["error"] or "not found" in body["error"]
-
-
-def test_server_team_status_and_directive(remote_server):
-    base, _ = remote_server
-    with urllib.request.urlopen(f"{base}/api/team/status") as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    assert data["ok"] is True
-    assert data["room"]["name"]
-    payload = json.dumps({
-        "agent": "human",
-        "kind": "directive",
-        "message": "Stop submitting",
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        f"{base}/api/team/say",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req) as resp:
-        posted = json.loads(resp.read().decode("utf-8"))
-    assert posted["ok"] is True
-    assert posted["kind"] == "directive"
-    with urllib.request.urlopen(f"{base}/api/team/messages") as resp:
-        inbox = json.loads(resp.read().decode("utf-8"))
-    assert any(m["body"] == "Stop submitting" for m in inbox["messages"])

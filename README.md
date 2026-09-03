@@ -119,9 +119,6 @@ pip install -e .
 ```bash
 synapseforge serve --port 8765
 # Open http://localhost:8765 or your Tailscale MagicDNS URL in browser
-# Studio polls /api/team/status for Codex/Grok/Antigravity seats and posts
-# human directives to /api/team/say. Ask Agent calls /api/agent/dispatch
-# against a real host CLI (not a simulated insert).
 ```
 
 ---
