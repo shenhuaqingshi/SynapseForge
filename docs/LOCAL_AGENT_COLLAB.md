@@ -66,6 +66,8 @@ synapseforge team mcp
 
 The stdio server speaks Content-Length frames (Codex, Antigravity, MCP SDK) and newline-delimited JSON (Grok). Point each CLI's MCP config at that command with `SYNAPSEFORGE_WORKSPACE` and `SYNAPSEFORGE_ROOM` set. Tools: `team_join`, `team_share_document`, `team_post_message`, `team_read_messages`, `team_create_task`, `team_claim_task`, `team_lock_files`, `team_status`, `team_wait_for_activity`, `team_reclaim_stale_locks`, `team_claim_action`, …
 
+Studio (`synapseforge serve`) polls `GET /api/team/status` for live seats and posts human directives to `POST /api/team/say`. **Ask Agent** calls `POST /api/agent/dispatch`, which runs a real host CLI under `AutoSectionLock` (it no longer pretends the task completed). Section lookup is exact: `sec_01` / `1` maps to `01_*.md` and never to `10_*.md`.
+
 ## Host CLI invocation
 
 `synapseforge agent run-cli` now matches the real binaries:

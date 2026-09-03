@@ -161,9 +161,9 @@ html_template = r"""<!DOCTYPE html>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1.5" id="presence">
           <span class="avatar" style="cursor:default" title="You (Commander)">余</span>
-          <span class="avatar" id="avatar-drafter" title="Follow Drafter" onclick="toggleFollow('drafter')">D</span>
-          <span class="avatar" id="avatar-critic" title="Follow Critic" onclick="toggleFollow('critic')">C</span>
-          <span class="avatar" id="avatar-harmonizer" title="Follow Harmonizer" onclick="toggleFollow('harmonizer')">H</span>
+          <span class="avatar" id="avatar-codex" title="Follow Codex" onclick="toggleFollow('codex')">C</span>
+          <span class="avatar" id="avatar-grok" title="Follow Grok" onclick="toggleFollow('grok')">G</span>
+          <span class="avatar" id="avatar-antigravity" title="Follow Antigravity" onclick="toggleFollow('antigravity')">A</span>
         </div>
         <span id="network-status" class="lbl">Mesh</span>
         <button class="btn" onclick="openPromptModal()">提示词</button>
@@ -191,13 +191,17 @@ html_template = r"""<!DOCTYPE html>
 
       <!-- Column 2 · Swarm stream -->
       <section class="w-72 border-r divider flex flex-col shrink-0 overflow-hidden">
-        <div class="px-4 pt-3 pb-2 lbl">协作动态 · Activity</div>
+        <div class="px-4 pt-3 pb-2 flex items-baseline justify-between">
+          <span class="lbl">协作动态 · Activity</span>
+          <span id="team-room-label" class="text-[10.5px] text-black/35 font-mono">—</span>
+        </div>
+        <div id="team-board" class="px-4 pb-2 text-[11.5px] leading-relaxed text-black/55"></div>
 
         <div id="activity-stream" class="flex-1 overflow-y-auto px-4 pb-3 space-y-4">
           <div>
             <div class="lbl mb-1">System</div>
             <div class="text-[13px] leading-relaxed border divider p-2.5">
-              Tailscale mesh 已连接,提示词预设自 <span class="font-mono">./prompts/</span> 载入。
+              本机 team bus 与守护进程 API 已接入。Ask Agent 会调度真实 Local Agent CLI。
             </div>
           </div>
 
@@ -371,6 +375,8 @@ html_template = r"""<!DOCTYPE html>
       buildPromptCards();
       setupNetworkWatchdog();
       setupKeyboardShortcuts();
+      pollTeam();
+      setInterval(pollTeam, 4000);
 
       const restored = restoreLocalSession();
       if (!restored) switchSection(Object.keys(SECTIONS)[0] || null);
@@ -646,7 +652,7 @@ html_template = r"""<!DOCTYPE html>
     function toggleFollow(agentRole) {
       const badge = document.getElementById('follow-badge');
       followingTarget = followingTarget === agentRole ? null : agentRole;
-      ['drafter', 'critic', 'harmonizer'].forEach(id => {
+      ['codex', 'grok', 'antigravity'].forEach(id => {
         const el = document.getElementById('avatar-' + id);
         if (el) el.classList.toggle('is-followed', followingTarget === id);
       });
@@ -660,11 +666,77 @@ html_template = r"""<!DOCTYPE html>
       }
     }
 
-    // ── Agent simulation ──
+    function appendActivity(sender, body) {
+      const stream = document.getElementById('activity-stream');
+      const card = document.createElement('div');
+      const meta = document.createElement('div');
+      meta.className = 'lbl mb-1';
+      meta.textContent = sender;
+      const box = document.createElement('div');
+      box.className = 'text-[13px] leading-relaxed border divider p-2.5';
+      box.textContent = body;
+      card.appendChild(meta); card.appendChild(box);
+      stream.appendChild(card);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function pollTeam() {
+      fetch('/api/team/status')
+        .then(r => r.json())
+        .then(res => {
+          if (!res.ok) return;
+          const room = (res.room && res.room.name) || 'studio';
+          document.getElementById('team-room-label').innerText = room;
+          const live = new Set(res.live_agents || []);
+          ['codex', 'grok', 'antigravity'].forEach(id => {
+            const el = document.getElementById('avatar-' + id);
+            if (!el) return;
+            el.style.opacity = live.has(id) ? '1' : '0.35';
+            el.title = live.has(id) ? (id + ' online') : (id + ' silent');
+          });
+          const tasks = (res.tasks || []).filter(t => t.status !== 'done').slice(0, 4)
+            .map(t => `#${t.id} ${t.title}`).join(' · ') || '无未完成任务';
+          const locks = (res.file_locks || []).length;
+          document.getElementById('team-board').innerText = `${tasks}  ·  locks ${locks}`;
+          const net = document.getElementById('network-status');
+          if (net && navigator.onLine) net.innerText = res.coordinator_silent ? 'Codex silent' : 'Team';
+        })
+        .catch(() => {});
+    }
+
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += '\n\n## 形式化一致性收敛定理\n\n设节点往返通信时延为 $\\tau_j$,系统全局状态收敛上界满足:\n\n$$\n\\mathbb{E}[\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\n$$\n';
-      onEditorInput();
+      const instruction = (document.getElementById('agent-input') && document.getElementById('agent-input').value.trim())
+        || 'Continue drafting the current section with rigorous academic prose and KaTeX formulas.';
+      showToast('正在调度本机 Agent CLI…');
+      fetch('/api/agent/dispatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: followingTarget || 'grok',
+          section_id: currentSection,
+          prompt: instruction,
+        }),
+      })
+        .then(r => r.json())
+        .then(res => {
+          if (res.ok) {
+            showToast('Agent CLI 已完成，正在刷新章节');
+            return fetch('/api/sections').then(r => r.json()).then(data => {
+              if (data.ok && data.sections) {
+                SECTIONS = data.sections;
+                if (SECTIONS[currentSection]) {
+                  editor.value = SECTIONS[currentSection].content || editor.value;
+                  onEditorInput();
+                }
+              }
+            });
+          }
+          showToast(res.error || 'Agent CLI 不可用');
+          appendActivity('System', res.error || 'Local Agent CLI dispatch failed');
+        })
+        .catch(() => {
+          showToast('守护进程离线');
+        });
       const preview = document.getElementById('publication-preview');
       preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
     }
@@ -673,29 +745,11 @@ html_template = r"""<!DOCTYPE html>
       const input = document.getElementById('agent-input');
       const text = input.value.trim();
       if (!text) return;
-      const stream = document.getElementById('activity-stream');
-
-      const userCard = document.createElement('div');
-      const userMeta = document.createElement('div');
-      userMeta.className = 'lbl mb-1';
-      userMeta.textContent = 'You';
-      const userBody = document.createElement('div');
-      userBody.className = 'text-[13px] leading-relaxed border divider p-2.5';
-      userBody.textContent = text;
-      userCard.appendChild(userMeta); userCard.appendChild(userBody);
-      stream.appendChild(userCard);
-
-      const agentCard = document.createElement('div');
-      const agentMeta = document.createElement('div');
-      agentMeta.className = 'lbl mb-1';
-      agentMeta.textContent = 'Drafter Agent';
-      const agentBody = document.createElement('div');
-      agentBody.className = 'text-[13px] leading-relaxed border divider p-2.5';
-      agentBody.textContent = '已将指令并入当前章节 AST,数学公式同步更新。';
-      agentCard.appendChild(agentMeta); agentCard.appendChild(agentBody);
-      stream.appendChild(agentCard);
-
-      stream.scrollTop = stream.scrollHeight;
+      appendActivity('You', text);
+      fetch('/api/team/say', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: 'human', kind: 'directive', message: text }),
+      }).catch(() => {});
       triggerAgentDraft();
       input.value = '';
     }

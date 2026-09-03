@@ -480,7 +480,7 @@ def cmd_serve(args):
     print(f"  - REST API:         http://127.0.0.1:{port}/api/status")
     print(f"{Color.GREEN}✓ Remote Web Daemon active. Open in browser from any remote device.{Color.RESET}\n")
 
-    httpd = start_server(host=host, port=port)
+    httpd = start_server(host=host, port=port, workspace=Path.cwd())
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

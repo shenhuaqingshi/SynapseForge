@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from synapseforge.core.file_lock import AutoSectionLock, SectionLockedError
+from synapseforge.core.section_paths import resolve_section_path
 from synapseforge.core.user_prompts import UserPromptManager
 
 PROMPT_INLINE_LIMIT = 3500
@@ -233,12 +234,7 @@ class LocalAgentCLIManager:
         return [bin_path] + render_args(spec.get("args_pattern") or ["{instruction}"], mapping)
 
     def _resolve_section_file(self, section_id: str) -> Path:
-        sec_dir = self.workspace_root / "sections"
-        sec_dir.mkdir(parents=True, exist_ok=True)
-        for path in sec_dir.glob("*.md"):
-            if section_id in path.name or path.stem == section_id:
-                return path
-        return sec_dir / f"{section_id}.md"
+        return resolve_section_path(self.workspace_root, section_id)
 
     def compose_instruction(
         self,
