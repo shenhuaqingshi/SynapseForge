@@ -97,7 +97,10 @@ class AutoSectionLock:
 
         self.locks_dir = self.workspace_root / ".synapse" / "locks"
         self.locks_dir.mkdir(parents=True, exist_ok=True)
-        self.lock_file_path = self.locks_dir / f"{section_id}.lock"
+        lock_name = Path(str(section_id)).name or "untitled"
+        if lock_name in {".", ".."} or not lock_name:
+            lock_name = "untitled"
+        self.lock_file_path = self.locks_dir / f"{lock_name}.lock"
         self._file_handle = None
         self._acquired = False
 
@@ -250,6 +253,12 @@ class AutoSectionLock:
             )
         if target_file_path:
             path = Path(target_file_path)
+            try:
+                path.resolve().relative_to(self.workspace_root.resolve())
+            except ValueError as exc:
+                raise SectionLockedError(
+                    f"target_file_path escapes workspace: {target_file_path}"
+                ) from exc
         else:
             from synapseforge.core.section_paths import resolve_section_path
             path = resolve_section_path(self.workspace_root, self.section_id)
@@ -290,7 +299,10 @@ class SectionLockManager:
 
     def is_locked(self, section_id: str) -> Optional[Dict[str, Any]]:
         """Return lock metadata if the section is actively locked, else None."""
-        lock_file = self.locks_dir / f"{section_id}.lock"
+        lock_name = Path(str(section_id)).name or "untitled"
+        if lock_name in {".", ".."}:
+            lock_name = "untitled"
+        lock_file = self.locks_dir / f"{lock_name}.lock"
         if not lock_file.exists():
             return None
         data = self._load(lock_file)
