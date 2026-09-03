@@ -156,6 +156,33 @@ def test_lock_path_must_stay_in_workspace(bus_env):
         store.lock_files("demo", "codex", ["/tmp/synapseforge-not-in-workspace.txt"])
 
 
+def test_leave_drops_locks_and_marks_offline(bus_env):
+    store, doc, tmp_path = bus_env
+    store.join("demo", "grok", "review", workspace=str(tmp_path))
+    store.lock_files("demo", "grok", [str(doc)])
+    left = store.leave("demo", "grok")
+    assert left["status"] == "offline"
+    assert left["unlocked"] == 1
+    status = store.status("demo")
+    grok = next(p for p in status["participants"] if p["agent"] == "grok")
+    assert grok["status"] == "offline"
+    assert status["file_locks"] == []
+
+
+def test_claim_action_mutex_is_per_agent_not_session(tmp_path):
+    db = tmp_path / "team.db"
+    a = TeamBus(db, session_id="shared-mcp")
+    b = TeamBus(db, session_id="shared-mcp")
+    a.join("demo", "antigravity", "impl")
+    b.join("demo", "grok", "review")
+    claimed = a.claim_action("demo", "antigravity", "push:main", ttl_seconds=60)
+    assert claimed["agent"] == "antigravity"
+    with pytest.raises(ValueError, match="already claimed"):
+        b.claim_action("demo", "grok", "push:main", ttl_seconds=60)
+    renewed = a.claim_action("demo", "antigravity", "push:main", ttl_seconds=60)
+    assert renewed["agent"] == "antigravity"
+
+
 def test_open_bus_uses_workspace_db(tmp_path):
     bus = open_bus(workspace=tmp_path)
     expected = workspace_db(tmp_path)

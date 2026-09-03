@@ -72,6 +72,24 @@ def test_paste_prompt_submitter_split():
     assert "only submitter" in agy
 
 
+def test_team_wait_and_leave(tmp_path):
+    doc = tmp_path / "brief.md"
+    doc.write_text("# Brief\nWrite section 01.\n", encoding="utf-8")
+    opened = _run(tmp_path, ["open", "--document", str(doc), "--room", "paper"])
+    assert opened.returncode == 0, opened.stderr
+    joined = _run(tmp_path, ["join", "--room", "paper", "--agent", "grok"])
+    assert joined.returncode == 0, joined.stderr
+    waited = _run(
+        tmp_path,
+        ["wait", "--room", "paper", "--agent", "grok", "--timeout", "0"],
+    )
+    assert waited.returncode == 0, waited.stderr
+    wait_data = json.loads(waited.stdout)
+    assert "coordinator_silent" in wait_data
+    left = _run(tmp_path, ["leave", "--room", "paper", "--agent", "grok"])
+    assert left.returncode == 0, left.stderr
+
+
 def test_mcp_handshake_and_join(tmp_path):
     env = dict(os.environ)
     env["SYNAPSEFORGE_TEAM_DB"] = str(tmp_path / "team.db")
@@ -108,6 +126,7 @@ def test_mcp_handshake_and_join(tmp_path):
     assert "team_join" in names
     assert "team_claim_action" in names
     assert "team_reclaim_stale_locks" in names
+    assert "team_leave" in names
     assert responses[2]["result"]["isError"] is False
     joined = json.loads(responses[2]["result"]["content"][0]["text"])
     assert joined["agent"] == "codex"

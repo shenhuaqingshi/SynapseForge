@@ -10,22 +10,17 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from synapseforge.core.local_agent_cli import resolve_binary
-from synapseforge.core.team_bus import TEAM_PROTOCOL, open_bus
-
-CANONICAL_SEATS = {
-    "codex": ("coordinator and integration owner", "codex"),
-    "grok": ("independent analyst and critical reviewer", "grok"),
-    "antigravity": ("implementation and test specialist", "agy"),
-}
-
-SUBMITTER = "antigravity"
+from synapseforge.core.team_bus import open_bus
+from synapseforge.core.team_launch import (
+    CANONICAL_SEATS,
+    doctor as run_doctor,
+    launch_room,
+    paste_prompt,
+)
 
 
 def _json_mode(args) -> bool:
@@ -102,6 +97,9 @@ def handle_team(args):
         "open": cmd_open,
         "paste-prompts": cmd_paste_prompts,
         "mcp": cmd_mcp,
+        "wait": cmd_wait,
+        "leave": cmd_leave,
+        "doctor": cmd_doctor,
     }
     if action not in dispatch:
         fail(args, f"unknown team action: {action}")
@@ -309,128 +307,26 @@ def _split_files(raw) -> List[str]:
     return [item for item in items if item]
 
 
-def infer_host_agents() -> set:
-    skip = set()
-    raw = os.environ.get("SYNAPSEFORGE_SKIP_AGENTS") or os.environ.get("AGENT_TEAM_SKIP_AGENTS") or ""
-    skip.update(part.strip() for part in raw.split(",") if part.strip())
-    if os.environ.get("GROK_AGENT") or os.environ.get("GROK_SESSION_ID"):
-        skip.add("grok")
-    names = set(_ancestor_names(os.getppid()))
-    if {"grok", "grok-app"} & names:
-        skip.add("grok")
-    if "codex" in names:
-        skip.add("codex")
-    if {"agy", "antigravity"} & names:
-        skip.add("antigravity")
-    if "claude" in names:
-        skip.add("claude")
-    return skip
-
-
-def _ancestor_names(pid, depth=8):
-    names = []
-    current = pid
-    for _ in range(depth):
-        if not current or int(current) <= 1:
-            break
-        try:
-            comm = subprocess.check_output(["ps", "-p", str(current), "-o", "comm="], text=True).strip().lower()
-            args = subprocess.check_output(["ps", "-p", str(current), "-o", "args="], text=True).strip()
-            ppid = subprocess.check_output(["ps", "-p", str(current), "-o", "ppid="], text=True).strip()
-        except Exception:
-            break
-        exe = (args.split() or [comm])[0].lower()
-        names.append(os.path.basename(exe).replace(".exe", ""))
-        names.append(os.path.basename(comm).replace(".exe", ""))
-        try:
-            current = int(ppid)
-        except (TypeError, ValueError):
-            break
-    return names
-
-
-def paste_prompt(room: str, agent: str, role: str, document: str, workspace: str, objective: str = "") -> str:
-    submitter = (
-        "You are the only submitter: git push / deploy / send may only be called by you. "
-        "Call team_claim_action first; if you do not get the claim, stop."
-        if agent == SUBMITTER
-        else "You are not the submitter. Do not push, deploy, or send even if you think others went silent."
-    )
-    return "\n".join(
-        line
-        for line in [
-            "We are running a SynapseForge local Agent CLI collaboration. First call: team_join (MCP) or `synapseforge team join`.",
-            f"room={room!r}",
-            f"agent={agent!r}",
-            f"role={role!r}",
-            f"workspace={workspace}",
-            f"shared document: {document}",
-            f"objective: {objective}" if objective else "",
-            "You occupy this identity exclusively. If join returns already_online=true you are a duplicate observer: do not claim, lock, post, or submit.",
-            "kind=directive from human, and anything the user says in your own session, is a live instruction. Act immediately.",
-            "Lock paths must sit inside the room workspace (or be a shared document).",
-            "If a lock holder is silent, call team_reclaim_stale_locks. Do not wait forever.",
-            "If coordinator (codex) is silent after one wait_for_activity timeout, freeze the plan and continue. A live OS process is not a heartbeat.",
-            "Before create_task, list tasks. If an open card already covers the same files or work, claim it.",
-            submitter,
-            "Heartbeat by reading or waiting at least every 60 seconds while working.",
-        ]
-        if line
-    )
-
-
-def default_room_name(document: str) -> str:
-    stem = Path(document).stem
-    safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in stem).strip("-") or "team"
-    return f"{safe[:48]}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-
-
 def cmd_open(args):
     document = getattr(args, "document", None)
     if not document:
         fail(args, "pass --document /path/to/brief.md")
-    doc = Path(document).expanduser().resolve()
-    if not doc.is_file():
-        fail(args, f"document not found: {doc}")
-    workspace = default_workspace(args) if getattr(args, "cwd", None) else str(doc.parent)
-    room = getattr(args, "room", None) or os.environ.get("SYNAPSEFORGE_ROOM") or default_room_name(str(doc))
-    objective = getattr(args, "objective", "") or f"Collaborate on {doc.name}"
-    store = open_bus(workspace=workspace)
-    live = store.find_live_workspace_room(workspace)
-    resumed = False
-    if live and not getattr(args, "new_room", False):
-        room = live["name"]
-        resumed = True
-    store.join(room, "launcher", "session launcher", objective, workspace)
-    shared = store.share_document(room, "launcher", str(doc))
-    skip = infer_host_agents()
-    prompts = {}
-    missing_binaries = []
-    for agent, (role, binary) in CANONICAL_SEATS.items():
-        prompts[agent] = paste_prompt(room, agent, role, str(doc), workspace, objective)
-        if not resolve_binary(binary):
-            missing_binaries.append({"agent": agent, "binary": binary})
-    run_dir = Path(workspace) / ".synapse" / "run"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    prompt_files = {}
-    for agent, text in prompts.items():
-        path = run_dir / f"{room}-{agent}.txt"
-        path.write_text(text, encoding="utf-8")
-        prompt_files[agent] = str(path)
-    payload = {
-        "ok": True,
-        "room": room,
-        "workspace": workspace,
-        "document": str(doc),
-        "shared_document": shared,
-        "resumed": resumed,
-        "skipped_host_agents": sorted(skip),
-        "paste_prompts": prompts,
-        "prompt_files": prompt_files,
-        "missing_binaries": missing_binaries,
-        "protocol": TEAM_PROTOCOL,
-        "mcp": "synapseforge team mcp",
-    }
+    workspace = default_workspace(args) if getattr(args, "cwd", None) else str(Path(document).expanduser().resolve().parent)
+    skip_raw = getattr(args, "skip_agents", None) or ""
+    skip_agents = [part.strip() for part in skip_raw.split(",") if part.strip()]
+    try:
+        payload = launch_room(
+            document=document,
+            workspace=workspace,
+            room=getattr(args, "room", None) or os.environ.get("SYNAPSEFORGE_ROOM"),
+            objective=getattr(args, "objective", "") or "",
+            new_room=bool(getattr(args, "new_room", False)),
+            skip_agents=skip_agents,
+            wait_join_seconds=int(getattr(args, "wait_join_seconds", 0) or 0),
+            open_terminal=bool(getattr(args, "launch", False)),
+        )
+    except FileNotFoundError as exc:
+        fail(args, str(exc))
     emit(args, payload, text=_format_open(payload))
 
 
@@ -439,14 +335,19 @@ def _format_open(payload: Dict[str, Any]) -> str:
         f"Room: {payload['room']}" + (" (resumed)" if payload.get("resumed") else ""),
         f"Workspace: {payload['workspace']}",
         f"Document: {payload['document']}",
-        f"Skipped host seats: {', '.join(payload['skipped_host_agents']) or '-'}",
-        "Paste the matching prompt into each Agent CLI (or point MCP at `synapseforge team mcp`).",
+        f"Skipped host seats: {', '.join(payload.get('skipped_host_agents') or []) or '-'}",
+        f"Launched terminals: {', '.join(payload.get('terminals') or []) or '-'}",
+        f"Joined: {', '.join(payload.get('joined') or []) or '-'}",
+        f"Not joined: {', '.join(payload.get('not_joined') or []) or '-'}",
+        "Paste the matching prompt into each Agent CLI that did not join (or point MCP at `synapseforge team mcp`).",
     ]
-    for agent, path in payload["prompt_files"].items():
+    for agent, path in (payload.get("prompt_files") or {}).items():
         lines.append(f"  {agent}: {path}")
-    if payload["missing_binaries"]:
+    if payload.get("missing_binaries"):
         missing = ", ".join(f"{m['agent']} ({m['binary']})" for m in payload["missing_binaries"])
         lines.append(f"Missing binaries: {missing}")
+    if payload.get("launch_errors"):
+        lines.append("Launch errors: " + " | ".join(payload["launch_errors"]))
     return "\n".join(lines)
 
 
@@ -477,3 +378,52 @@ def cmd_mcp(args):
     from synapseforge.mcp.server import main as mcp_main
 
     mcp_main()
+
+
+def cmd_wait(args):
+    store, _ = open_store(args)
+    result = store.wait_for_activity(
+        default_room(args),
+        default_agent(args),
+        after_message_id=getattr(args, "after_id", 0) or 0,
+        timeout_seconds=getattr(args, "timeout", 20) or 0,
+    )
+    emit(
+        args,
+        result,
+        text=(
+            f"timed_out={result['timed_out']} coordinator_silent={result['coordinator_silent']} "
+            f"messages={len(result['messages'])} stale_locks={len(result['stale_locks'])}"
+        ),
+    )
+
+
+def cmd_leave(args):
+    store, _ = open_store(args)
+    result = store.leave(default_room(args), default_agent(args))
+    emit(args, result, text=f"{result['agent']} left {result['room']} (unlocked {result['unlocked']})")
+
+
+def cmd_doctor(args):
+    result = run_doctor(workspace=default_workspace(args))
+    ok = bool(result.get("ok"))
+    emit(args, result, ok=ok, text=_format_doctor(result))
+    if not ok:
+        sys.exit(1)
+
+
+def _format_doctor(result: Dict[str, Any]) -> str:
+    agents = result.get("agents") or {}
+    installed = ", ".join(f"{name}={'yes' if path else 'no'}" for name, path in agents.items())
+    return "\n".join(
+        [
+            f"ok={result.get('ok')}",
+            f"database={result.get('database')}",
+            f"mcp_ndjson={bool((result.get('mcp_ndjson') or {}).get('ok'))}",
+            f"mcp_content_length={bool((result.get('mcp_content_length') or {}).get('ok'))}",
+            f"agents: {installed or '-'}",
+        ]
+    )
+
+
+

@@ -145,6 +145,12 @@ TOOLS = [
         "annotations": {"readOnlyHint": False, "destructiveHint": False},
     },
     {
+        "name": "team_leave",
+        "description": "Leave this agent's exclusive seat, drop its file locks, and mark the participant offline.",
+        "inputSchema": obj_schema({"room": ROOM, "agent": AGENT}, ["agent"]),
+        "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
         "name": "team_semantic_diff",
         "description": "Perform semantic AST block-level diff comparison between two text documents or files.",
         "inputSchema": obj_schema({"text_a": {"type": "string"}, "text_b": {"type": "string"}, "file_a": {"type": "string"}, "file_b": {"type": "string"}}),
@@ -281,6 +287,7 @@ def call_tool(store, name, args):
         "team_wait_for_activity": store.wait_for_activity,
         "team_reclaim_stale_locks": store.reclaim_stale_locks,
         "team_claim_action": store.claim_action,
+        "team_leave": store.leave,
     }
     if name == "team_semantic_diff":
         differ = SemanticASTDiffer()

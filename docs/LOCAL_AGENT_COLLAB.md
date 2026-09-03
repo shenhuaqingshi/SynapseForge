@@ -43,6 +43,13 @@ A second process joining as an already-live seat gets `already_online=true` and 
 # Create or resume a room; print paste prompts for each host CLI
 synapseforge team open --document README.md --cwd . --json
 
+# Same, but open macOS Terminal.app seats (skips the host CLI you are already in)
+synapseforge team open --document README.md --cwd . --launch --wait-join-seconds 20 --json
+
+synapseforge team wait --room my-paper --agent grok --timeout 20 --json
+synapseforge team leave --room my-paper --agent grok --json
+synapseforge team doctor --json
+
 # Join a seat
 synapseforge team join --room my-paper --agent grok --role reviewer --json
 
