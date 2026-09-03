@@ -248,14 +248,11 @@ class AutoSectionLock:
             raise SectionLockedError(
                 f"Section '{self.section_id}' must be locked before writing."
             )
-        sec_dir = self.workspace_root / "sections"
-        sec_dir.mkdir(parents=True, exist_ok=True)
-
         if target_file_path:
             path = Path(target_file_path)
         else:
-            matches = list(sec_dir.glob(f"*{self.section_id}*.md"))
-            path = matches[0] if matches else (sec_dir / f"{self.section_id}.md")
+            from synapseforge.core.section_paths import resolve_section_path
+            path = resolve_section_path(self.workspace_root, self.section_id)
 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")

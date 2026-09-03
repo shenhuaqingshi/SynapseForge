@@ -20,17 +20,23 @@ from typing import Any, Dict, Optional
 from synapseforge.config import load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.core.engine import SwarmEngine
+from synapseforge.core.section_paths import resolve_section_path
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.tools.cite_tool import CiteTool
 from synapseforge.tools.pdf_tool import PDFTool
 from synapseforge.tools.sci_plot_tool import SciPlotTool
 
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+UI_FILE = PACKAGE_ROOT / "ui" / "index.html"
+
 
 class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
     """HTTP Request Handler for SynapseForge Remote Control Web UI and REST API."""
 
+    workspace_root = Path.cwd()
+
     def __init__(self, *args, **kwargs):
-        self.root_dir = Path.cwd()
+        self.root_dir = Path(self.workspace_root)
         super().__init__(*args, directory=str(self.root_dir), **kwargs)
 
     def do_GET(self):
@@ -38,7 +44,7 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/", "/index.html", "/studio"):
-            ui_file = self.root_dir / "synapseforge" / "ui" / "index.html"
+            ui_file = UI_FILE if UI_FILE.exists() else (self.root_dir / "synapseforge" / "ui" / "index.html")
             if ui_file.exists():
                 content = ui_file.read_bytes()
                 self.send_response(HTTPStatus.OK)
@@ -184,14 +190,19 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _handle_api_status(self):
-        engine = SwarmEngine()
+        engine = SwarmEngine(project_root=self.root_dir)
         tree = engine.get_document_tree()
-        config = load_config()
+        yaml_path = self.root_dir / "synapseforge.yaml"
+        try:
+            config = load_config(yaml_path if yaml_path.exists() else None)
+        except Exception:
+            from synapseforge.config import ProjectConfig
+            config = ProjectConfig()
         self._send_json({
             "ok": True,
             "project_name": config.name,
             "document_title": config.document_title,
-            "tailscale_mesh": config.tailscale.tailnet,
+            "tailscale_mesh": getattr(getattr(config, "tailscale", None), "tailnet", ""),
             "sections_count": len(tree),
             "tree": tree,
         })
@@ -225,20 +236,8 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             return
         content = data["content"]
 
-        sec_dir = self.root_dir / "sections"
-        target_file = None
-        clean_id = section_id.removeprefix("sec_")
-        for p in sec_dir.glob("*.md"):
-            if p.stem == section_id or p.stem == clean_id:
-                target_file = p
-                break
-            if p.stem.startswith(f"{clean_id}_") or p.stem.startswith(f"{clean_id.zfill(2)}_"):
-                target_file = p
-                break
-
-        if not target_file:
-            target_file = sec_dir / f"{section_id}.md"
-
+        target_file = resolve_section_path(self.root_dir, section_id)
+        target_file.parent.mkdir(parents=True, exist_ok=True)
         target_file.write_text(content, encoding="utf-8")
         parser = MarkdownASTParser()
         words = parser.count_words(content)
@@ -280,10 +279,7 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             temp_md.write_text(data["markdown_text"], encoding="utf-8")
             input_file = temp_md
         elif data.get("section_id"):
-            sec_id = data["section_id"]
-            sec_dir = self.root_dir / "sections"
-            matches = list(sec_dir.glob(f"*{sec_id}*.md"))
-            input_file = matches[0] if matches else (sec_dir / f"{sec_id}.md")
+            input_file = resolve_section_path(self.root_dir, str(data["section_id"]))
         else:
             input_file = self.root_dir / "dist" / "full_manuscript.md"
             if not input_file.exists():
@@ -335,8 +331,13 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": True, "message": "Session state saved", "session": data})
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8765) -> ThreadingHTTPServer:
+def start_server(host: str = "0.0.0.0", port: int = 8765, workspace=None) -> ThreadingHTTPServer:
     """Starts the SynapseForge remote daemon HTTP server."""
-    server_address = (host, port)
-    httpd = ThreadingHTTPServer(server_address, SynapseForgeRemoteHandler)
+    root = Path(workspace).resolve() if workspace else Path.cwd()
+
+    class BoundHandler(SynapseForgeRemoteHandler):
+        workspace_root = root
+
+    httpd = ThreadingHTTPServer((host, port), BoundHandler)
+    httpd.workspace_root = root  # type: ignore[attr-defined]
     return httpd

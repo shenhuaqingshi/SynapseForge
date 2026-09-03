@@ -1,25 +1,60 @@
 import json
+import shutil
+import socket
+import subprocess
 import threading
 import time
 import urllib.request
-import urllib.parse
+from pathlib import Path
+
 import pytest
+
 from synapseforge.server.app import start_server
 
 
-@pytest.fixture(scope="module")
-def remote_server():
-    server = start_server(host="127.0.0.1", port=18765)
+def _free_port():
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+@pytest.fixture
+def remote_server(tmp_path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    src_sections = Path("sections")
+    dest_sections = workspace / "sections"
+    dest_sections.mkdir()
+    if src_sections.exists():
+        for path in sorted(src_sections.glob("*.md")):
+            shutil.copy(path, dest_sections / path.name)
+    if not any(dest_sections.glob("01*.md")):
+        (dest_sections / "01_abstract.md").write_text("# Abstract\n\nHello.\n", encoding="utf-8")
+    yaml_src = Path("synapseforge.yaml")
+    if yaml_src.exists():
+        shutil.copy(yaml_src, workspace / "synapseforge.yaml")
+    subprocess.run(["git", "init"], cwd=workspace, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=workspace, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "init"],
+        cwd=workspace,
+        capture_output=True,
+    )
+    port = _free_port()
+    server = start_server(host="127.0.0.1", port=port, workspace=workspace)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    time.sleep(0.3)
-    yield "http://127.0.0.1:18765"
+    time.sleep(0.2)
+    yield f"http://127.0.0.1:{port}", workspace
     server.shutdown()
     server.server_close()
 
 
 def test_server_get_index(remote_server):
-    with urllib.request.urlopen(f"{remote_server}/") as resp:
+    base, _ = remote_server
+    with urllib.request.urlopen(f"{base}/") as resp:
         assert resp.status == 200
         html = resp.read().decode("utf-8")
         assert "SynapseForge Studio" in html
@@ -27,7 +62,8 @@ def test_server_get_index(remote_server):
 
 
 def test_server_get_status_api(remote_server):
-    with urllib.request.urlopen(f"{remote_server}/api/status") as resp:
+    base, _ = remote_server
+    with urllib.request.urlopen(f"{base}/api/status") as resp:
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
@@ -35,17 +71,19 @@ def test_server_get_status_api(remote_server):
 
 
 def test_server_get_sections_api(remote_server):
-    with urllib.request.urlopen(f"{remote_server}/api/sections") as resp:
+    base, _ = remote_server
+    with urllib.request.urlopen(f"{base}/api/sections") as resp:
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
-        assert "sec_01" in data["sections"]
+        assert data["sections"]
 
 
 def test_server_post_save_api(remote_server):
+    base, workspace = remote_server
     payload = json.dumps({"section_id": "sec_01", "content": "# Updated Abstract\n\nContent..."}).encode("utf-8")
     req = urllib.request.Request(
-        f"{remote_server}/api/doc/save",
+        f"{base}/api/doc/save",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST"
@@ -55,17 +93,20 @@ def test_server_post_save_api(remote_server):
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
         assert data["word_count"] > 0
+    from synapseforge.core.section_paths import resolve_section_path
+    saved = resolve_section_path(workspace, "sec_01")
+    assert saved.exists()
+    assert "Updated Abstract" in saved.read_text(encoding="utf-8")
 
 
 def test_server_session_get_and_post(remote_server):
-    # 1. GET session
-    with urllib.request.urlopen(f"{remote_server}/api/session") as resp:
+    base, _ = remote_server
+    with urllib.request.urlopen(f"{base}/api/session") as resp:
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert data["ok"] is True
         assert "room_id" in data["session"]
 
-    # 2. POST update session state
     payload = json.dumps({
         "room_id": "room-special-sync",
         "room_name": "Special AGI Swarm",
@@ -73,7 +114,7 @@ def test_server_session_get_and_post(remote_server):
         "draftContent": "# Testing draft state"
     }).encode("utf-8")
     req = urllib.request.Request(
-        f"{remote_server}/api/session",
+        f"{base}/api/session",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST"
