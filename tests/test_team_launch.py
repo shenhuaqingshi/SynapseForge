@@ -1,10 +1,8 @@
-import json
 from pathlib import Path
 
 from synapseforge.core.team_bus import TeamBus
 from synapseforge.core.team_launch import (
     doctor,
-    install_mcp,
     launch_argv,
     launch_room,
     paste_prompt,
@@ -74,23 +72,6 @@ def test_launch_room_without_terminal_prints_prompts(tmp_path):
     assert "codex" in payload["paste_prompts"]
     assert "antigravity" in payload["paste_prompts"]
     assert payload["terminals"] == [] or isinstance(payload["terminals"], list)
-
-
-def test_install_mcp_does_not_clobber_agent_team(tmp_path):
-    grok_cfg = tmp_path / ".grok" / "config.toml"
-    grok_cfg.parent.mkdir(parents=True)
-    grok_cfg.write_text(
-        '[mcp_servers.agent_team]\ncommand = "/usr/bin/python3"\nenabled = true\n',
-        encoding="utf-8",
-    )
-    result = install_mcp(home=tmp_path)
-    text = grok_cfg.read_text(encoding="utf-8")
-    assert "[mcp_servers.agent_team]" in text
-    assert "[mcp_servers.synapseforge_team]" in text
-    assert 'command = "/usr/bin/python3"' in text
-    gemini = json.loads((tmp_path / ".gemini" / "antigravity" / "mcp_config.json").read_text(encoding="utf-8"))
-    assert "synapseforge_team" in gemini["mcpServers"]
-    assert result["ok"] is True
 
 
 def test_doctor_mcp_handshake(tmp_path, monkeypatch):

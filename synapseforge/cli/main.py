@@ -1391,10 +1391,6 @@ def main():
     p_team_doctor = team_subs.add_parser("doctor", help="Probe MCP handshake (NDJSON + Content-Length) and host CLI binaries")
     _team_common(p_team_doctor, room=False)
 
-    p_team_install = team_subs.add_parser("install-mcp", help="Write synapseforge_team MCP entries for Grok/Codex/Antigravity")
-    _team_common(p_team_install, room=False)
-    p_team_install.add_argument("--home", default=None, help="Override HOME when writing config files (tests)")
-
     # ==========================================
     # AGENT TOOLKIT COMMANDS (For AI Subagents)
     # ==========================================

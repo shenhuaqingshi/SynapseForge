@@ -49,7 +49,6 @@ synapseforge team open --document README.md --cwd . --launch --wait-join-seconds
 synapseforge team wait --room my-paper --agent grok --timeout 20 --json
 synapseforge team leave --room my-paper --agent grok --json
 synapseforge team doctor --json
-synapseforge team install-mcp
 
 # Join a seat
 synapseforge team join --room my-paper --agent grok --role reviewer --json

@@ -72,7 +72,7 @@ def test_paste_prompt_submitter_split():
     assert "only submitter" in agy
 
 
-def test_team_wait_leave_and_install_mcp(tmp_path):
+def test_team_wait_and_leave(tmp_path):
     doc = tmp_path / "brief.md"
     doc.write_text("# Brief\nWrite section 01.\n", encoding="utf-8")
     opened = _run(tmp_path, ["open", "--document", str(doc), "--room", "paper"])
@@ -88,12 +88,6 @@ def test_team_wait_leave_and_install_mcp(tmp_path):
     assert "coordinator_silent" in wait_data
     left = _run(tmp_path, ["leave", "--room", "paper", "--agent", "grok"])
     assert left.returncode == 0, left.stderr
-    home = tmp_path / "home"
-    home.mkdir()
-    installed = _run(tmp_path, ["install-mcp", "--home", str(home)])
-    assert installed.returncode == 0, installed.stderr
-    grok_cfg = (home / ".grok" / "config.toml").read_text(encoding="utf-8")
-    assert "[mcp_servers.synapseforge_team]" in grok_cfg
 
 
 def test_mcp_handshake_and_join(tmp_path):

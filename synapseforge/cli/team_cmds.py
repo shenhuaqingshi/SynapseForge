@@ -18,7 +18,6 @@ from synapseforge.core.team_bus import open_bus
 from synapseforge.core.team_launch import (
     CANONICAL_SEATS,
     doctor as run_doctor,
-    install_mcp,
     launch_room,
     paste_prompt,
 )
@@ -101,7 +100,6 @@ def handle_team(args):
         "wait": cmd_wait,
         "leave": cmd_leave,
         "doctor": cmd_doctor,
-        "install-mcp": cmd_install_mcp,
     }
     if action not in dispatch:
         fail(args, f"unknown team action: {action}")
@@ -428,11 +426,4 @@ def _format_doctor(result: Dict[str, Any]) -> str:
     )
 
 
-def cmd_install_mcp(args):
-    home = getattr(args, "home", None)
-    result = install_mcp(home=Path(home).expanduser() if home else None)
-    emit(
-        args,
-        result,
-        text="Updated MCP configs:\n" + "\n".join(result.get("updated") or []),
-    )
+

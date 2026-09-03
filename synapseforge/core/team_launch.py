@@ -237,87 +237,9 @@ def _ancestor_names(pid, depth=8):
     return names
 
 
-def _replace_toml_table(text: str, header: str, body: str) -> str:
-    lines = text.splitlines(keepends=True)
-    start = None
-    for i, line in enumerate(lines):
-        if line.strip() == header:
-            start = i
-            break
-    block = header + "\n" + body.rstrip() + "\n\n"
-    if start is None:
-        sep = "" if not text or text.endswith("\n") else "\n"
-        return text + sep + ("\n" if text.strip() else "") + block
-    end = len(lines)
-    for j in range(start + 1, len(lines)):
-        stripped = lines[j].strip()
-        if stripped.startswith("[") and not stripped.startswith("[."):
-            end = j
-            break
-    return "".join(lines[:start]) + block + "".join(lines[end:])
-
-
 def mcp_command() -> Tuple[str, List[str]]:
     python = sys.executable
     return python, ["-m", "synapseforge.mcp.server"]
-
-
-def install_mcp(home: Optional[Path] = None) -> Dict[str, Any]:
-    """Write [mcp_servers.synapseforge_team] into Grok / Codex / Gemini configs.
-
-    Does not overwrite an existing ``agent_team`` server entry.
-    """
-    home = Path(home or os.environ.get("HOME") or Path.home()).expanduser()
-    python, args = mcp_command()
-    grok_config = home / ".grok" / "config.toml"
-    codex_config = home / ".codex" / "config.toml"
-    gemini_config = home / ".gemini" / "antigravity" / "mcp_config.json"
-
-    grok_body = (
-        "command = %s\n"
-        "args = %s\n"
-        "enabled = true\n"
-        "startup_timeout_sec = 20\n"
-        % (json.dumps(python), json.dumps(args))
-    )
-    grok_config.parent.mkdir(parents=True, exist_ok=True)
-    grok_text = grok_config.read_text(encoding="utf-8") if grok_config.exists() else ""
-    grok_config.write_text(_replace_toml_table(grok_text, "[mcp_servers.synapseforge_team]", grok_body), encoding="utf-8")
-
-    codex_body = (
-        "command = %s\n"
-        "args = %s\n"
-        'default_tools_approval_mode = "auto"\n'
-        'env_vars = ["SYNAPSEFORGE_ROOM", "SYNAPSEFORGE_TEAM_DB", "SYNAPSEFORGE_SESSION", "SYNAPSEFORGE_WORKSPACE"]\n'
-        "enabled = true\n"
-        "startup_timeout_sec = 20\n"
-        % (json.dumps(python), json.dumps(args))
-    )
-    codex_config.parent.mkdir(parents=True, exist_ok=True)
-    codex_text = codex_config.read_text(encoding="utf-8") if codex_config.exists() else ""
-    codex_config.write_text(_replace_toml_table(codex_text, "[mcp_servers.synapseforge_team]", codex_body), encoding="utf-8")
-
-    gemini: Dict[str, Any] = {"mcpServers": {}}
-    if gemini_config.exists():
-        try:
-            gemini = json.loads(gemini_config.read_text(encoding="utf-8")) or gemini
-        except json.JSONDecodeError:
-            gemini = {"mcpServers": {}}
-    gemini.setdefault("mcpServers", {})
-    gemini["mcpServers"]["synapseforge_team"] = {
-        "command": python,
-        "args": args,
-        "trust": True,
-    }
-    gemini_config.parent.mkdir(parents=True, exist_ok=True)
-    gemini_config.write_text(json.dumps(gemini, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-    return {
-        "ok": True,
-        "python": python,
-        "args": args,
-        "updated": [str(grok_config), str(codex_config), str(gemini_config)],
-    }
 
 
 def _mcp_handshake(mode: str, timeout: float = 4.0, env: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
