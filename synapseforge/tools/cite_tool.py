@@ -17,6 +17,47 @@ from typing import Any, Dict, List, Optional, Set
 from synapseforge.core.ast_parser import MarkdownASTParser
 
 
+def _bib_field(body: str, name: str) -> str:
+    """Read a BibTeX field, keeping quoted titles and nested braces intact."""
+    match = re.search(rf"{re.escape(name)}\s*=\s*", body, re.IGNORECASE)
+    if not match:
+        return ""
+    rest = body[match.end():].lstrip()
+    if rest.startswith("{"):
+        depth = 0
+        for i, ch in enumerate(rest):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return rest[1:i].strip()
+        return rest[1:].strip()
+    if rest.startswith('"'):
+        escape = False
+        chars = []
+        for ch in rest[1:]:
+            if escape:
+                chars.append(ch)
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                return "".join(chars).strip()
+            chars.append(ch)
+        return "".join(chars).strip()
+    token = re.match(r"([^,}\s]+)", rest)
+    return token.group(1).strip() if token else ""
+
+
+def _bib_year(body: str) -> str:
+    value = _bib_field(body, "year")
+    year = re.search(r"(\d{4})", value)
+    return year.group(1) if year else ""
+
+
 class CiteTool:
     """Manages BibTeX citations, DOI lookups, CrossRef search, and citation graph references."""
 
@@ -38,19 +79,13 @@ class CiteTool:
             cite_key = match.group(2)
             body = match.group(3)
 
-            # Extract title, author, year, journal if present
-            title_match = re.search(r'title\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
-            author_match = re.search(r'author\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
-            year_match = re.search(r'year\s*=\s*[\{"]?(\d{4})[\}"]?', body, re.IGNORECASE)
-            journal_match = re.search(r'(?:journal|booktitle)\s*=\s*[\{"](.*?)[\}"]', body, re.IGNORECASE)
-
             entries.append({
                 "key": cite_key,
                 "type": entry_type,
-                "title": title_match.group(1).strip() if title_match else "",
-                "author": author_match.group(1).strip() if author_match else "",
-                "year": year_match.group(1).strip() if year_match else "",
-                "journal": journal_match.group(1).strip() if journal_match else "",
+                "title": _bib_field(body, "title"),
+                "author": _bib_field(body, "author"),
+                "year": _bib_year(body),
+                "journal": _bib_field(body, "journal") or _bib_field(body, "booktitle"),
                 "raw": match.group(0),
             })
         return entries

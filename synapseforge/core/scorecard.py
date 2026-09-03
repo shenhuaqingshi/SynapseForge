@@ -6,6 +6,7 @@ and structural compliance metrics across all document sections, with visual HTML
 
 from __future__ import annotations
 
+import html
 import math
 import re
 from pathlib import Path
@@ -173,7 +174,7 @@ class QualityScorecard:
             clean_badge = '<span class="badge green">Pass</span>' if s["anti_ai_clean"] else '<span class="badge red">Warning</span>'
             sec_rows.append(f"""
             <tr>
-              <td><strong>{s['file']}</strong></td>
+              <td><strong>{html.escape(str(s['file']))}</strong></td>
               <td>{s['words']:,}</td>
               <td>{s['citations']}</td>
               <td>{s['math_equations']}</td>
@@ -191,10 +192,10 @@ class QualityScorecard:
                 sev_cls = "red" if iss["severity"] == "error" else "yellow"
                 issues_html.append(f"""
                 <div class="issue-item">
-                  <span class="badge {sev_cls}">{iss['severity'].upper()}</span>
-                  <span class="issue-file">{iss['file']}:{iss['line']}</span>
-                  <span class="issue-linter">[{iss['linter']}]</span>
-                  <span class="issue-msg">{iss['message']}</span>
+                  <span class="badge {sev_cls}">{html.escape(str(iss['severity']).upper())}</span>
+                  <span class="issue-file">{html.escape(str(iss['file']))}:{html.escape(str(iss['line']))}</span>
+                  <span class="issue-linter">[{html.escape(str(iss['linter']))}]</span>
+                  <span class="issue-msg">{html.escape(str(iss['message']))}</span>
                 </div>
                 """)
 

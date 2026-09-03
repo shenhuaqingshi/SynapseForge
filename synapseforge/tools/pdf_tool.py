@@ -243,6 +243,36 @@ class PDFTool:
         md = re.sub(r'\*\*([^*]+)\*\*', r'*\1*', md)
         return md
 
+    @staticmethod
+    def _convert_markdown_headings_to_typst(md: str) -> str:
+        """Convert ATX headings at line start only. Do not rewrite inline ``# `` (C#, issue # 12)."""
+        fences: list[str] = []
+
+        def _stash(match: re.Match) -> str:
+            fences.append(match.group(0))
+            return "<<<SFCODE%d>>>" % (len(fences) - 1)
+
+        protected = re.sub(r"```[\s\S]*?```", _stash, md)
+        protected = re.sub(r"(?m)^### ", "=== ", protected)
+        protected = re.sub(r"(?m)^## ", "== ", protected)
+        protected = re.sub(r"(?m)^# ", "= ", protected)
+        for i, block in enumerate(fences):
+            protected = protected.replace("<<<SFCODE%d>>>" % i, block)
+        return protected
+
+    @staticmethod
+    def _find_bibliography(markdown_path: Path) -> Optional[Path]:
+        """Prefer a .bib next to the manuscript or its parent workspace, not an unrelated cwd file."""
+        markdown_path = Path(markdown_path)
+        for candidate in (
+            markdown_path.parent / "bibliography.bib",
+            markdown_path.parent.parent / "bibliography.bib",
+            Path.cwd() / "bibliography.bib",
+        ):
+            if candidate.is_file():
+                return candidate
+        return None
+
     def compile_markdown_to_pdf(
         self,
         markdown_path: Path,
@@ -260,14 +290,12 @@ class PDFTool:
         typst_content = self._convert_latex_math_to_typst(raw_md)
         typst_content = self._convert_markdown_tables_to_typst(typst_content)
         typst_content = self._convert_markdown_emphasis_to_typst(typst_content)
-        typst_content = typst_content.replace("### ", "=== ")
-        typst_content = typst_content.replace("## ", "== ")
-        typst_content = typst_content.replace("# ", "= ")
+        typst_content = self._convert_markdown_headings_to_typst(typst_content)
 
         # If bibliography exists and document has citations, link it
         has_citations = bool(re.search(r'(?<![\w.@])@[a-zA-Z0-9_\-]+', raw_md))
-        bib_file = Path.cwd() / "bibliography.bib"
-        if has_citations and bib_file.exists():
+        bib_file = self._find_bibliography(markdown_path)
+        if has_citations and bib_file is not None and bib_file.exists():
             try:
                 shutil.copy(bib_file, output_pdf.parent / "bibliography.bib")
                 typst_content += '\n\n#bibliography("bibliography.bib", title: "参考文献", style: "ieee")\n'
