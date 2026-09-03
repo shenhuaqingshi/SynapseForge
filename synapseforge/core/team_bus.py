@@ -628,6 +628,7 @@ class TeamBus:
                 "INSERT INTO messages(room,sender,kind,body,created_at) VALUES(?,?,?,?,?)",
                 (room, agent, "system", "Claimed task #%d: %s" % (row["id"], row["title"]), now),
             )
+            self._heartbeat(conn, room, agent)
             updated = conn.execute("SELECT * FROM tasks WHERE id=?", (int(task_id),)).fetchone()
         return self._decode_task(updated)
 
@@ -662,6 +663,7 @@ class TeamBus:
             self._assert_seat(conn, room, agent)
             paths = self._normalize_lock_paths(conn, room, paths)
             normalized = self._acquire_locks(conn, room, agent, paths, task_id, lock_minutes)
+            self._heartbeat(conn, room, agent)
         return {"room": room, "agent": agent, "paths": normalized, "lock_minutes": min(max(1, int(lock_minutes)), 240)}
 
     def unlock_files(self, room, agent, paths=None):
@@ -677,6 +679,7 @@ class TeamBus:
                 )
             else:
                 cur = conn.execute("DELETE FROM file_locks WHERE room=? AND agent=?", (room, agent))
+            self._heartbeat(conn, room, agent)
         return {"unlocked": cur.rowcount}
 
     def update_task(self, room, agent, task_id, status, result=""):
@@ -702,6 +705,7 @@ class TeamBus:
                 "INSERT INTO messages(room,sender,kind,body,created_at) VALUES(?,?,?,?,?)",
                 (room, agent, "system", "Task #%d -> %s%s" % (int(task_id), status, (": " + result) if result else ""), now),
             )
+            self._heartbeat(conn, room, agent)
             updated = conn.execute("SELECT * FROM tasks WHERE id=?", (int(task_id),)).fetchone()
         return self._decode_task(updated)
 
@@ -862,7 +866,7 @@ class TeamBus:
             row = conn.execute(
                 "SELECT * FROM action_claims WHERE room=? AND action_key=?", (room, action_key)
             ).fetchone()
-            if row and row["session_id"] != self.session_id and row["expires_at"] > now_epoch:
+            if row and row["expires_at"] > now_epoch and row["agent"] != agent:
                 raise ValueError(
                     "action already claimed by %s until %s: %s" % (row["agent"], row["expires_at"], action_key)
                 )
@@ -905,3 +909,24 @@ class TeamBus:
                     "coordinator_silent": bool(status.get("coordinator_silent")),
                 }
             time.sleep(0.5)
+
+    def leave(self, room, agent):
+        """Mark this session's seat offline and drop its file locks."""
+        agent = _validate_label(agent, "agent", 80)
+        now = utc_now()
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            self._assert_seat(conn, room, agent)
+            dropped = conn.execute(
+                "DELETE FROM file_locks WHERE room=? AND agent=?", (room, agent)
+            ).rowcount
+            conn.execute(
+                """UPDATE participants SET status='offline', last_seen=?
+                   WHERE room=? AND agent=? AND (session_id=? OR session_id='' OR session_id IS NULL)""",
+                (now, room, agent, self.session_id),
+            )
+            conn.execute(
+                "INSERT INTO messages(room,sender,kind,body,created_at) VALUES(?,?,?,?,?)",
+                (room, agent, "system", "%s left the room" % agent, now),
+            )
+        return {"ok": True, "room": room, "agent": agent, "status": "offline", "unlocked": dropped}

@@ -1370,12 +1370,30 @@ def main():
     p_team_open.add_argument("--room", default=None, help="Room name (resumes live workspace room if omitted)")
     p_team_open.add_argument("--objective", default="")
     p_team_open.add_argument("--new-room", dest="new_room", action="store_true", help="Do not resume an existing live room")
+    p_team_open.add_argument("--launch", action="store_true", help="Open macOS Terminal.app seats for Codex/Grok/Antigravity")
+    p_team_open.add_argument("--skip-agents", dest="skip_agents", default="", help="Comma-separated seats not to launch")
+    p_team_open.add_argument("--wait-join-seconds", dest="wait_join_seconds", type=int, default=0, help="Seconds to wait for launched seats to team_join")
 
     p_team_paste = team_subs.add_parser("paste-prompts", help="Print join prompts for Codex/Grok/Antigravity")
     _team_common(p_team_paste)
 
     p_team_mcp = team_subs.add_parser("mcp", help="Run the stdio MCP server for host Agent CLIs")
     _team_common(p_team_mcp)
+
+    p_team_wait = team_subs.add_parser("wait", help="Wait for room messages; reports coordinator_silent and stale locks")
+    _team_common(p_team_wait, agent=True)
+    p_team_wait.add_argument("--after-id", dest="after_id", type=int, default=0)
+    p_team_wait.add_argument("--timeout", type=int, default=20)
+
+    p_team_leave = team_subs.add_parser("leave", help="Leave a seat, drop this agent's locks, mark offline")
+    _team_common(p_team_leave, agent=True)
+
+    p_team_doctor = team_subs.add_parser("doctor", help="Probe MCP handshake (NDJSON + Content-Length) and host CLI binaries")
+    _team_common(p_team_doctor, room=False)
+
+    p_team_install = team_subs.add_parser("install-mcp", help="Write synapseforge_team MCP entries for Grok/Codex/Antigravity")
+    _team_common(p_team_install, room=False)
+    p_team_install.add_argument("--home", default=None, help="Override HOME when writing config files (tests)")
 
     # ==========================================
     # AGENT TOOLKIT COMMANDS (For AI Subagents)

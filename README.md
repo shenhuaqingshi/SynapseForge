@@ -218,6 +218,12 @@ When Codex, Grok Build, and Antigravity share one workspace, GitHub Issues are t
 # Create a room and print paste-prompts for each host CLI
 synapseforge team open --document README.md --cwd . --json
 
+# Open Codex / Grok / Antigravity Terminal.app seats (host seat is skipped)
+synapseforge team open --document README.md --cwd . --launch --wait-join-seconds 20 --json
+synapseforge team wait --room my-paper --agent grok --timeout 20 --json
+synapseforge team doctor --json
+synapseforge team install-mcp
+
 # Each CLI joins a unique seat (codex / grok / antigravity)
 synapseforge team join --room my-paper --agent grok --json
 
