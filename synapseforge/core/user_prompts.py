@@ -7,6 +7,7 @@ their own custom agent personas, prompts, and model assignments.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -64,6 +65,8 @@ class UserPromptManager:
     ) -> Dict[str, Any]:
         """User sets or updates a custom agent role and its system prompt."""
         role_id = role_id.strip().lower().replace(" ", "_")
+        if not re.fullmatch(r"[a-z0-9_\-]+", role_id or ""):
+            return {"ok": False, "error": f"Invalid role_id '{role_id}'"}
         prompt_file = self.prompts_dir / f"{role_id}.md"
         prompt_file.write_text(prompt_content, encoding="utf-8")
 
@@ -88,6 +91,8 @@ class UserPromptManager:
     def get_prompt(self, role_id: str) -> Optional[str]:
         """Fetches the user's custom system prompt for an agent role."""
         role_id = role_id.strip().lower().replace(" ", "_")
+        if not re.fullmatch(r"[a-z0-9_\-]+", role_id or ""):
+            return None
         prompt_file = self.prompts_dir / f"{role_id}.md"
         if prompt_file.exists():
             return prompt_file.read_text(encoding="utf-8")
@@ -120,6 +125,8 @@ class UserPromptManager:
     def delete_prompt(self, role_id: str) -> bool:
         """Deletes a custom user prompt."""
         role_id = role_id.strip().lower().replace(" ", "_")
+        if not re.fullmatch(r"[a-z0-9_\-]+", role_id or ""):
+            return False
         prompt_file = self.prompts_dir / f"{role_id}.md"
         if prompt_file.exists():
             prompt_file.unlink()
