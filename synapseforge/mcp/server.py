@@ -298,7 +298,17 @@ def call_tool(store, name, args):
     if name == "team_semantic_diff":
         differ = SemanticASTDiffer()
         if "file_a" in args and "file_b" in args:
-            res = differ.diff_files(args["file_a"], args["file_b"])
+            root = Path(os.environ.get("SYNAPSEFORGE_WORKSPACE") or os.getcwd()).expanduser().resolve()
+            files = []
+            for raw in (args["file_a"], args["file_b"]):
+                candidate = Path(str(raw)).expanduser()
+                if not candidate.is_absolute():
+                    candidate = root / candidate
+                resolved = candidate.resolve()
+                if resolved != root and not resolved.is_relative_to(root):
+                    raise ValueError("semantic diff path is outside the workspace: %s" % resolved)
+                files.append(str(resolved))
+            res = differ.diff_files(files[0], files[1])
         else:
             res = differ.diff_texts(args.get("text_a", ""), args.get("text_b", ""), "Doc A", "Doc B")
         return {"ok": True, "diff": res.to_dict()}
