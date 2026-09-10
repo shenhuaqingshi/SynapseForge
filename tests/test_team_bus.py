@@ -189,3 +189,35 @@ def test_open_bus_uses_workspace_db(tmp_path):
     assert bus.db_path == expected
     bus.join("paper", "human", "author", workspace=str(tmp_path))
     assert expected.exists()
+
+
+def test_unlock_relative_path_uses_workspace(bus_env):
+    store, doc, tmp_path = bus_env
+    store.join("demo", "codex", "lead", workspace=str(tmp_path))
+    store.lock_files("demo", "codex", [doc.name])
+    assert store.status("demo")["file_locks"]
+    unlocked = store.unlock_files("demo", "codex", [doc.name])
+    assert unlocked["unlocked"] == 1
+    assert store.status("demo")["file_locks"] == []
+
+
+def test_share_document_rejects_path_outside_workspace(bus_env, tmp_path):
+    store, _, workspace = bus_env
+    store.join("demo", "codex", "lead", workspace=str(workspace))
+    outside = tmp_path.parent / f"sf_secret_{tmp_path.name}.txt"
+    outside.write_text("secret\n", encoding="utf-8")
+    try:
+        with pytest.raises(ValueError, match="outside the room workspace"):
+            store.share_document("demo", "codex", str(outside))
+    finally:
+        outside.unlink(missing_ok=True)
+
+
+def test_claim_task_relative_files_stay_in_workspace(bus_env):
+    store, doc, tmp_path = bus_env
+    store.join("demo", "grok", "review", workspace=str(tmp_path))
+    task = store.create_task("demo", "grok", "Edit brief", files=[doc.name])
+    claimed = store.claim_task("demo", "grok", task["id"])
+    assert claimed["assignee"] == "grok"
+    locks = store.status("demo")["file_locks"]
+    assert any(Path(lock["path"]).resolve() == doc.resolve() for lock in locks)
