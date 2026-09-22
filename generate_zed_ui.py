@@ -444,27 +444,27 @@ ui_code = """<!DOCTYPE html>
     const SECTIONS = {
       sec_01: {
         name: "01_abstract_introduction.md",
-        content: `# 1. 引言与宏观背景\n\n在现代大规模分布式系统与自主智能体演进的交汇点，多智能体协同生产学术论著面临着由网络分区时延、语义分歧扩散以及缺乏中心化裁决机制引发的核心瓶颈。传统基于静态提示词或简单上下文拼接的多 Agent 系统，在长程复杂论证中极易退化为相互覆盖与流水账式的机械罗列 @vaswani2017attention。\n\n为克服上述困境，本文提出了 **SynapseForge**——一个深度融合 GitOps 不可变状态机、Tailscale P2P WireGuard 加密网格通信与 AST 语法树级语义冲突消解的分布式多智能体协作框架。通过将文档状态空间投影为高维有向无环图，系统在数学上保障了跨地域并发写入的最终一致性与学术规范严谨性。`
+        content: `# 1. 引言与宏观背景\\n\\n在现代大规模分布式系统与自主智能体演进的交汇点，多智能体协同生产学术论著面临着由网络分区时延、语义分歧扩散以及缺乏中心化裁决机制引发的核心瓶颈。传统基于静态提示词或简单上下文拼接的多 Agent 系统，在长程复杂论证中极易退化为相互覆盖与流水账式的机械罗列 @vaswani2017attention。\\n\\n为克服上述困境，本文提出了 **SynapseForge**——一个深度融合 GitOps 不可变状态机、Tailscale P2P WireGuard 加密网格通信与 AST 语法树级语义冲突消解的分布式多智能体协作框架。通过将文档状态空间投影为高维有向无环图，系统在数学上保障了跨地域并发写入的最终一致性与学术规范严谨性。`
       },
       sec_02: {
         name: "02_theoretical_foundations.md",
-        content: `# 2. 理论基石与形式化定义\n\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\mathcal{D}$ 由有序章节集合 $\\mathcal{S} = \\{s_1, s_2, \\dots, s_n\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\mathcal{S}, \\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\n\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\mathcal{O}(M \\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\n\n$$ \\mathcal{T}(\\mathcal{D}) = \\left( \\mathcal{V}_{\\text{frontmatter}}, \\mathcal{V}_{\\text{heading}}, \\mathcal{V}_{\\text{body}}, \\mathcal{E}_{\\hier} \\right) $$\n\n两份候选分支 $\\mathcal{D}_{\\text{ours}}$ 与 $\\mathcal{D}_{\\text{theirs}}$ 相对于基准版本 $\\mathcal{D}_{\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\n\n$$ \\Delta \\mathcal{T} = \\sum_{k=1}^{|\\mathcal{V}|} \\mathbf{w}_k \\cdot | \\phi_{\\text{ours}}(v_k) - \\phi_{\\text{theirs}}(v_k) |^2 $$`
+        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\\\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\\\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\\\mathcal{T}(\\\\mathcal{D}) = \\\\left( \\\\mathcal{V}_{\\\\text{frontmatter}}, \\\\mathcal{V}_{\\\\text{heading}}, \\\\mathcal{V}_{\\\\text{body}}, \\\\mathcal{E}_{\\\\text{hier}} \\\\right) $$\\n\\n两份候选分支 $\\\\mathcal{D}_{\\\\text{ours}}$ 与 $\\\\mathcal{D}_{\\\\text{theirs}}$ 相对于基准版本 $\\\\mathcal{D}_{\\\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\\\Delta \\\\mathcal{T} = \\\\sum_{k=1}^{|\\\\mathcal{V}|} \\\\mathbf{w}_k \\\\cdot | \\\\phi_{\\\\text{ours}}(v_k) - \\\\phi_{\\\\text{theirs}}(v_k) |^2 $$`
       },
       sec_03: {
         name: "03_system_architecture.md",
-        content: `# 3. 系统架构与网络传输\n\nSynapseForge 系统架构划分为物理网络层、分布式状态账本层与多智能体执行层三级垂直栈。在物理网络层，系统依托 Tailscale 提供的 WireGuard P2P 隧道建立全球点对点网状拓扑，节点间直接通过 UDP 通信，完全规避了传统中心化中继服务器单点故障与数据泄露风险。\n\n状态账本层通过 GitOps 原语维护不可变版本树，每一个段落块的增删改均被封装为原子化的 Git 快照提交。各节点通过轻量级心跳与租约机制（Section Lease）协同工作，租约超时自动回滚，确保了在极端网络抖动条件下的鲁棒性。`
+        content: `# 3. 系统架构与网络传输\\n\\nSynapseForge 系统架构划分为物理网络层、分布式状态账本层与多智能体执行层三级垂直栈。在物理网络层，系统依托 Tailscale 提供的 WireGuard P2P 隧道建立全球点对点网状拓扑，节点间直接通过 UDP 通信，完全规避了传统中心化中继服务器单点故障与数据泄露风险。\\n\\n状态账本层通过 GitOps 原语维护不可变版本树，每一个段落块的增删改均被封装为原子化的 Git 快照提交。各节点通过轻量级心跳与租约机制（Section Lease）协同工作，租约超时自动回滚，确保了在极端网络抖动条件下的鲁棒性。`
       },
       sec_04: {
         name: "04_conflict_resolution.md",
-        content: `# 4. 语义冲突消解与质量门禁\n\n当不同地域的 Agent 产生并发修改时，系统调用语义 AST 3-Way 消解引擎。定理 1（无冲突收敛性）：若两分支的修改集合在其语法树投影空间中满足正交性，则存在唯一的保序合并状态 $\\mathcal{D}^*$。\n\n$$ \\Delta(\\mathcal{D}_{\\text{ours}}) \\cap \\Delta(\\mathcal{D}_{\\text{theirs}}) \\subseteq \\mathcal{V}_{\\text{disjoint}} $$\n\n| 消解策略 | 适用场景 | 算法复杂度 | 成功率 |\n|---|---|---|---|\n| 拓扑并集 (Union) | 非重叠段落与新增章节 | $\\mathcal{O}(|\\mathcal{V}|)$ | 100.0% |\n| 语义调和 (Harmonize) | 同章节公式与数据交叉补充 | $\\mathcal{O}(|\\mathcal{V}| \\log |\\mathcal{V}|)$ | 98.4% |\n| 形式化裁决 (Arbitrate) | 核心定理假设冲突 | $\\mathcal{O}(1)$ 人工介入 | 100.0% |\n\n此外，系统内置严苛的 Anti-AI 质量门禁，实时扫描词汇表中的空泛套话与流水账机械分点，强制将所有分析论述转化为高信息密度的专业长文散文体。`
+        content: `# 4. 语义冲突消解与质量门禁\\n\\n当不同地域的 Agent 产生并发修改时，系统调用语义 AST 3-Way 消解引擎。定理 1（无冲突收敛性）：若两分支的修改集合在其语法树投影空间中满足正交性，则存在唯一的保序合并状态 $\\\\mathcal{D}^*$。\\n\\n$$ \\\\Delta(\\\\mathcal{D}_{\\\\text{ours}}) \\\\cap \\\\Delta(\\\\mathcal{D}_{\\\\text{theirs}}) \\\\subseteq \\\\mathcal{V}_{\\\\text{disjoint}} $$\\n\\n| 消解策略 | 适用场景 | 算法复杂度 | 成功率 |\\n|---|---|---|---|\\n| 拓扑并集 (Union) | 非重叠段落与新增章节 | $\\\\mathcal{O}(|\\\\mathcal{V}|)$ | 100.0% |\\n| 语义调和 (Harmonize) | 同章节公式与数据交叉补充 | $\\\\mathcal{O}(|\\\\mathcal{V}| \\\\log |\\\\mathcal{V}|)$ | 98.4% |\\n| 形式化裁决 (Arbitrate) | 核心定理假设冲突 | $\\\\mathcal{O}(1)$ 人工介入 | 100.0% |\\n\\n此外，系统内置严苛的 Anti-AI 质量门禁，实时扫描词汇表中的空泛套话与流水账机械分点，强制将所有分析论述转化为高信息密度的专业长文散文体。`
       },
       sec_05: {
         name: "05_empirical_benchmarks.md",
-        content: `# 5. 实证基准测试与性能评估\n\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\n\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升。`
+        content: `# 5. 实证基准测试与性能评估\\n\\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\\n\\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升。`
       },
       sec_06: {
         name: "06_conclusion.md",
-        content: `# 6. 结论与未来展望\n\n本文提出并实现了 SynapseForge，一个面向跨地域多智能体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
+        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多智能体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
       }
     };
 
@@ -477,19 +477,19 @@ ui_code = """<!DOCTYPE html>
         id: "drafter",
         name: "Drafter Agent (学术起草专家)",
         model: "deepseek-v3",
-        prompt: `# Role: Senior Academic Drafter\n\n## Writing Principles\n1. Zero AI Clichés\n2. Dense Narrative Prose (150-300 words per paragraph)\n3. KaTeX Equations & Booktabs Tables`
+        prompt: `# Role: Senior Academic Drafter\\n\\n## Writing Principles\\n1. Zero AI Clichés\\n2. Dense Narrative Prose (150-300 words per paragraph)\\n3. KaTeX Equations & Booktabs Tables`
       },
       critic: {
         id: "critic",
         name: "Critic Agent (严苛审稿专家)",
         model: "deepseek-reasoner",
-        prompt: `# Role: Adversarial Peer Reviewer\n\n## Audit Checklist\n1. Flag hollow phrases\n2. Check bibliography references @citekey\n3. Verify math proof bounds`
+        prompt: `# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag hollow phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds`
       },
       harmonizer: {
         id: "harmonizer",
         name: "Harmonizer Agent (多方案调和官)",
         model: "deepseek-v3",
-        prompt: `# Role: Multi-Variant Harmonizer\n\n## Principles\n1. Reconcile tone differences\n2. Fuse mathematical and empirical variants\n3. Deduplicate bibliography keys`
+        prompt: `# Role: Multi-Variant Harmonizer\\n\\n## Principles\\n1. Reconcile tone differences\\n2. Fuse mathematical and empirical variants\\n3. Deduplicate bibliography keys`
       }
     };
 
@@ -503,7 +503,7 @@ ui_code = """<!DOCTYPE html>
         document.getElementById('modal-role-id').value = item.id;
         document.getElementById('modal-display-name').value = item.name;
         document.getElementById('modal-model').value = item.model;
-        document.getElementById('modal-prompt-content').value = item.prompt.replace(/\\n/g, '\n');
+        document.getElementById('modal-prompt-content').value = item.prompt.replace(/\\\\n/g, '\\n');
       } else {
         document.getElementById('modal-role-id').value = '';
         document.getElementById('modal-display-name').value = '';
@@ -548,7 +548,7 @@ ui_code = """<!DOCTYPE html>
       }).catch(() => {});
 
       closePromptModal();
-      showNetworkToast(`✓ 已成功保存用户自定义提示词 prompts/\${roleId}.md`);
+      showNetworkToast(`✓ 已成功保存用户自定义提示词 prompts/\\${roleId}.md`);
     }
 
     function parseMarkdownToHTML(md) {
@@ -559,15 +559,15 @@ ui_code = """<!DOCTYPE html>
       const inlineMath = [];
 
       // Extract display math $$ ... $$
-      html = html.replace(/\$\$([\s\S]*?)\$\$/g, function(match, math) {
+      html = html.replace(/\\$\\$([\\s\\S]*?)\\$\\$/g, function(match, math) {
         displayMath.push(math.trim());
-        return `%%%DISPLAY_MATH_\${displayMath.length - 1}%%%`;
+        return `%%%DISPLAY_MATH_\\${displayMath.length - 1}%%%`;
       });
 
       // Extract inline math $ ... $
-      html = html.replace(/(?<!\$)\$(?!\$)([^\$\n]+)\$(?!\$)/g, function(match, math) {
+      html = html.replace(/(?<!\\$)\\$(?!\\$)([^\\$\\n]+)\\$(?!\\$)/g, function(match, math) {
         inlineMath.push(math.trim());
-        return `%%%INLINE_MATH_\${inlineMath.length - 1}%%%`;
+        return `%%%INLINE_MATH_\\${inlineMath.length - 1}%%%`;
       });
 
       // Headings
@@ -576,11 +576,11 @@ ui_code = """<!DOCTYPE html>
       html = html.replace(/^### (.*$)/gim, '<h3 class="text-sm font-semibold text-zinc-800 mt-3 mb-1 font-sans">$1</h3>');
 
       // Bold & Italic
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-zinc-900">$1</strong>');
-      html = html.replace(/\*(.*?)\*/g, '<em class="italic text-zinc-700">$1</em>');
+      html = html.replace(/\\*\\*(.*?)\\*\\*/g, '<strong class="font-bold text-zinc-900">$1</strong>');
+      html = html.replace(/\\*(.*?)\\*/g, '<em class="italic text-zinc-700">$1</em>');
 
       // Tables
-      const lines = html.split('\n');
+      const lines = html.split('\\n');
       let inTable = false;
       let tableRows = [];
       let newLines = [];
@@ -606,26 +606,26 @@ ui_code = """<!DOCTYPE html>
       if (inTable) {
         newLines.push(buildBooktabsTable(tableRows));
       }
-      html = newLines.join('\n');
+      html = newLines.join('\\n');
 
       // Paragraphs
-      html = html.split('\n\n').map(para => {
+      html = html.split('\\n\\n').map(para => {
         para = para.trim();
         if (!para) return '';
         if (para.startsWith('<h') || para.startsWith('<table') || para.startsWith('<div')) {
           return para;
         }
-        return `<p class="indent-8 text-zinc-800 my-2 leading-[1.65]">\${para}</p>`;
-      }).join('\n\n');
+        return `<p class="indent-8 text-zinc-800 my-2 leading-[1.65]">\\${para}</p>`;
+      }).join('\\n\\n');
 
       // Restore inline math
-      html = html.replace(/%%%INLINE_MATH_(\d+)%%%/g, function(match, idx) {
-        return `$\${inlineMath[idx]}$`;
+      html = html.replace(/%%%INLINE_MATH_(\\d+)%%%/g, function(match, idx) {
+        return `$\\${inlineMath[idx]}$`;
       });
 
       // Restore display math
-      html = html.replace(/%%%DISPLAY_MATH_(\d+)%%%/g, function(match, idx) {
-        return `$$\${displayMath[idx]}$$`;
+      html = html.replace(/%%%DISPLAY_MATH_(\\d+)%%%/g, function(match, idx) {
+        return `$$\\${displayMath[idx]}$$`;
       });
 
       return html;
@@ -638,7 +638,7 @@ ui_code = """<!DOCTYPE html>
       const headerCols = rows[0].split('|').filter(c => c.trim().length > 0);
       tableHtml += '<thead><tr class="bg-zinc-50">';
       headerCols.forEach(c => {
-        tableHtml += `<th>\${c.trim()}</th>`;
+        tableHtml += `<th>\\${c.trim()}</th>`;
       });
       tableHtml += '</tr></thead><tbody>';
 
@@ -646,7 +646,7 @@ ui_code = """<!DOCTYPE html>
         const cols = rows[i].split('|').filter(c => c.trim().length > 0);
         tableHtml += '<tr>';
         cols.forEach(c => {
-          tableHtml += `<td>\${c.trim()}</td>`;
+          tableHtml += `<td>\\${c.trim()}</td>`;
         });
         tableHtml += '</tr>';
       }
@@ -660,9 +660,9 @@ ui_code = """<!DOCTYPE html>
       const text = editor.value;
 
       // Count words
-      const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-      const latin = (text.match(/[a-zA-Z0-9_\\-]+/g) || []).length;
-      document.getElementById('word-count-badge').innerText = `\${cjk + latin} words`;
+      const cjk = (text.match(/[\\u4e00-\\u9fff]/g) || []).length;
+      const latin = (text.match(/[a-zA-Z0-9_\\\\-]+/g) || []).length;
+      document.getElementById('word-count-badge').innerText = `\\${cjk + latin} words`;
 
       // Render Markdown HTML
       preview.innerHTML = parseMarkdownToHTML(text);
@@ -725,9 +725,9 @@ ui_code = """<!DOCTYPE html>
 
         cursorBadge.classList.remove('hidden');
         cursorBadge.classList.add('flex');
-        cursorBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping"></span><span>Following @\${agentRole.toUpperCase()} (Auto-scrolling viewport)</span>`;
+        cursorBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping"></span><span>Following @\\${agentRole.toUpperCase()} (Auto-scrolling viewport)</span>`;
 
-        showNetworkToast(`🎯 Zed 跟随模式激活：正在同步跟随 @\${agentRole.toUpperCase()} 的视口`);
+        showNetworkToast(`🎯 Zed 跟随模式激活：正在同步跟随 @\\${agentRole.toUpperCase()} 的视口`);
         
         // Auto scroll to target
         const preview = document.getElementById('publication-preview');
@@ -739,7 +739,7 @@ ui_code = """<!DOCTYPE html>
 
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += "\n\n## 形式化一致性收敛定理\n\n设节点往返通信时延为 $\\tau_j$，系统全局状态收敛上界满足：\n\n$$\n\\mathbb{E}[\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\n$$\n";
+      editor.value += "\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$，系统全局状态收敛上界满足：\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\\\text{sync}}] \\\\le \\\\frac{1}{\\\\mu - \\\\lambda} \\\\ln \\\\left( \\\\frac{|\\\\mathcal{V}|}{\\\\epsilon} \\\\right) + \\\\max_{j \\\\in \\\\mathcal{N}} \\\\{\\\\text{RTT}_j\\\\}\\n$$\\n";
       renderLivePreview();
       
       const preview = document.getElementById('publication-preview');
@@ -755,7 +755,7 @@ ui_code = """<!DOCTYPE html>
         const stream = document.getElementById('activity-stream');
         const userCard = document.createElement('div');
         userCard.className = 'space-y-1';
-        userCard.innerHTML = `<div class="text-zinc-500 text-[10px]">You • Just now</div><div class="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-zinc-300 leading-relaxed">\${text}</div>`;
+        userCard.innerHTML = `<div class="text-zinc-500 text-[10px]">You • Just now</div><div class="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-zinc-300 leading-relaxed">\\${text}</div>`;
         stream.appendChild(userCard);
 
         const agentCard = document.createElement('div');
