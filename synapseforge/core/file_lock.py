@@ -329,7 +329,7 @@ class SectionLockManager:
 
     def list_active_locks(self) -> List[Dict[str, Any]]:
         """List currently live (non-expired, non-dead-PID) section locks."""
-        active: List[Dict[str, Any] = []
+        active: List[Dict[str, Any]] = []
         now = time.time()
         for path in self.locks_dir.glob("*.lock"):
             data = self._load(path)
