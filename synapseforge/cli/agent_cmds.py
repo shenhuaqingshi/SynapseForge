@@ -107,7 +107,7 @@ def handle_agent_release(args):
             print(f"✓ Released lease on '{args.section}' for agent '{args.agent}'")
         else:
             print(f"✖ Could not release lease on '{args.section}'")
-            sys.exit(1)
+        sys.exit(1)
 
 
 def handle_agent_draft(args):
@@ -149,11 +149,11 @@ def handle_agent_draft(args):
             blocks = parser.parse_blocks(content)
             words = parser.count_words(content)
 
-            state_mgr.update_section(
+            state_mgr.update_section_status(
                 section_id=args.section,
                 status=SectionStatus.DRAFTING,
-                assigned_actor=args.agent,
                 word_count=words,
+                assigned_actor=args.agent,
             )
 
             try:
@@ -209,7 +209,7 @@ def handle_agent_audit(args):
             "line": i.line_start,
             "message": i.message,
             "snippet": i.snippet,
-            "suggestion": i.suggestion,
+            "suggestion": i.suggested_fix,
         }
         for i in report.all_issues
     ]
@@ -231,8 +231,8 @@ def handle_agent_audit(args):
         for i in report.all_issues:
             icon = "✖" if i.severity == "error" else "⚠"
             print(f"  {icon} [{i.linter_name}] Line {i.line_start}: {i.message}")
-            if i.suggestion:
-                print(f"    Suggested Patch: {i.suggestion}")
+            if i.suggested_fix:
+                print(f"    Suggested Patch: {i.suggested_fix}")
         print()
         if not report.passed:
             sys.exit(1)
@@ -282,7 +282,7 @@ def handle_agent_patch(args):
                 "lock_status": "auto_released",
             }
     except SectionLockedError as e:
-        res = {"ok": False, "error": str(e), "file": str(target_path)}
+        res = {"ok": False, "error": str(e), "file": target_path}
         if getattr(args, "json", False):
             print(json.dumps(res, indent=2))
         else:

@@ -239,8 +239,34 @@ class SemanticConflictResolver:
         has_direct_collision = any(l.startswith("- ") for l in diff_lines) and any(l.startswith("+ ") for l in diff_lines)
 
         if ours_sec.full_content != theirs_sec.full_content:
-            # Generate conflict if both modified substantially
-            if base_sec is None or (ours_sec.full_content != base_sec.full_content) and (theirs_sec.full_content != base_sec.full_content):
+            heading_prefix = f"{heading_raw}\n\n" if heading_raw else ""
+
+            # Both sides independently added the same section slug with different
+            # content (no common base). Auto-resolving here would silently drop one
+            # side's work, so emit an add/add conflict preserving both versions.
+            if base_sec is None:
+                conflict = ConflictDetail(
+                    section_title=ours_sec.title,
+                    section_slug=ours_sec.slug,
+                    conflict_type="concurrent_addition",
+                    ours_summary=f"{len(ours_sec.blocks)} blocks, {ours_sec.total_words} words",
+                    theirs_summary=f"{len(theirs_sec.blocks)} blocks, {theirs_sec.total_words} words",
+                    base_summary="N/A (section added independently on both sides)",
+                    suggested_action="Add/add conflict: manually reconcile the two independently drafted versions.",
+                )
+                conflicts.append(conflict)
+
+                conflict_text = heading_prefix + (
+                    f"<<<<<<< {self.ours_label}\n"
+                    f"{self._extract_body(ours_sec)}\n"
+                    f"=======\n"
+                    f"{self._extract_body(theirs_sec)}\n"
+                    f">>>>>>> {self.theirs_label}"
+                )
+                return conflict_text, conflicts
+
+            # Generate conflict if both modified substantially relative to base
+            if (ours_sec.full_content != base_sec.full_content) and (theirs_sec.full_content != base_sec.full_content):
                 conflict = ConflictDetail(
                     section_title=ours_sec.title,
                     section_slug=ours_sec.slug,
@@ -251,14 +277,14 @@ class SemanticConflictResolver:
                     suggested_action="Semantic review required to merge concurrent narrative arguments.",
                 )
                 conflicts.append(conflict)
-                
+
+                # Reached only when base_sec is not None (the base_sec is None case
+                # returns above), so the diff3 marker includes the BASE section.
                 base_section_text = (
                     f"||||||| BASE\n"
                     f"{self._extract_body(base_sec)}\n"
-                ) if base_sec else ""
-                conflict_text = (
-                    f"{heading_raw}\n\n" if heading_raw else ""
-                ) + (
+                )
+                conflict_text = heading_prefix + (
                     f"<<<<<<< {self.ours_label}\n"
                     f"{self._extract_body(ours_sec)}\n"
                     f"{base_section_text}"
