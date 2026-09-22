@@ -22,7 +22,7 @@ ui_code = """<!DOCTYPE html>
       --bg-center: #12141a;
       --bg-editor: #0c0d10;
       --bg-preview: #ffffff;
-      --border: rgba(255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.05);
       --text-main: #e4e4e7;
       --text-muted: #71717a;
       --accent: #0a84ff;
@@ -90,8 +90,8 @@ ui_code = """<!DOCTYPE html>
     /* Subtle minimalist scrollbar */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 0.08); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 0.15); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center p-2 select-none">
@@ -286,7 +286,7 @@ ui_code = """<!DOCTYPE html>
             <div class="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-zinc-300 leading-relaxed text-xs">
               <span class="text-amber-300 font-medium">Suggestion:</span> Bound convergence theorem proof with explicit RTT bounds.
               <div class="mt-2 flex items-center space-x-2">
-                <button onclick="triggerAgentDraft()" class="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-20 text-[10px] font-medium transition">
+                <button onclick="triggerAgentDraft()" class="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-medium transition">
                   Apply Patch
                 </button>
                 <button class="px-2 py-1 rounded hover:bg-white/[0.05] text-zinc-400 text-[10px] transition">
@@ -448,7 +448,7 @@ ui_code = """<!DOCTYPE html>
       },
       sec_02: {
         name: "02_theoretical_foundations.md",
-        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\mathcal{T}(\\mathcal{D}) = \\left( \\mathcal{V}_{\\text{frontmatter}}, \\mathcal{V}_{\\text{heading}}, \\mathcal{V}_{\\text{body}}, \\mathcal{E}_{\\text{hier}} \\right) $$\\n\\n两份候选分支 $\\mathcal{D}_{\\text{ours}}$ 与 $\\mathcal{D}_{\\text{theirs}}$ 相对于基准版本 $\\mathcal{D}_{\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\Delta \\mathcal{T} = \\sum_{k=1}^{|\\mathcal{V}|} \\mathbf{w}_k \\cdot | \\phi_{\\text{ours}}(v_k) - \\phi_{\\text{theirs}}(v_k) |^2 $$`
+        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\\\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\\\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\\\mathcal{T}(\\\\mathcal{D}) = \\\\left( \\\\mathcal{V}_{\\\\text{frontmatter}}, \\\\mathcal{V}_{\\\\text{heading}}, \\\\mathcal{V}_{\\\\text{body}}, \\\\mathcal{E}_{\\\\text{hier}} \\\\right) $$\\n\\n两份候选分支 $\\\\mathcal{D}_{\\\\text{ours}}$ 与 $\\\\mathcal{D}_{\\\\text{theirs}}$ 相对于基准版本 $\\\\mathcal{D}_{\\\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\\\Delta \\\\mathcal{T} = \\\\sum_{k=1}^{|\\\\mathcal{V}|} \\\\mathbf{w}_k \\\\cdot | \\\\phi_{\\\\text{ours}}(v_k) - \\\\phi_{\\\\text{theirs}}(v_k) |^2 $$`
       },
       sec_03: {
         name: "03_system_architecture.md",
@@ -456,7 +456,7 @@ ui_code = """<!DOCTYPE html>
       },
       sec_04: {
         name: "04_conflict_resolution.md",
-        content: `# 4. 语义冲突消解与质量门禁\\n\\n当不同地域的 Agent 产生并发修改时，系统调用语义 AST 3-Way 消解引擎。定理 1（无冲突收敛性）：若两分支的修改集合在其语法树投影空间中满足正交性，则存在唯一的保序合并状态 $\\mathcal{D}^*$。\\n\\n$$ \\Delta(\\mathcal{D}_{\\text{ours}}) \\cap \\Delta(\\mathcal{D}_{\\text{theirs}}) \\subseteq \\mathcal{V}_{\\text{disjoint}} $$\\n\\n| 消解策略 | 适用场景 | 算法复杂度 | 成功率 |\\n|---|---|---|---|\\n| 拓扑并集 (Union) | 非重叠段落与新增章节 | $\\mathcal{O}(|\\mathcal{V}|)$ | 100.0% |\\n| 语义调和 (Harmonize) | 同章节公式与数据交叉补充 | $\\mathcal{O}(|\\mathcal{V}| \\log |\\mathcal{V}|)$ | 98.4% |\\n| 形式化裁决 (Arbitrate) | 核心定理假设冲突 | $\\mathcal{O}(1)$ 人工介入 | 100.0% |\\n\\n此外，系统内置严苛的 Anti-AI 质量门禁，实时扫描词汇表中的空泛套话与流水账机械分点，强制将所有分析论述转化为高信息密度的专业长文散文体。`
+        content: `# 4. 语义冲突消解与质量门禁\\n\\n当不同地域的 Agent 产生并发修改时，系统调用语义 AST 3-Way 消解引擎。定理 1（无冲突收敛性）：若两分支的修改集合在其语法树投影空间中满足正交性，则存在唯一的保序合并状态 $\\\\mathcal{D}^*$。\\n\\n$$ \\\\Delta(\\\\mathcal{D}_{\\\\text{ours}}) \\\\cap \\\\Delta(\\\\mathcal{D}_{\\\\text{theirs}}) \\\\subseteq \\\\mathcal{V}_{\\\\text{disjoint}} $$\\n\\n| 消解策略 | 适用场景 | 算法复杂度 | 成功率 |\\n|---|---|---|---|\\n| 拓扑并集 (Union) | 非重叠段落与新增章节 | $\\\\mathcal{O}(|\\\\mathcal{V}|)$ | 100.0% |\\n| 语义调和 (Harmonize) | 同章节公式与数据交叉补充 | $\\\\mathcal{O}(|\\\\mathcal{V}| \\\\log |\\\\mathcal{V}|)$ | 98.4% |\\n| 形式化裁决 (Arbitrate) | 核心定理假设冲突 | $\\\\mathcal{O}(1)$ 人工介入 | 100.0% |\\n\\n此外，系统内置严苛的 Anti-AI 质量门禁，实时扫描词汇表中的空泛套话与流水账机械分点，强制将所有分析论述转化为高信息密度的专业长文散文体。`
       },
       sec_05: {
         name: "05_empirical_benchmarks.md",
@@ -464,7 +464,7 @@ ui_code = """<!DOCTYPE html>
       },
       sec_06: {
         name: "06_conclusion.md",
-        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多智能体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
+        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多主体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
       }
     };
 
@@ -483,7 +483,7 @@ ui_code = """<!DOCTYPE html>
         id: "critic",
         name: "Critic Agent (严苛审稿专家)",
         model: "deepseek-reasoner",
-        prompt: `# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag Hollow Phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds`
+        prompt: `# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag hollow phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds`
       },
       harmonizer: {
         id: "harmonizer",
@@ -565,7 +565,7 @@ ui_code = """<!DOCTYPE html>
       });
 
       // Extract inline math $ ... $
-      html = html.replace(/(?<!\\$)\\$(?!\\$)([^\\$\n]+)\\$(?!\\$)/g, function(match, math) {
+      html = html.replace(/(?<!\\$)\\$(?!\\$)([^\\$\\n]+)\\$(?!\\$)/g, function(match, math) {
         inlineMath.push(math.trim());
         return `%%%INLINE_MATH_\\${inlineMath.length - 1}%%%`;
       });
@@ -739,7 +739,7 @@ ui_code = """<!DOCTYPE html>
 
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += "\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$，系统全局状态收敛上界满足：\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\\n$$\\n";
+      editor.value += "\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$，系统全局状态收敛上界满足：\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\\\text{sync}}] \\\\le \\\\frac{1}{\\\\mu - \\\\lambda} \\\\ln \\\\left( \\\\frac{|\\\\mathcal{V}|}{\\\\epsilon} \\\\right) + \\\\max_{j \\\\in \\\\mathcal{N}} \\\\{\\\\text{RTT}_j\\\\}\\n$$\\n";
       renderLivePreview();
       
       const preview = document.getElementById('publication-preview');
@@ -774,7 +774,7 @@ ui_code = """<!DOCTYPE html>
 
     function saveLocalSession() {
       const editor = document.getElementById('markdown-editor');
-      sessionData = {
+      const sessionData = {
         room_id: 'room-global-sync',
         room_name: 'Decentralized Swarm Room #1',
         currentSection: currentSection,
