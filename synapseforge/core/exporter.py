@@ -6,7 +6,6 @@ standalone HTML, and submission bundle packages.
 
 from __future__ import annotations
 
-import html
 import json
 import shutil
 import zipfile
@@ -15,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
+from synapseforge.renderers.html_renderer import HTMLRenderer
 from synapseforge.tools.office_tool import OfficeTool
 from synapseforge.tools.pdf_tool import PDFTool
 
@@ -52,6 +52,8 @@ class MultiFormatExporter:
         # Honor the exporter's workspace_root (the previous no-arg load_config()
         # silently read the config from the current working directory instead).
         config_path = self.workspace_root / "synapseforge.yaml"
+        if not config_path.exists():
+            config_path = self.workspace_root / "synapseforge.yml"
         if config_path.exists():
             config = load_config(config_path)
         else:
@@ -77,35 +79,21 @@ class MultiFormatExporter:
         docx_res = office_tool.create_docx_from_markdown(full_md_path, docx_path, title=doc_title)
         outputs["docx"] = docx_res.get("output_file") if docx_res.get("ok") else None
 
-        # 4. Standalone HTML (escape all dynamic content to avoid broken markup / injection)
-        safe_title = html.escape(doc_title)
-        safe_body = html.escape(full_md_content)
+        # 4. Standalone HTML. HTMLRenderer renders Markdown to HTML and builds the
+        # page with a Jinja environment that has autoescape enabled, so the
+        # externally controllable title/authors cannot inject markup.
         html_path = self.dist_dir / "publication_standalone.html"
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>{safe_title}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-<style>
-body {{ font-family: "STKaiti", "KaiTi", "Times New Roman", serif; max-width: 860px; margin: 40px auto; padding: 20px; line-height: 1.65; color: #111827; }}
-h1, h2, h3 {{ font-family: -apple-system, sans-serif; font-weight: bold; }}
-table {{ border-collapse: collapse; width: 100%; margin: 20px 0; border-top: 1.5px solid #111; border-bottom: 1.5px solid #111; }}
-th, td {{ padding: 8px 12px; text-align: left; }}
-</style>
-</head>
-<body>
-<h1>{safe_title}</h1>
-<pre style="white-space: pre-wrap; font-family: inherit;">{safe_body}</pre>
-</body>
-</html>
-"""
+        html_content = HTMLRenderer.render(
+            markdown_text=full_md_content,
+            title=doc_title,
+            authors=config.authors or ["SynapseForge Author"],
+        )
         html_path.write_text(html_content, encoding="utf-8")
         outputs["html"] = str(html_path.relative_to(self.workspace_root))
 
         # 5. Build zip package
         zip_path = self.dist_dir / "submission_package.zip"
-        with zipfile.ZipFile(zip_path, zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             if pdf_path.exists():
                 zf.write(pdf_path, arcname="publication_paper.pdf")
             if docx_path.exists():
