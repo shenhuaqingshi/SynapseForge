@@ -228,7 +228,7 @@ html_template = r"""<!DOCTYPE html>
               class="field pr-8"
               onkeydown="if(event.key==='Enter') handleSend()">
             <button onclick="handleSend()" class="absolute right-2.5 hover:opacity-50 transition" aria-label="发送">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="stroke-linejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3"/></svg>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3"/></svg>
             </button>
           </div>
         </div>
@@ -255,7 +255,7 @@ html_template = r"""<!DOCTYPE html>
               <span>Markdown 源稿</span><span style="text-transform:none;letter-spacing:0">Live Sync</span>
             </div>
             <textarea id="markdown-editor" spellcheck="false"
-              class="flex-1 w-full bg-transparent font-mono text-[13px] leading-[1.8] focus:outline:none resize-none overflow-y-auto"
+              class="flex-1 w-full bg-transparent font-mono text-[13px] leading-[1.8] focus:outline-none resize-none overflow-y-auto"
               oninput="onEditorInput()"></textarea>
           </div>
 
@@ -634,7 +634,7 @@ html_template = r"""<!DOCTYPE html>
 
     function setupKeyboardShortcuts() {
       window.addEventListener('keydown', (e) => {
-        if ((e.metaKey || e.key === 's') {
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
           e.preventDefault();
           if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
           saveCurrentSection();
@@ -689,7 +689,6 @@ html_template = r"""<!DOCTYPE html>
       const agentMeta = document.createElement('div');
       agentMeta.className = 'lbl mb-1';
       agentMeta.textContent = 'Drafter Agent';
-      const agentBody = document.createElement('div');
       const agentBody = document.createElement('div');
       agentBody.className = 'text-[13px] leading-relaxed border divider p-2.5';
       agentBody.textContent = '已将指令并入当前章节 AST,数学公式同步更新。';
