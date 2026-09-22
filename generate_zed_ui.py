@@ -277,7 +277,7 @@ ui_code = """<!DOCTYPE html>
           <!-- Zed-Style Inline Thread Finding from Critic -->
           <div class="space-y-1.5">
             <div class="text-amber-400 text-[10px] font-medium flex items-center justify-between">
-              <div class="flex items-center spacex-1.5">
+              <div class="flex items-center space-x-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                 <span>Critic Agent • Peer Review</span>
               </div>
@@ -448,7 +448,7 @@ ui_code = """<!DOCTYPE html>
       },
       sec_02: {
         name: "02_theoretical_foundations.md",
-        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\\\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\\\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\\\mathcal{T}(\\\\mathcal{D}) = \\\\left( \\\\mathcal{V}_{\\\\text{frontmatter}}, \\\\mathcal{V}_{\\\\text{heading}}, \\\\mathcal{V}_{\\\\text{body}}, \\\\mathcal{E}_{\\\\text{hier}} \\\\right) $$\\n\\n两份候选分支 $\\\\mathcal{D}_{\\\\text{ours}}$ 与 $\\\\mathcal{D}_{\\\\text{theirs}}$ 相对于基准版本 $\\\\mathcal{D}_{\\\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\\\Delta \\\\mathcal{T} = \\\\sum_{k=1}^{|\\\\mathcal{V}|} \\\\mathbf{w}_k \\\\cdot | \\\\phi_{\\\\text{ours}}(v_k) - \\\\phi_{\\\\text{theirs}}(v_k) |^2 $$`
+        content: `# 2. 理论基石与形式化定义\\n\\n文档协同生产的形式化模型可抽象为有向无环图（DAG）之上的状态转移过程。设文档 $\\\\mathcal{D}$ 由有序章节集合 $\\\\mathcal{S} = \\\\{s_1, s_2, \\\\dots, s_n\\\\}$ 组成，各章节节点间的依赖关系构成了拓扑偏序集 $(\\\\mathcal{S}, \\\\prec)$。当位于不同物理节点的执行主体（无论是算法智能体还是人类专家）对章节 $s_i$ 发起并发修改时，系统状态转换遵循可交换复制数据类型（CRDT）的数学定式 @shapiro2011crdt。\\n\\n传统文本合并算法如 diff3 依赖最长公共子序列（LCS），在字符或物理行粒度上进行线性扫描。当两名协作者分别调整段落微观论点与修正公式引用时，线性 diff3 的时间复杂度达到 $\\\\mathcal{O}(M \\\\cdot N)$，且极易对非冲突语义产生误报。在 SynapseForge 理论体系中，文档首先经过抽象语法树解析器投影为高维分块空间：\\n\\n$$ \\\\mathcal{T}(\\\\mathcal{D}) = \\\\left( \\\\mathcal{V}_{\\\\text{frontmatter}}, \\\\mathcal{V}_{\\\\text{heading}}, \\\\mathcal{V}_{\\\\body}, \\\\mathcal{E}_{\\\\hier} \\\\right) $$\\n\\n两份候选分支 $\\\\mathcal{D}_{\\\\text{ours}}$ 与 $\\\\mathcal{D}_{\\\\text{theirs}}$ 相对于基准版本 $\\\\mathcal{D}_{\\\\text{base}}$ 的距离度量定义为其 AST 拓扑编辑距离加权和：\\n\\n$$ \\\\Delta \\\\mathcal{T} = \\\\sum_{k=1}^{|\\\\mathcal{V}|} \\\\mathbf{w}_k \\\\cdot | \\\\phi_{\\\\text{ours}}(v_k) - \\\\phi_{\\\\text{theirs}}(v_k) |^2 $$`
       },
       sec_03: {
         name: "03_system_architecture.md",
