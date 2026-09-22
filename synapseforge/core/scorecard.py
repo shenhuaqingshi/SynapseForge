@@ -87,7 +87,14 @@ class QualityScorecard:
 
         # 2. Citation Density (per 1,000 words, optimal ~ 5-10)
         cite_density = (total_citations / max(1, total_words)) * 1000
-        citation_score = min(100, int(cite_density * 12)) if total_citations > 0 else 70
+        # A document with no citations gets a neutral baseline. The score must be
+        # monotonic: having citations can never score *below* having none, and it
+        # rises with citation density up to 100.
+        no_citation_baseline = 70
+        if total_citations > 0:
+            citation_score = max(no_citation_baseline, min(100, int(cite_density * 12)))
+        else:
+            citation_score = no_citation_baseline
 
         # 3. Mathematical Formality Index
         math_count = total_math_blocks + total_inline_math
@@ -230,7 +237,7 @@ class QualityScorecard:
     .badge {{ display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 12px; }}
     .badge.green {{ background: #23863622; color: #3fb950; border: 1px solid #23863666; }}
     .badge.yellow {{ background: #d2992222; color: #e3b341; border: 1px solid #d2992266; }}
-    .badge.red {{ background: #da363322; color: #f85149; border: 1px solid #da363366; }}
+    .badge.red {{ background: #da363322; color: #f85149; border: 1px solid #da363666; }}
     .grid {{ display: grid; grid-template-columns: 320px 1fr; gap: 24px; margin-bottom: 28px; }}
     .card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }}
     .score-banner {{ text-align: center; margin-bottom: 16px; }}

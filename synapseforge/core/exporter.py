@@ -6,7 +6,6 @@ standalone HTML, and submission bundle packages.
 
 from __future__ import annotations
 
-import html
 import json
 import shutil
 import zipfile
@@ -33,21 +32,32 @@ class MultiFormatExporter:
         """Assembles all sections in sorted topological DAG order into a unified Markdown manuscript."""
         sec_dir = self.workspace_root / "sections"
         section_files = sorted(sec_dir.glob("*.md"))
-        
+
         full_blocks = []
         for p in section_files:
             content = p.read_text(encoding="utf-8").strip()
             if content:
-                full_blocks.append(content)
+                # Strip internal SynapseForge metadata comments for clean publication output,
+                # consistent with SwarmEngine.compile_full_document().
+                clean_lines = [
+                    line for line in content.splitlines()
+                    if not line.lstrip().startswith("<!-- SynapseForge")
+                ]
+                full_blocks.append("\n".join(clean_lines).strip())
 
         return "\n\n---\n\n".join(full_blocks)
 
     def export_all(self, title: Optional[str] = None) -> Dict[str, Any]:
         """Compiles project into PDF, Word docx, standalone HTML, and zip submission package."""
+        # Honor the exporter's workspace_root (the previous no-arg load_config()
+        # silently read the config from the current working directory instead).
         config_path = self.workspace_root / "synapseforge.yaml"
         if not config_path.exists():
             config_path = self.workspace_root / "synapseforge.yml"
-        config = load_config(config_path) if config_path.exists() else ProjectConfig()
+        if config_path.exists():
+            config = load_config(config_path)
+        else:
+            config = ProjectConfig(root_dir=self.workspace_root)
         doc_title = title or config.document_title or "SynapseForge Publication Document"
 
         # 1. Assemble unified markdown
@@ -69,7 +79,9 @@ class MultiFormatExporter:
         docx_res = office_tool.create_docx_from_markdown(full_md_path, docx_path, title=doc_title)
         outputs["docx"] = docx_res.get("output_file") if docx_res.get("ok") else None
 
-        # 4. Standalone HTML
+        # 4. Standalone HTML. HTMLRenderer renders Markdown to HTML and builds the
+        # page with a Jinja environment that has autoescape enabled, so the
+        # externally controllable title/authors cannot inject markup.
         html_path = self.dist_dir / "publication_standalone.html"
         html_content = HTMLRenderer.render(
             markdown_text=full_md_content,

@@ -37,6 +37,7 @@ class SectionState:
     lock_expires_at: float = 0.0
     current_hash: str = ""
     word_count: int = 0
+    word_count_target: int = 1000  # configured target, mirrors SectionSpec
     dependencies: List[str] = field(default_factory=list)
     pr_number: Optional[int] = None
     branch_name: Optional[str] = None
@@ -117,6 +118,7 @@ class StateManager:
                     assigned_actor=sec.assigned_human or sec.assigned_role,
                     dependencies=sec.dependencies,
                     current_hash=f_hash,
+                    word_count_target=sec.word_count_target,
                 )
             else:
                 s = self.state.sections[sec.id]
@@ -124,6 +126,7 @@ class StateManager:
                 s.file = sec.file
                 s.dependencies = sec.dependencies
                 s.current_hash = f_hash
+                s.word_count_target = sec.word_count_target
         self.save()
 
     def claim_section(self, section_id: str, actor: str, lease_duration_seconds: int = 3600) -> bool:
@@ -165,12 +168,20 @@ class StateManager:
                 return True
         return False
 
-    def update_section_status(self, section_id: str, status: str, word_count: Optional[int] = None) -> None:
+    def update_section_status(
+        self,
+        section_id: str,
+        status: str,
+        word_count: Optional[int] = None,
+        assigned_actor: Optional[str] = None,
+    ) -> None:
         if section_id in self.state.sections:
             sec = self.state.sections[section_id]
             sec.status = status
             if word_count is not None:
                 sec.word_count = word_count
+            if assigned_actor is not None and status != SectionStatus.MERGED:
+                sec.assigned_actor = assigned_actor
             sec.last_updated = time.time()
             target_file = self.project_root / sec.file
             if target_file.exists():
@@ -200,7 +211,7 @@ class StateManager:
         temp: Set[str] = set()
         order: List[str] = []
 
-        def visit(node: str):
+        def visit(node):
             if node in temp:
                 raise ValueError(f"Cyclic section dependency detected around '{node}'")
             if node not in visited:
