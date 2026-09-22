@@ -352,9 +352,9 @@ html_template = r"""<!DOCTYPE html>
     let saveDebounceTimer = null;
 
     const USER_PROMPT_PRESETS = {
-      drafter:    { id: 'drafter',    name: 'Drafter · 学术起草专家',   model: 'deepseek-v3',       prompt: '# Role: Senior Academic Drafter\\n\\n## Writing Principles\\n1. Zero AI clichés\\n2. Dense narrative prose (150-300 words per paragraph)\\n3. KaTeX equations & booktabs tables' },
-      critic:     { id: 'critic',     name: 'Critic · 严苛审稿专家',    model: 'deepseek-reasoner', prompt: '# Role: Adversarial Peer Reviewer\\n\\n## Audit Checklist\\n1. Flag hollow phrases\\n2. Check bibliography references @citekey\\n3. Verify math proof bounds' },
-      harmonizer: { id: 'harmonizer', name: 'Harmonizer · 多方案调和官', model: 'deepseek-v3',       prompt: '# Role: Multi-Variant Harmonizer\\n\\n## Principles\\n1. Reconcile tone differences\\n2. Fuse mathematical and empirical variants\\n3. Deduplicate bibliography keys' },
+      drafter:    { id: 'drafter',    name: 'Drafter · 学术起草专家',   model: 'deepseek-v3',       prompt: '# Role: Senior Academic Drafter\n\n## Writing Principles\n1. Zero AI clichés\n2. Dense narrative prose (150-300 words per paragraph)\n3. KaTeX equations & booktabs tables' },
+      critic:     { id: 'critic',     name: 'Critic · 严苛审稿专家',    model: 'deepseek-reasoner', prompt: '# Role: Adversarial Peer Reviewer\n\n## Audit Checklist\n1. Flag hollow phrases\n2. Check bibliography references @citekey\n3. Verify math proof bounds' },
+      harmonizer: { id: 'harmonizer', name: 'Harmonizer · 多方案调和官', model: 'deepseek-v3',       prompt: '# Role: Multi-Variant Harmonizer\n\n## Principles\n1. Reconcile tone differences\n2. Fuse mathematical and empirical variants\n3. Deduplicate bibliography keys' },
     };
 
     // ── Boot: prefer live daemon sections ──
@@ -663,7 +663,7 @@ html_template = r"""<!DOCTYPE html>
     // ── Agent simulation ──
     function triggerAgentDraft() {
       const editor = document.getElementById('markdown-editor');
-      editor.value += '\\n\\n## 形式化一致性收敛定理\\n\\n设节点往返通信时延为 $\\\\tau_j$,系统全局状态收敛上界满足:\\n\\n$$\\n\\\\mathbb{E}[\\\\tau_{\\\\text{sync}}] \\\\le \\\\frac{1}{\\\\mu - \\\\lambda} \\\\ln \\\\left( \\\\frac{|\\\\mathcal{V}|}{\\\\epsilon} \\\\right) + \\\\max_{j \\\\in \\\\mathcal{N}} \\\\{\\\\text{RTT}_j\\\\}\\n$$\\n';
+      editor.value += '\n\n## 形式化一致性收敛定理\n\n设节点往返通信时延为 $\\tau_j$,系统全局状态收敛上界满足:\n\n$$\n\\mathbb{E}[\\tau_{\\text{sync}}] \\le \\frac{1}{\\mu - \\lambda} \\ln \\left( \\frac{|\\mathcal{V}|}{\\epsilon} \\right) + \\max_{j \\in \\mathcal{N}} \\{\\text{RTT}_j\\}\n$$\n';
       onEditorInput();
       const preview = document.getElementById('publication-preview');
       preview.scrollTo({ top: preview.scrollHeight, behavior: 'smooth' });
