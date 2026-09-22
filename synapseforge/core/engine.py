@@ -48,11 +48,17 @@ class SwarmEngine:
         """Generates section stubs, verifies DAG topological order, and prepares workspace files."""
         topo_order = self.state_manager.get_topological_order()
         created_sections = []
+        specs_by_id = {s.id: s for s in self.config.sections}
 
         for sec_id in topo_order:
             sec_state = self.state_manager.state.sections[sec_id]
             target_path = self.project_root / sec_state.file
             target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_words = (
+                specs_by_id[sec_id].word_count_target
+                if sec_id in specs_by_id
+                else 1000
+            )
 
             if not target_path.exists():
                 # Create initial scaffold
@@ -60,7 +66,7 @@ class SwarmEngine:
                     f"# {sec_state.title}\n\n"
                     f"<!-- SynapseForge Section ID: {sec_state.id} -->\n"
                     f"<!-- Assigned Role: {sec_state.assigned_role} -->\n"
-                    f"<!-- Target Words: {getattr(sec_state, 'word_count', 1000)} -->\n\n"
+                    f"<!-- Target Words: {target_words} -->\n\n"
                     f"<!-- Drafting in progress by {sec_state.assigned_actor}... -->\n"
                 )
                 with open(target_path, "w", encoding="utf-8") as f:

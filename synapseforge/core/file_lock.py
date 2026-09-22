@@ -171,13 +171,26 @@ class AutoSectionLock:
     def acquire(self) -> bool:
         """Atomically acquire the section lock. Raises SectionLockedError on conflict."""
         now = time.time()
+        # a+ preserves any existing lock metadata so it can be inspected rather
+        # than truncating it the moment the file is opened.
         self._file_handle = open(self.lock_file_path, "a+", encoding="utf-8")
-        try:
-            self._os_lock()
-        except SectionLockedError:
-            self._file_handle.close()
-            self._file_handle = None
-            raise
+
+        # POSIX flock locks the whole file and works on an empty file, so take it
+        # before inspecting/writing. Windows msvcrt.locking can only lock a byte
+        # range that already exists in the file, so on Windows the OS lock is taken
+        # AFTER metadata is written below (locking a freshly created 0-byte file
+        # always raises OSError and would make every lock fail on Windows).
+        windows_backend = bool(HAS_MSVCRT and msvcrt is not None) and not bool(
+            HAS_FCNTL and fcntl is not None
+        )
+
+        if not windows_backend:
+            try:
+                self._os_lock()
+            except SectionLockedError:
+                self._file_handle.close()
+                self._file_handle = None
+                raise
 
         existing = self._read_metadata()
         if existing:
@@ -193,6 +206,16 @@ class AutoSectionLock:
                 )
 
         self._write_metadata(now)
+
+        # The file now holds metadata (>= 1 byte); take the Windows byte-range lock.
+        if windows_backend:
+            try:
+                self._os_lock()
+            except SectionLockedError:
+                self._file_handle.close()
+                self._file_handle = None
+                raise
+
         self._acquired = True
         return True
 
@@ -306,7 +329,7 @@ class SectionLockManager:
 
     def list_active_locks(self) -> List[Dict[str, Any]]:
         """List currently live (non-expired, non-dead-PID) section locks."""
-        active: List[Dict[str, Any]] = []
+        active: List[Dict[str, Any] = []
         now = time.time()
         for path in self.locks_dir.glob("*.lock"):
             data = self._load(path)
