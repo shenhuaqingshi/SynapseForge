@@ -278,11 +278,16 @@ class SemanticConflictResolver:
                 )
                 conflicts.append(conflict)
 
+                # Reached only when base_sec is not None (the base_sec is None case
+                # returns above), so the diff3 marker includes the BASE section.
+                base_section_text = (
+                    f"||||||| BASE\n"
+                    f"{self._extract_body(base_sec)}\n"
+                )
                 conflict_text = heading_prefix + (
                     f"<<<<<<< {self.ours_label}\n"
                     f"{self._extract_body(ours_sec)}\n"
-                    f"||||||| BASE\n"
-                    f"{self._extract_body(base_sec)}\n"
+                    f"{base_section_text}"
                     f"=======\n"
                     f"{self._extract_body(theirs_sec)}\n"
                     f">>>>>>> {self.theirs_label}"
