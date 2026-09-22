@@ -185,7 +185,7 @@ class StateManager:
             if s.status in (SectionStatus.APPROVED, SectionStatus.MERGED)
         }
 
-        for s_id, s in state.sections.items():
+        for s_id, s in self.state.sections.items():
             if s.status in (SectionStatus.IDLE, SectionStatus.CLAIMED):
                 # Check all dependencies
                 deps_met = all(dep in completed_ids for dep in s.dependencies)
