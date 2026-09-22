@@ -36,6 +36,7 @@ class SectionState:
     lock_expires_at: float = 0.0
     current_hash: str = ""
     word_count: int = 0
+    word_count_target: int = 1000  # configured target, mirrors SectionSpec
     dependencies: List[str] = field(default_factory=list)
     pr_number: Optional[int] = None
     branch_name: Optional[str] = None
@@ -110,6 +111,7 @@ class StateManager:
                     assigned_actor=sec.assigned_human or sec.assigned_role,
                     dependencies=sec.dependencies,
                     current_hash=f_hash,
+                    word_count_target=sec.word_count_target,
                 )
             else:
                 s = self.state.sections[sec.id]
@@ -117,6 +119,7 @@ class StateManager:
                 s.file = sec.file
                 s.dependencies = sec.dependencies
                 s.current_hash = f_hash
+                s.word_count_target = sec.word_count_target
         self.save()
 
     def claim_section(self, section_id: str, actor: str, lease_duration_seconds: int = 3600) -> bool:

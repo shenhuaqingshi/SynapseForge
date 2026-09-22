@@ -23,6 +23,11 @@ class LintIssue:
     snippet: str
     suggested_fix: Optional[str] = None
 
+    @property
+    def suggestion(self) -> Optional[str]:
+        """Read-only alias for suggested_fix; callers using .suggestion stay valid."""
+        return self.suggested_fix
+
 
 @dataclass
 class LintResult:
