@@ -158,11 +158,19 @@ class StateManager:
                 return True
         return False
 
-    def update_section_status(self, section_id: str, status: str, word_count: int = 0) -> None:
+    def update_section_status(
+        self,
+        section_id: str,
+        status: str,
+        word_count: int = 0,
+        assigned_actor: Optional[str] = None,
+    ) -> None:
         if section_id in self.state.sections:
             sec = self.state.sections[section_id]
             sec.status = status
             sec.word_count = word_count
+            if assigned_actor is not None and status != SectionStatus.MERGED:
+                sec.assigned_actor = assigned_actor
             sec.last_updated = time.time()
             target_file = self.project_root / sec.file
             if target_file.exists():
@@ -177,7 +185,7 @@ class StateManager:
             if s.status in (SectionStatus.APPROVED, SectionStatus.MERGED)
         }
 
-        for s_id, s in self.state.sections.items():
+        for s_id, s in state.sections.items():
             if s.status in (SectionStatus.IDLE, SectionStatus.CLAIMED):
                 # Check all dependencies
                 deps_met = all(dep in completed_ids for dep in s.dependencies)
@@ -192,7 +200,7 @@ class StateManager:
         temp: Set[str] = set()
         order: List[str] = []
 
-        def visit(node: str):
+        def visit(node):
             if node in temp:
                 raise ValueError(f"Cyclic section dependency detected around '{node}'")
             if node not in visited:
