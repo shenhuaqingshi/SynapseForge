@@ -34,6 +34,10 @@ def test_sci_plot_tool_nature_curve(tmp_path):
     assert res["curves_rendered"] == 3
 
 
+typst_available = PDFTool().is_available()
+
+
+@pytest.mark.skipif(not typst_available, reason="typst compiler is not installed on this host")
 def test_pdf_tool_typst_compilation(tmp_path):
     tool = PDFTool()
     if not tool.is_available():
