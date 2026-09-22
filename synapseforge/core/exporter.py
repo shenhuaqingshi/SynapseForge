@@ -6,13 +6,14 @@ standalone HTML, and submission bundle packages.
 
 from __future__ import annotations
 
+import html
 import json
 import shutil
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from synapseforge.config import load_config
+from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.tools.office_tool import OfficeTool
 from synapseforge.tools.pdf_tool import PDFTool
@@ -31,18 +32,30 @@ class MultiFormatExporter:
         """Assembles all sections in sorted topological DAG order into a unified Markdown manuscript."""
         sec_dir = self.workspace_root / "sections"
         section_files = sorted(sec_dir.glob("*.md"))
-        
+
         full_blocks = []
         for p in section_files:
             content = p.read_text(encoding="utf-8").strip()
             if content:
-                full_blocks.append(content)
+                # Strip internal SynapseForge metadata comments for clean publication output,
+                # consistent with SwarmEngine.compile_full_document().
+                clean_lines = [
+                    line for line in content.splitlines()
+                    if not line.lstrip().startswith("<!-- SynapseForge")
+                ]
+                full_blocks.append("\n".join(clean_lines).strip())
 
         return "\n\n---\n\n".join(full_blocks)
 
     def export_all(self, title: Optional[str] = None) -> Dict[str, Any]:
         """Compiles project into PDF, Word docx, standalone HTML, and zip submission package."""
-        config = load_config()
+        # Honor the exporter's workspace_root (the previous no-arg load_config()
+        # silently read the config from the current working directory instead).
+        config_path = self.workspace_root / "synapseforge.yaml"
+        if config_path.exists():
+            config = load_config(config_path)
+        else:
+            config = ProjectConfig(root_dir=self.workspace_root)
         doc_title = title or config.document_title or "SynapseForge Publication Document"
 
         # 1. Assemble unified markdown
@@ -64,13 +77,15 @@ class MultiFormatExporter:
         docx_res = office_tool.create_docx_from_markdown(full_md_path, docx_path, title=doc_title)
         outputs["docx"] = docx_res.get("output_file") if docx_res.get("ok") else None
 
-        # 4. Standalone HTML
+        # 4. Standalone HTML (escape all dynamic content to avoid broken markup / injection)
+        safe_title = html.escape(doc_title)
+        safe_body = html.escape(full_md_content)
         html_path = self.dist_dir / "publication_standalone.html"
         html_content = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>{doc_title}</title>
+<title>{safe_title}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
 <style>
 body {{ font-family: "STKaiti", "KaiTi", "Times New Roman", serif; max-width: 860px; margin: 40px auto; padding: 20px; line-height: 1.65; color: #111827; }}
@@ -80,8 +95,8 @@ th, td {{ padding: 8px 12px; text-align: left; }}
 </style>
 </head>
 <body>
-<h1>{doc_title}</h1>
-<pre style="white-space: pre-wrap; font-family: inherit;">{full_md_content}</pre>
+<h1>{safe_title}</h1>
+<pre style="white-space: pre-wrap; font-family: inherit;">{safe_body}</pre>
 </body>
 </html>
 """
@@ -90,7 +105,7 @@ th, td {{ padding: 8px 12px; text-align: left; }}
 
         # 5. Build zip package
         zip_path = self.dist_dir / "submission_package.zip"
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(zip_path, zipfile.ZIP_DEFLATED) as zf:
             if pdf_path.exists():
                 zf.write(pdf_path, arcname="publication_paper.pdf")
             if docx_path.exists():

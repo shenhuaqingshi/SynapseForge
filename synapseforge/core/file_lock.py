@@ -84,26 +84,6 @@ class AutoSectionLock:
         # 2. Open lock file with exclusive OS file lock
         self._file_handle = open(self.lock_file_path, "w+", encoding="utf-8")
 
-        # POSIX (Linux / macOS)
-        if HAS_FCNTL and fcntl is not None:
-            try:
-                fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except (BlockingIOError, OSError):
-                self._file_handle.close()
-                self._file_handle = None
-                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the OS level.")
-
-        # Windows (msvcrt)
-        elif HAS_MSVCRT and msvcrt is not None:
-            try:
-                self._file_handle.seek(0)
-                msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_NBLCK, 1)
-            except (BlockingIOError, OSError, IOError):
-                self._file_handle.close()
-                self._file_handle = None
-                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the Windows OS level.")
-
-        # 3. Write lock metadata
         metadata = {
             "section_id": self.section_id,
             "agent_name": self.agent_name,
@@ -112,12 +92,44 @@ class AutoSectionLock:
             "pid": os.getpid(),
             "platform": sys.platform,
         }
+
+        # POSIX (Linux / macOS): lock first, then write metadata.
+        if HAS_FCNTL and fcntl is not None:
+            try:
+                fcntl.flock(self._file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (BlockingIOError, OSError):
+                self._file_handle.close()
+                self._file_handle = None
+                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the OS level.")
+            self._write_lock_metadata(metadata)
+
+        # Windows (msvcrt): msvcrt.locking() can only lock a byte range that already
+        # exists in the file, so metadata (>= 1 byte) must be written and flushed BEFORE
+        # locking. Locking 1 byte of a freshly truncated 0-byte file raises OSError and
+        # would make every lock fail on Windows.
+        elif HAS_MSVCRT and msvcrt is not None:
+            self._write_lock_metadata(metadata)
+            try:
+                self._file_handle.seek(0)
+                msvcrt.locking(self._file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except (BlockingIOError, OSError, IOError):
+                self._file_handle.close()
+                self._file_handle = None
+                raise SectionLockedError(f"Section '{self.section_id}' is concurrently locked at the Windows OS level.")
+
+        # Portable fallback when neither OS locking backend is available.
+        else:
+            self._write_lock_metadata(metadata)
+
+        return True
+
+    def _write_lock_metadata(self, metadata: dict) -> None:
+        """Writes and persists the JSON lock metadata into the open lock file."""
         self._file_handle.seek(0)
         self._file_handle.truncate()
         self._file_handle.write(json.dumps(metadata, indent=2))
         self._file_handle.flush()
-
-        return True
+        os.fsync(self._file_handle.fileno())
 
     def release(self) -> bool:
         """Releases the section lock and cleans up lock file."""
@@ -206,7 +218,7 @@ class SectionLockManager:
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
                 if data.get("expires_at", 0) > now:
-                    data["remaining_seconds"] = int(data["expires_at"] - now)
+                    data["remaining_seconds"] = int(data.get("expires_at", 0) - now)
                     active.append(data)
                 else:
                     p.unlink(missing_ok=True)

@@ -73,7 +73,14 @@ class QualityScorecard:
 
         # 2. Citation Density (per 1,000 words, optimal ~ 5-10)
         cite_density = (total_citations / max(1, total_words)) * 1000
-        citation_score = min(100, int(cite_density * 12)) if total_citations > 0 else 70
+        # A document with no citations gets a neutral baseline. The score must be
+        # monotonic: having citations can never score *below* having none, and it
+        # rises with citation density up to 100.
+        no_citation_baseline = 70
+        if total_citations > 0:
+            citation_score = max(no_citation_baseline, min(100, int(cite_density * 12)))
+        else:
+            citation_score = no_citation_baseline
 
         # 3. Mathematical Formality Index
         math_count = total_math_blocks + total_inline_math
