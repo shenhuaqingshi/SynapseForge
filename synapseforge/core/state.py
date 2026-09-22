@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -77,7 +78,11 @@ class StateManager:
                     active_locks=data.get("active_locks", {}),
                 )
             except Exception:
-                pass
+                # Corrupt state file: back it up before resetting to a fresh state
+                try:
+                    os.replace(self.state_file, self.synapse_dir / "state.json.corrupt")
+                except OSError:
+                    pass
         return SwarmState(project_name="SynapseForge Project", version="0.1.0")
 
     def save(self) -> None:
@@ -88,8 +93,10 @@ class StateManager:
             "contributor_matrix": self.state.contributor_matrix,
             "active_locks": self.state.active_locks,
         }
-        with open(self.state_file, "w", encoding="utf-8") as f:
+        tmp_file = self.synapse_dir / "state.json.tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_file, self.state_file)
 
     def sync_from_config(self, config: ProjectConfig) -> None:
         """Syncs declared sections in synapseforge.yaml into state machine."""
@@ -158,11 +165,12 @@ class StateManager:
                 return True
         return False
 
-    def update_section_status(self, section_id: str, status: str, word_count: int = 0) -> None:
+    def update_section_status(self, section_id: str, status: str, word_count: Optional[int] = None) -> None:
         if section_id in self.state.sections:
             sec = self.state.sections[section_id]
             sec.status = status
-            sec.word_count = word_count
+            if word_count is not None:
+                sec.word_count = word_count
             sec.last_updated = time.time()
             target_file = self.project_root / sec.file
             if target_file.exists():

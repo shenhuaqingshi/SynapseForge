@@ -128,7 +128,14 @@ def handle_agent_draft(args):
 
     content = args.content
     if args.content_file:
-        content = Path(args.content_file).read_text(encoding="utf-8")
+        content_path = Path(args.content_file)
+        if not content_path.exists():
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": False, "error": f"Content file not found: {args.content_file}"}))
+            else:
+                print(f"✖ Content file not found: {args.content_file}")
+            sys.exit(1)
+        content = content_path.read_text(encoding="utf-8")
 
     from synapseforge.core.file_lock import AutoSectionLock, SectionLockedError
 
@@ -149,11 +156,16 @@ def handle_agent_draft(args):
                 word_count=words,
             )
 
+            try:
+                sec_file_display = str(sec_file.relative_to(Path.cwd()))
+            except ValueError:
+                sec_file_display = str(sec_file)
+
             res = {
                 "ok": True,
                 "section_id": args.section,
                 "agent": args.agent,
-                "file": str(sec_file.relative_to(Path.cwd())),
+                "file": sec_file_display,
                 "word_count": words,
                 "ast_block_count": len(blocks),
                 "citations": parser.extract_citations(content),

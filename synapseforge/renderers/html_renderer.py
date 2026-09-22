@@ -5,7 +5,6 @@ Implements modern typography, sticky Table of Contents, booktabs styling, and Ka
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import markdown
@@ -18,6 +17,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
   <style>
     :root {
       --font-body: "KaiTi", "STKaiti", "楷体", "Times New Roman", Georgia, serif;
@@ -245,6 +246,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </article>
     </main>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+          throwOnError: false,
+        });
+      }
+    });
+  </script>
 </body>
 </html>
 """
@@ -255,27 +269,40 @@ class HTMLRenderer:
 
     @staticmethod
     def render(markdown_text: str, title: str, authors: List[str] = None) -> str:
-        # Extract headings for Table of Contents
-        headings = []
-        for line in markdown_text.splitlines():
-            m = re.match(r'^(#{1,3})\s+(.*)$', line)
-            if m:
-                level = len(m.group(1))
-                h_title = m.group(2).strip()
-                slug = re.sub(r'[^\w\-]+', '', h_title.lower().replace(' ', '-'))
-                headings.append({"level": level, "title": h_title, "slug": slug})
-
-        # Render Markdown to HTML with tables, code fences, and toc
-        html_body = markdown.markdown(
-            markdown_text,
+        # Render Markdown to HTML with the toc extension so the heading ids in
+        # the body are the ones python-markdown itself generates.
+        md = markdown.Markdown(
             extensions=["tables", "fenced_code", "toc", "sane_lists"]
         )
+        html_body = md.convert(markdown_text)
 
-        from jinja2 import Template
-        t = Template(HTML_TEMPLATE)
+        # Build the sidebar TOC from the toc extension tokens so the anchor
+        # hrefs always match the real ids in the body (python-markdown gives
+        # Chinese headings ids like "_1", not \w-based slugs).
+        headings = []
+
+        def _collect_toc(tokens):
+            for tok in tokens:
+                if tok.get("level", 0) <= 3:
+                    headings.append({
+                        "level": tok["level"],
+                        "title": tok["name"],
+                        "slug": tok["id"],
+                    })
+                _collect_toc(tok.get("children", []))
+
+        _collect_toc(getattr(md, "toc_tokens", []))
+
+        from jinja2 import Environment
+        from markupsafe import Markup
+
+        # autoescape escapes title/authors/headings; the Markdown-rendered
+        # body is trusted and explicitly marked safe.
+        env = Environment(autoescape=True)
+        t = env.from_string(HTML_TEMPLATE)
         return t.render(
             title=title,
             authors=", ".join(authors or ["SynapseForge Swarm"]),
             headings=headings,
-            content_html=html_body,
+            content_html=Markup(html_body),
         )

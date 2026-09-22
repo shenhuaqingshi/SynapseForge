@@ -121,9 +121,12 @@ class SciPlotTool:
         if not script_path.exists():
             return {"ok": False, "error": f"Script {script_path} not found"}
 
+        if output_dir:
+            output_dir.mkdir(parents=True, exist_ok=True)
+
         import subprocess
         cmd = [sys.executable, str(script_path)]
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, cwd=output_dir, capture_output=True, text=True)
         return {
             "ok": res.returncode == 0,
             "returncode": res.returncode,

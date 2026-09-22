@@ -40,8 +40,10 @@ def test_notification_dispatcher_fallback(tmp_path):
         message="Section 4 has been drafted and audited.",
         channel="cli"
     )
-    assert res["ok"] is True
+    assert res["ok"] is False
+    assert res["status"] == "not_sent"
     assert res["title"] == "Milestone Complete"
+    assert "agently-cli" in res["error"]
 
 
 def test_multiformat_exporter_assemble(tmp_path):

@@ -6,14 +6,16 @@ standalone HTML, and submission bundle packages.
 
 from __future__ import annotations
 
+import html
 import json
 import shutil
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from synapseforge.config import load_config
+from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
+from synapseforge.renderers.html_renderer import HTMLRenderer
 from synapseforge.tools.office_tool import OfficeTool
 from synapseforge.tools.pdf_tool import PDFTool
 
@@ -42,7 +44,10 @@ class MultiFormatExporter:
 
     def export_all(self, title: Optional[str] = None) -> Dict[str, Any]:
         """Compiles project into PDF, Word docx, standalone HTML, and zip submission package."""
-        config = load_config()
+        config_path = self.workspace_root / "synapseforge.yaml"
+        if not config_path.exists():
+            config_path = self.workspace_root / "synapseforge.yml"
+        config = load_config(config_path) if config_path.exists() else ProjectConfig()
         doc_title = title or config.document_title or "SynapseForge Publication Document"
 
         # 1. Assemble unified markdown
@@ -66,25 +71,11 @@ class MultiFormatExporter:
 
         # 4. Standalone HTML
         html_path = self.dist_dir / "publication_standalone.html"
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>{doc_title}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-<style>
-body {{ font-family: "STKaiti", "KaiTi", "Times New Roman", serif; max-width: 860px; margin: 40px auto; padding: 20px; line-height: 1.65; color: #111827; }}
-h1, h2, h3 {{ font-family: -apple-system, sans-serif; font-weight: bold; }}
-table {{ border-collapse: collapse; width: 100%; margin: 20px 0; border-top: 1.5px solid #111; border-bottom: 1.5px solid #111; }}
-th, td {{ padding: 8px 12px; text-align: left; }}
-</style>
-</head>
-<body>
-<h1>{doc_title}</h1>
-<pre style="white-space: pre-wrap; font-family: inherit;">{full_md_content}</pre>
-</body>
-</html>
-"""
+        html_content = HTMLRenderer.render(
+            markdown_text=full_md_content,
+            title=doc_title,
+            authors=config.authors or ["SynapseForge Author"],
+        )
         html_path.write_text(html_content, encoding="utf-8")
         outputs["html"] = str(html_path.relative_to(self.workspace_root))
 

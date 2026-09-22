@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "GitOps Swarm Framework for Distributed Multi-Agent & Multi-Human Collaborative Writing on GitHub"
 readme = "README.md"
 authors = [{ name = "SynapseForge Contributors" }]
-license = { text = "MIT" }
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -20,20 +20,26 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 dependencies = [
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.2",
     "requests>=2.28.0",
-    "markdown>=3.4",
-    "jinja2>=3.1.0",
+    "markdown>=3.10.3",
+    "jinja2>=3.1.6",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
+    "pytest>=9.1.1",
 ]
 
 [project.scripts]
 synapseforge = "synapseforge.cli.main:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["synapseforge*"]
+exclude = ["assets*", "sections*", "tests*", "docs*", "prompts*", "variants*", "imports*", "references*", "figures*", "dist*", "rooms*", "examples*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+

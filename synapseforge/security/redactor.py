@@ -24,7 +24,7 @@ SECRET_PATTERNS = [
     (r'(?i)(?:password|secret|token|api_key)\s*[:=]\s*["\']([^"\'\s]{8,})["\']', "GENERIC_SECRET"),
     (r'\b1[3-9]\d{9}\b', "PHONE_NUMBER_CN"),
     (r'\b\d{17}[\dXx]\b', "NATIONAL_ID_CN"),
-    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b', "EMAIL_ADDRESS"),
+    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}\b', "EMAIL_ADDRESS"),
 ]
 
 
@@ -67,32 +67,37 @@ class ConfidentialityRedactor:
     def scan_for_secrets(self, text: str) -> List[RedactionIssue]:
         """Audits document text for secrets, PII, and custom classified terms."""
         issues = []
-        lines = text.split("\n")
+        if not text:
+            return []
 
-        # 1. Check regex secret patterns
-        for line_idx, line in enumerate(lines, start=1):
-            for pattern, p_name in SECRET_PATTERNS:
-                for match in re.finditer(pattern, line):
-                    val = match.group(0)
-                    issues.append(RedactionIssue(
-                        line_number=line_idx,
-                        matched_type=p_name,
-                        redacted_preview=f"[REDACTED_{p_name}]",
-                        original_snippet=val[:4] + "***" + val[-4:] if len(val) > 8 else "***",
-                    ))
+        # 1. Check regex secret patterns across full text (supports multi-line patterns like SSH keys)
+        for pattern, p_name in SECRET_PATTERNS:
+            for match in re.finditer(pattern, text):
+                val = match.group(0)
+                line_idx = text[:match.start()].count("\n") + 1
+                issues.append(RedactionIssue(
+                    line_number=line_idx,
+                    matched_type=p_name,
+                    redacted_preview=f"[REDACTED_{p_name}]",
+                    original_snippet=val[:4] + "***" + val[-4:] if len(val) > 8 else "***",
+                ))
 
         # 2. Check user classified terms
         custom_terms = self._load_custom_keywords()
-        for line_idx, line in enumerate(lines, start=1):
-            for term in custom_terms:
-                if term and term in line:
-                    issues.append(RedactionIssue(
-                        line_number=line_idx,
-                        matched_type="CUSTOM_CLASSIFIED_TERM",
-                        redacted_preview=f"[CONFIDENTIAL:{term[0]}***]",
-                        original_snippet=term,
-                    ))
+        for term in custom_terms:
+            if not term:
+                continue
+            for match in re.finditer(re.escape(term), text):
+                line_idx = text[:match.start()].count("\n") + 1
+                issues.append(RedactionIssue(
+                    line_number=line_idx,
+                    matched_type="CUSTOM_CLASSIFIED_TERM",
+                    redacted_preview=f"[CONFIDENTIAL:{term[0]}***]",
+                    original_snippet=term,
+                ))
 
+        # Sort issues by line number
+        issues.sort(key=lambda x: x.line_number)
         return issues
 
     def redact(self, text: str) -> Tuple[str, Dict[str, str]]:
@@ -103,15 +108,8 @@ class ConfidentialityRedactor:
         sanitized = text
         token_map: Dict[str, str] = {}
 
-        # 1. Custom Classified terms first
-        custom_terms = self._load_custom_keywords()
-        for term in custom_terms:
-            if term and term in sanitized:
-                token = f"⟦SEC_TERM_{hashlib.sha256(term.encode()).hexdigest()[:8]}⟧"
-                token_map[token] = term
-                sanitized = sanitized.replace(term, token)
-
-        # 2. Regex Patterns
+        # 1. Regex Patterns (structured secrets first, so custom terms embedded
+        # inside a secret cannot break the pattern match)
         for pattern, p_name in SECRET_PATTERNS:
             def repl(match):
                 original = match.group(0)
@@ -120,6 +118,14 @@ class ConfidentialityRedactor:
                 return token
 
             sanitized = re.sub(pattern, repl, sanitized)
+
+        # 2. Custom Classified terms (token delimiters ⟦ ⟧ never match the secret regexes)
+        custom_terms = self._load_custom_keywords()
+        for term in custom_terms:
+            if term and term in sanitized:
+                token = f"⟦SEC_TERM_{hashlib.sha256(term.encode()).hexdigest()[:8]}⟧"
+                token_map[token] = term
+                sanitized = sanitized.replace(term, token)
 
         return sanitized, token_map
 

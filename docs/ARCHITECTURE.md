@@ -54,3 +54,18 @@ When a Pull Request is opened by either a human or an agent, the PR Review Bot e
 - **Critic Agent**: Scrutinizes quantitative claims, flags unsupported assertions, and checks logical edge cases.
 - **Harmonizer Agent**: Harmonizes cross-regional voice and transitions between chapters.
 - **Fact-Checker**: Cross-validates `@cite_key` anchors against `bibliography.bib`.
+
+## 4. Local Agent CLI Bus
+
+GitHub is the durable consensus log. Tailscale mesh rooms replicate state across nodes. Host Agent CLIs on one laptop (`codex`, `grok`, `agy`) need a third coordinator: a SQLite bus at `.synapse/team.db`.
+
+`synapseforge team` / `synapseforge team mcp` provide:
+
+- **Exclusive seats.** A second process joining as a live `grok` (or `codex` / `antigravity`) receives `already_online=true` and must observe only.
+- **Task board with dedup.** Creating a card for the same files or a similar title returns the existing open card (`deduplicated=true`).
+- **Workspace-scoped file locks** with heartbeat. Silent holders are reclaimed; a live OS process is not a heartbeat.
+- **Coordinator-silent.** If `codex` has no heartbeat for 75 seconds, remaining agents freeze the plan and continue after one wait timeout.
+- **Action claims.** `team_claim_action` is a one-shot mutex for push / submit / deploy. Default submitter is Antigravity; reviewers do not submit.
+- **Human directives.** `kind=directive` from `human`, and anything the user says in an agent's own session, is live instruction.
+
+This layer does not replace GitOps CI quality gates. It only prevents local CLI races before a PR exists. See `docs/LOCAL_AGENT_COLLAB.md`.

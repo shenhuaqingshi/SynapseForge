@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import urllib.parse
@@ -19,17 +20,23 @@ from typing import Any, Dict, Optional
 from synapseforge.config import load_config
 from synapseforge.core.ast_parser import MarkdownASTParser
 from synapseforge.core.engine import SwarmEngine
+from synapseforge.core.section_paths import resolve_section_path
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.tools.cite_tool import CiteTool
 from synapseforge.tools.pdf_tool import PDFTool
 from synapseforge.tools.sci_plot_tool import SciPlotTool
 
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+UI_FILE = PACKAGE_ROOT / "ui" / "index.html"
+
 
 class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
     """HTTP Request Handler for SynapseForge Remote Control Web UI and REST API."""
 
+    workspace_root = Path.cwd()
+
     def __init__(self, *args, **kwargs):
-        self.root_dir = Path.cwd()
+        self.root_dir = Path(self.workspace_root)
         super().__init__(*args, directory=str(self.root_dir), **kwargs)
 
     def do_GET(self):
@@ -37,7 +44,7 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/", "/index.html", "/studio"):
-            ui_file = self.root_dir / "synapseforge" / "ui" / "index.html"
+            ui_file = UI_FILE if UI_FILE.exists() else (self.root_dir / "synapseforge" / "ui" / "index.html")
             if ui_file.exists():
                 content = ui_file.read_bytes()
                 self.send_response(HTTPStatus.OK)
@@ -61,7 +68,7 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             return
 
         elif path == "/api/citations":
-            cite = CiteTool()
+            cite = CiteTool(workspace_root=self.root_dir)
             self._send_json({"ok": True, "citations": cite.list_citations()})
             return
 
@@ -75,10 +82,23 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True, "prompts": mgr.list_prompts()})
             return
 
-        elif path == "/api/vault/files":
+        elif path in ("/api/vault/list", "/api/vault/files"):
             from synapseforge.core.vault import WorkspaceVault
             vault = WorkspaceVault(self.root_dir)
-            self._send_json(vault.list_vault_files())
+            self._send_json({"ok": True, "vault": vault.list_vault_files()})
+            return
+
+        elif path == "/api/report/spec":
+            from synapseforge.report.spec import ReportStandard
+            self._send_json({
+                "ok": True,
+                "standard_name": "Report Specification (Report-Spec)",
+                "seven_prohibitions": ReportStandard.SEVEN_PROHIBITIONS,
+                "paragraph_triad_rule": ReportStandard.PARAGRAPH_TRIAD_RULE,
+                "booktabs_rule": ReportStandard.BOOKTABS_RULE,
+                "scientific_plot_rules": ReportStandard.SCIENTIFIC_PLOT_RULES,
+                "publication_pdf_layout_rules": ReportStandard.PUBLICATION_PDF_LAYOUT_RULES,
+            })
             return
 
         elif path.startswith("/assets/") or path.startswith("/dist/"):
@@ -100,6 +120,18 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/session":
             self._handle_api_save_session(data)
+        elif path == "/api/report/new":
+            from synapseforge.report.generator import ReportGenerator
+            from synapseforge.report.spec import ReportType
+            gen = ReportGenerator(self.root_dir)
+            rep_type = ReportType(data.get("type", "whitepaper"))
+            res = gen.generate_report_template(
+                title=data.get("title", "SynapseForge Report"),
+                topic=data.get("topic", "Distributed Systems"),
+                report_type=rep_type,
+                author=data.get("author", "Human Co-Author"),
+            )
+            self._send_json(res)
         elif path == "/api/vault/import":
             from synapseforge.core.vault import WorkspaceVault
             vault = WorkspaceVault(self.root_dir)
@@ -135,7 +167,7 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
             res = snap.rollback(commit_hash=data.get("commit_hash", "HEAD~1"), file_path=data.get("file_path"))
             self._send_json(res)
         elif path == "/api/citations/add":
-            cite = CiteTool()
+            cite = CiteTool(workspace_root=self.root_dir)
             res = cite.add_bibtex_entry(
                 key=data.get("key", "newcite2026"),
                 entry_type=data.get("type", "article"),
@@ -158,14 +190,19 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _handle_api_status(self):
-        engine = SwarmEngine()
+        engine = SwarmEngine(project_root=self.root_dir)
         tree = engine.get_document_tree()
-        config = load_config()
+        yaml_path = self.root_dir / "synapseforge.yaml"
+        try:
+            config = load_config(yaml_path if yaml_path.exists() else None)
+        except Exception:
+            from synapseforge.config import ProjectConfig
+            config = ProjectConfig()
         self._send_json({
             "ok": True,
             "project_name": config.name,
             "document_title": config.document_title,
-            "tailscale_mesh": config.tailscale.tailnet,
+            "tailscale_mesh": getattr(getattr(config, "tailscale", None), "tailnet", ""),
             "sections_count": len(tree),
             "tree": tree,
         })
@@ -175,29 +212,32 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         sections = {}
         for p in sorted(sec_dir.glob("*.md")):
             sec_num = p.stem.split("_")[0]
-            sections[f"sec_{sec_num}"] = {
+            sec_key = f"sec_{sec_num}" if not p.stem.startswith("sec_") else p.stem
+            if sec_key in sections:
+                sec_key = f"sec_{p.stem}"
+            sections[sec_key] = {
+                "id": sec_key,
                 "name": p.name,
+                "stem": p.stem,
                 "content": p.read_text(encoding="utf-8"),
             }
         self._send_json({"ok": True, "sections": sections})
 
     def _handle_api_save(self, data: Dict[str, Any]):
         section_id = data.get("section_id", "")
-        content = data.get("content", "")
-        if not section_id or not content:
-            self._send_json({"ok": False, "error": "Missing section_id or content"}, status=HTTPStatus.BAD_REQUEST)
+        if not isinstance(section_id, str) or not re.fullmatch(r"[A-Za-z0-9_\-]+", section_id):
+            self._send_json(
+                {"ok": False, "error": "Invalid section_id: must be non-empty and contain only [A-Za-z0-9_-]"},
+                status=HTTPStatus.BAD_REQUEST,
+            )
             return
+        if "content" not in data:
+            self._send_json({"ok": False, "error": "Missing content"}, status=HTTPStatus.BAD_REQUEST)
+            return
+        content = data["content"]
 
-        sec_dir = self.root_dir / "sections"
-        target_file = None
-        for p in sec_dir.glob("*.md"):
-            if p.stem.startswith(section_id.replace("sec_", "")) or section_id in p.stem:
-                target_file = p
-                break
-
-        if not target_file:
-            target_file = sec_dir / f"{section_id}.md"
-
+        target_file = resolve_section_path(self.root_dir, section_id)
+        target_file.parent.mkdir(parents=True, exist_ok=True)
         target_file.write_text(content, encoding="utf-8")
         parser = MarkdownASTParser()
         words = parser.count_words(content)
@@ -228,11 +268,41 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         })
 
     def _handle_api_pdf_build(self, data: Dict[str, Any]):
+        t0 = time.time()
         tool = PDFTool()
-        input_file = self.root_dir / "sections" / "01_abstract_introduction.md"
-        output_pdf = self.root_dir / "dist" / "remote_build_report.pdf"
-        res = tool.compile_markdown_to_pdf(input_file, output_pdf, title=data.get("title", "SynapseForge Remote Build"))
-        self._send_json(res)
+        title = data.get("title", "SynapseForge Real-Time Publication PDF")
+        
+        # If live markdown text is sent from editor
+        if data.get("markdown_text"):
+            temp_md = self.root_dir / "dist" / "live_preview.md"
+            temp_md.parent.mkdir(parents=True, exist_ok=True)
+            temp_md.write_text(data["markdown_text"], encoding="utf-8")
+            input_file = temp_md
+        elif data.get("section_id"):
+            input_file = resolve_section_path(self.root_dir, str(data["section_id"]))
+        else:
+            input_file = self.root_dir / "dist" / "full_manuscript.md"
+            if not input_file.exists():
+                input_file = self.root_dir / "sections" / "02_theoretical_foundations.md"
+
+        output_pdf = self.root_dir / "dist" / "live_preview.pdf"
+        res = tool.compile_markdown_to_pdf(input_file, output_pdf, title=title)
+        
+        elapsed_ms = round((time.time() - t0) * 1000, 1)
+        if res.get("ok"):
+            self._send_json({
+                "ok": True,
+                "pdf_url": f"/dist/live_preview.pdf?t={int(time.time()*1000)}",
+                "compile_time_ms": elapsed_ms,
+                "file_size": output_pdf.stat().st_size if output_pdf.exists() else 0,
+                "engine": res.get("engine", "typst"),
+            })
+        else:
+            self._send_json({
+                "ok": False,
+                "error": res.get("error"),
+                "compile_time_ms": elapsed_ms,
+            })
 
     def _handle_api_get_session(self):
         session_file = self.root_dir / ".synapse" / "session.json"
@@ -261,8 +331,13 @@ class SynapseForgeRemoteHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": True, "message": "Session state saved", "session": data})
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8765) -> ThreadingHTTPServer:
+def start_server(host: str = "0.0.0.0", port: int = 8765, workspace=None) -> ThreadingHTTPServer:
     """Starts the SynapseForge remote daemon HTTP server."""
-    server_address = (host, port)
-    httpd = ThreadingHTTPServer(server_address, SynapseForgeRemoteHandler)
+    root = Path(workspace).resolve() if workspace else Path.cwd()
+
+    class BoundHandler(SynapseForgeRemoteHandler):
+        workspace_root = root
+
+    httpd = ThreadingHTTPServer((host, port), BoundHandler)
+    httpd.workspace_root = root  # type: ignore[attr-defined]
     return httpd

@@ -124,19 +124,20 @@ class PRReviewRunner:
             f"**Status**: {status_badge}",
             f"**Inspected Files**: {len(file_results)} | **Errors**: {total_errors} | **Warnings**: {total_warnings} | **Agent Suggestions**: {total_critic_suggestions}",
             f"",
-            f"| File | Anti-AI Gate | Coherence | Style & Booktabs | Critic Agent | Result |",
-            f"|---|:---:|:---:|:---:|:---:|:---:|",
+            f"| File | Anti-AI Gate | Coherence | Style & Booktabs | Citations | Critic Agent | Result |",
+            f"|---|:---:|:---:|:---:|:---:|:---:|:---:|",
         ]
 
         for r in file_results:
             lint = r["lint_report"]
-            anti_ai_ok = "✅" if lint.results[0].error_count == 0 else f"❌ ({lint.results[0].error_count})"
-            coherence_ok = "✅" if lint.results[1].error_count == 0 else f"❌ ({lint.results[1].error_count})"
-            style_ok = "✅" if lint.results[2].error_count == 0 else f"⚠️ ({lint.results[2].warning_count})"
+            anti_ai_ok = "✅" if len(lint.results) > 0 and lint.results[0].error_count == 0 else f"❌ ({lint.results[0].error_count})"
+            coherence_ok = "✅" if len(lint.results) > 1 and lint.results[1].error_count == 0 else f"❌ ({lint.results[1].error_count})"
+            style_ok = "✅" if len(lint.results) > 2 and lint.results[2].error_count == 0 else f"⚠️ ({lint.results[2].warning_count})"
+            citations_ok = "✅" if len(lint.results) > 3 and lint.results[3].error_count == 0 else (f"❌ ({lint.results[3].error_count})" if len(lint.results) > 3 else "N/A")
             critic_count = len(r["critic_feedbacks"])
             critic_status = f"{critic_count} notes" if critic_count > 0 else "Clear"
             verdict = "PASS" if r["passed"] else "FAIL"
-            md.append(f"| `{r['file']}` | {anti_ai_ok} | {coherence_ok} | {style_ok} | {critic_status} | **{verdict}** |")
+            md.append(f"| `{r['file']}` | {anti_ai_ok} | {coherence_ok} | {style_ok} | {citations_ok} | {critic_status} | **{verdict}** |")
 
         md.append("")
         # Section issues breakdown

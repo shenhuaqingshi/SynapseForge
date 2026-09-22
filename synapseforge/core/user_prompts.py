@@ -14,11 +14,34 @@ from typing import Any, Dict, List, Optional
 class UserPromptManager:
     """Manages user-defined custom agent prompts stored in the user workspace."""
 
-    def __init__(self, workspace_root: Optional[Path] = None):
+    def __init__(self, workspace_root: Optional[Path] = None, auto_init_report_spec: bool = True):
         self.workspace_root = workspace_root or Path.cwd()
         self.prompts_dir = self.workspace_root / "prompts"
         self.prompts_dir.mkdir(parents=True, exist_ok=True)
         self.meta_file = self.prompts_dir / "custom_roles.json"
+        if auto_init_report_spec:
+            self.ensure_report_spec_defaults()
+
+    def ensure_report_spec_defaults(self) -> None:
+        """Ensures report-spec compliant prompts are registered by default."""
+        from synapseforge.report.prompts import REPORT_SPEC_PROMPTS
+        meta = self._load_meta()
+        updated = False
+        for role_id, info in REPORT_SPEC_PROMPTS.items():
+            prompt_file = self.prompts_dir / f"{role_id}.md"
+            if not prompt_file.exists():
+                prompt_file.write_text(info["prompt"], encoding="utf-8")
+            if role_id not in meta:
+                meta[role_id] = {
+                    "role_id": role_id,
+                    "display_name": info["display_name"],
+                    "description": info["desc"],
+                    "prompt_file": f"prompts/{role_id}.md",
+                    "model": "deepseek-v3",
+                }
+                updated = True
+        if updated:
+            self._save_meta(meta)
 
     def _load_meta(self) -> Dict[str, Dict[str, Any]]:
         if self.meta_file.exists():

@@ -83,8 +83,6 @@ class LLMRouter:
                 p.status = "ready"
                 return {"ok": True, "provider": p.name, "latency_ms": p.latency_ms, "status": "online"}
         except Exception:
-            # Fallback simulated response for local/offline demo
-            latency = 12.4 if "local" in provider_id else 45.2
-            p.latency_ms = latency
-            p.status = "ready"
-            return {"ok": True, "provider": p.name, "latency_ms": latency, "status": "online"}
+            p.status = "unreachable"
+            return {"ok": False, "provider": p.name, "latency_ms": None, "status": "unreachable",
+                    "error": f"Provider '{provider_id}' endpoint unreachable: {p.endpoint_url}"}

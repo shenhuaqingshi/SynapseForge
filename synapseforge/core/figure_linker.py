@@ -25,17 +25,11 @@ class FigureLinker:
         discussion_bridge: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Inserts a figure with caption and narrative discussion bridge into section Markdown."""
-        sec_dir = self.workspace_root / "sections"
-        target_file = None
-        for p in sec_dir.glob("*.md"):
-            if p.stem.startswith(section_id.replace("sec_", "")) or section_id in p.stem:
-                target_file = p
-                break
+        from synapseforge.core.section_paths import resolve_section_path
 
-        if not target_file:
-            target_file = sec_dir / f"{section_id}.md"
-            if not target_file.exists():
-                return {"ok": False, "error": f"Section '{section_id}' file not found"}
+        target_file = resolve_section_path(self.workspace_root, section_id, create_dir=False)
+        if not target_file.exists():
+            return {"ok": False, "error": f"Section '{section_id}' file not found"}
 
         content = target_file.read_text(encoding="utf-8")
         

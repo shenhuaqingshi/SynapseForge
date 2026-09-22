@@ -44,11 +44,20 @@ def test_figure_linker_insert(tmp_path):
     assert "如图 2 所示" in content
 
 
-def test_llm_router_list_and_ping():
+def test_llm_router_list_and_ping(monkeypatch):
     router = LLMRouter()
     providers = router.list_providers()
     assert len(providers) >= 3
 
+    # Unreachable endpoint must be reported as offline, not faked as online
+    import urllib.request
+
+    def _fail(req, timeout=0):
+        raise ConnectionError("endpoint unreachable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _fail)
     res = router.ping_provider("deepseek")
-    assert res["ok"] is True
-    assert "latency_ms" in res
+    assert res["ok"] is False
+    assert res["status"] == "unreachable"
+    assert res["latency_ms"] is None
+    assert router.providers["deepseek"].status == "unreachable"

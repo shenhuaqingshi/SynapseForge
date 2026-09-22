@@ -23,11 +23,16 @@ class DocumentIngestor:
 
     def ingest_text_or_note(self, source_id: str, title: str, content: str, tags: Optional[List[str]] = None) -> Dict[str, Any]:
         """Saves a structured research note or briefing into context directory."""
+        if not re.fullmatch(r"[A-Za-z0-9_\-]+", source_id or ""):
+            return {
+                "ok": False,
+                "error": f"Invalid source_id '{source_id}': must contain only letters, digits, underscores and hyphens",
+            }
         target_file = self.context_dir / f"{source_id}.md"
         
         note_content = f"""---
 id: {source_id}
-title: "{title}"
+title: {json.dumps(title, ensure_ascii=False)}
 tags: {json.dumps(tags or [])}
 ---
 

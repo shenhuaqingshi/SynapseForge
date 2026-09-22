@@ -27,6 +27,7 @@ from synapseforge.cli.agent_cmds import (
     handle_agent_roles,
     handle_agent_run_cli,
 )
+from synapseforge.cli.team_cmds import handle_team
 from synapseforge.cli.doc_cmds import handle_doc_get, handle_doc_stats
 from synapseforge.config import ProjectConfig, load_config
 from synapseforge.core.conflict_resolver import SemanticConflictResolver
@@ -41,10 +42,12 @@ from synapseforge.core.ingest import DocumentIngestor
 from synapseforge.core.llm_router import LLMRouter
 from synapseforge.core.notifier import NotificationDispatcher
 from synapseforge.core.scorecard import QualityScorecard
+from synapseforge.core.semantic_diff import SemanticASTDiffer
 from synapseforge.core.snapshot import SnapshotManager
 from synapseforge.core.user_prompts import UserPromptManager
 from synapseforge.core.vault import WorkspaceVault
 from synapseforge.core.variant_synthesizer import MultiDocumentSynthesizer, VariantManager
+from synapseforge.core.watcher import DocumentWatcher
 from synapseforge.network.room_sync import DistributedRoomManager
 from synapseforge.network.tailscale_mesh import TailscaleMeshManager
 from synapseforge.renderers.pipeline import PublicationPipeline
@@ -52,6 +55,7 @@ from synapseforge.security.acl import NodeAccessController
 from synapseforge.security.crypto_vault import CryptoVault
 from synapseforge.security.redactor import ConfidentialityRedactor
 from synapseforge.tools import CiteTool, OfficeTool, PDFTool, SciPlotTool
+import time
 
 
 # ANSI Terminal Colors
@@ -155,6 +159,12 @@ def cmd_lint(args):
             targets = list(p.glob("**/*.md"))
         elif p.exists():
             targets = [p]
+        else:
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": False, "error": f"Target path not found: {args.target}"}))
+            else:
+                print(f"{Color.RED}✖ Target path not found: {args.target}{Color.RESET}")
+            sys.exit(1)
     else:
         sec_dir = Path.cwd() / "sections"
         targets = list(sec_dir.glob("*.md")) if sec_dir.exists() else list(Path.cwd().glob("*.md"))
@@ -174,7 +184,7 @@ def cmd_lint(args):
         if not report.passed:
             all_passed = False
         reports_data.append({
-            "file": str(t.relative_to(Path.cwd())),
+            "file": os.path.relpath(t, Path.cwd()),
             "passed": report.passed,
             "errors": report.total_errors,
             "warnings": report.total_warnings,
@@ -184,7 +194,7 @@ def cmd_lint(args):
                     "severity": i.severity,
                     "line": i.line_start,
                     "message": i.message,
-                    "suggestion": i.suggestion,
+                    "suggestion": i.suggested_fix,
                 }
                 for i in report.all_issues
             ]
@@ -393,8 +403,21 @@ def cmd_plot(args):
         data = {}
         if args.data:
             p = Path(args.data)
-            if p.exists():
-                data = json.loads(p.read_text(encoding="utf-8"))
+            load_error = None
+            if not p.exists():
+                load_error = f"Data file not found: {args.data}"
+            else:
+                try:
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                except (ValueError, OSError) as e:
+                    load_error = f"Failed to parse data file '{args.data}': {e}"
+            if load_error:
+                res = {"ok": False, "error": load_error}
+                if getattr(args, "json", False):
+                    print(json.dumps(res, indent=2, ensure_ascii=False))
+                else:
+                    print(f"{Color.RED}✖ Plot failed: {load_error}{Color.RESET}")
+                sys.exit(1)
         res = tool.plot_benchmark_curve(
             data=data,
             output_path=Path(args.output),
@@ -421,6 +444,15 @@ def cmd_plot(args):
 
 def cmd_pdf(args):
     tool = PDFTool()
+    if getattr(args, "pdf_action", None) is None:
+        available = tool.is_available()
+        usage = "synapseforge pdf compile --input <markdown> [--output <pdf>] [--title <title>]"
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "engine": "typst", "available": available, "usage": usage}, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.CYAN}Publication PDF engine: typst (available: {'yes' if available else 'no'}){Color.RESET}")
+            print(f"Usage: {usage}")
+        return
     input_path = Path(args.input)
     output_path = Path(args.output)
     res = tool.compile_markdown_to_pdf(input_path, output_path, title=getattr(args, "title", "SynapseForge Document"))
@@ -448,7 +480,7 @@ def cmd_serve(args):
     print(f"  - REST API:         http://127.0.0.1:{port}/api/status")
     print(f"{Color.GREEN}✓ Remote Web Daemon active. Open in browser from any remote device.{Color.RESET}\n")
 
-    httpd = start_server(host=host, port=port)
+    httpd = start_server(host=host, port=port, workspace=Path.cwd())
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -463,12 +495,30 @@ def cmd_cite(args):
     elif args.cite_action == "add":
         res = cite.add_bibtex_entry(
             key=args.key,
-            entry_type=args.type or "article",
+            entry_type=getattr(args, "type", "article") or "article",
             title=args.title,
             author=args.author,
-            year=args.year,
-            journal_or_book=args.journal or "",
+            year=getattr(args, "year", "2026") or "2026",
+            journal_or_book=getattr(args, "journal", "") or "",
+            doi=getattr(args, "doi", "") or "",
         )
+    elif args.cite_action == "lookup":
+        res = cite.lookup_doi(args.doi)
+        if res.get("ok") and getattr(args, "add", False):
+            add_res = cite.add_bibtex_entry(
+                key=res["key"],
+                entry_type=res.get("type", "article"),
+                title=res["title"],
+                author=res["author"],
+                year=res["year"],
+                journal_or_book=res.get("journal", ""),
+                doi=res.get("doi", ""),
+            )
+            res["added_to_bibliography"] = add_res.get("ok", False)
+    elif args.cite_action == "search":
+        res = cite.search_crossref(args.query, limit=getattr(args, "limit", 5) or 5)
+    elif args.cite_action == "validate":
+        res = cite.validate_citations()
     else:
         res = {"ok": False, "error": f"Unknown cite action: {args.cite_action}"}
 
@@ -480,6 +530,37 @@ def cmd_cite(args):
                 print(f"{Color.GREEN}✓ Added citation '@{args.key}' to bibliography.bib{Color.RESET}")
             else:
                 print(f"{Color.RED}✖ Error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "lookup":
+            if res.get("ok"):
+                print(f"{Color.GREEN}✓ Found DOI metadata: @{res['key']}{Color.RESET}")
+                print(f"  • Title:   {res['title']}")
+                print(f"  • Author:  {res['author']}")
+                print(f"  • Year:    {res['year']}")
+                print(f"  • Journal: {res.get('journal', 'N/A')}")
+                if res.get("added_to_bibliography"):
+                    print(f"{Color.GREEN}✓ Added automatically to bibliography.bib{Color.RESET}")
+            else:
+                print(f"{Color.RED}✖ Lookup error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "search":
+            if res.get("ok"):
+                print(f"\n{Color.CYAN}{Color.BOLD}CrossRef Search Results ({res.get('count', 0)} found):{Color.RESET}")
+                for r in res.get("results", []):
+                    print(f"  • @{r['key']:<22} | {r['author'][:25]:<25} | {r['year']} | {r['title']}")
+                    if r.get("doi"):
+                        print(f"    DOI: https://doi.org/{r['doi']}")
+            else:
+                print(f"{Color.RED}✖ Search error: {res.get('error')}{Color.RESET}")
+        elif args.cite_action == "validate":
+            if res.get("valid"):
+                print(f"{Color.GREEN}✓ All {res['total_cited_in_document']} citations in document are valid and resolved in bibliography.bib!{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}⚠ Citation Validation Issues Detected:{Color.RESET}")
+                if res.get("unresolved_citations"):
+                    print(f"  {Color.RED}✖ Unresolved in document: {', '.join(res['unresolved_citations'])}{Color.RESET}")
+                if res.get("unused_in_bibliography"):
+                    print(f"  {Color.GRAY}• Unused in bibliography: {', '.join(res['unused_in_bibliography'])}{Color.RESET}")
+                if res.get("incomplete_entries"):
+                    print(f"  {Color.YELLOW}• Incomplete entries: {res['incomplete_entries']}{Color.RESET}")
         else:
             print(f"\n{Color.CYAN}{Color.BOLD}BibTeX Bibliography Citations ({len(res['citations'])} entries):{Color.RESET}")
             for c in res["citations"]:
@@ -523,7 +604,15 @@ def cmd_ingest(args):
     if args.ingest_action == "add":
         content = args.content
         if args.file:
-            content = Path(args.file).read_text(encoding="utf-8")
+            file_path = Path(args.file)
+            if not file_path.exists():
+                res = {"ok": False, "error": f"File not found: {args.file}"}
+                if getattr(args, "json", False):
+                    print(json.dumps(res, indent=2, ensure_ascii=False))
+                else:
+                    print(f"{Color.RED}✖ Ingest failed: {res['error']}{Color.RESET}")
+                sys.exit(1)
+            content = file_path.read_text(encoding="utf-8")
         res = ingestor.ingest_text_or_note(
             source_id=args.id,
             title=args.title,
@@ -660,10 +749,90 @@ def cmd_export(args):
             print(f"{Color.RED}✖ Export failed: {res.get('error')}{Color.RESET}")
 
 
+def cmd_diff(args):
+    differ = SemanticASTDiffer()
+    file1 = getattr(args, "file1", None)
+    file2 = getattr(args, "file2", None)
+    variant = getattr(args, "variant", None)
+
+    if variant and file1:
+        var_path = Path.cwd() / "variants" / f"{variant}.md"
+        if not var_path.exists():
+            res = {"ok": False, "error": f"Variant file not found: {var_path}"}
+            if getattr(args, "json", False):
+                print(json.dumps(res, indent=2, ensure_ascii=False))
+            else:
+                print(f"{Color.RED}✖ Variant not found: {var_path}{Color.RESET}")
+            return
+        file2 = str(var_path)
+
+    if not file1 or not file2:
+        res = {"ok": False, "error": "Two files or a file and --variant must be specified"}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.RED}✖ Error: Please specify two files to diff.{Color.RESET}")
+        return
+
+    try:
+        diff_res = differ.diff_files(file1, file2)
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, "diff": diff_res.to_dict()}, indent=2, ensure_ascii=False))
+        else:
+            print(diff_res.render_terminal(use_color=True))
+    except Exception as e:
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.RED}✖ Diff error: {e}{Color.RESET}")
+
+
+def cmd_watch(args):
+    watcher = DocumentWatcher(
+        auto_snapshot=getattr(args, "auto_snapshot", False),
+        debounce_seconds=getattr(args, "debounce", 0.5),
+    )
+    interval = getattr(args, "interval", 1.0)
+    once = getattr(args, "once", False)
+
+    if once:
+        events = watcher.poll_once()
+        res = {"ok": True, "events": [e.to_dict() for e in events]}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.CYAN}Polled once: {len(events)} change events detected.{Color.RESET}")
+            for ev in events:
+                print(f"  • {ev.change_type.value.upper()} {ev.path.name} (lint: {'PASS' if ev.linter_passed else 'FAIL'})")
+        return
+
+    print(f"{Color.CYAN}{Color.BOLD}⚡ SynapseForge Watch Daemon active (interval: {interval}s, auto-snapshot: {getattr(args, 'auto_snapshot', False)})...{Color.RESET}")
+    print(f"{Color.GRAY}Press Ctrl+C to stop watching.{Color.RESET}\n")
+
+    def handle_ev(ev):
+        status_icon = f"{Color.GREEN}✓{Color.RESET}" if ev.linter_passed else f"{Color.RED}✖{Color.RESET}"
+        snap_msg = f" | {Color.MAGENTA}snapshot {ev.snapshot_hash[:7]}{Color.RESET}" if ev.snapshot_created else ""
+        print(f"[{time.strftime('%H:%M:%S')}] {status_icon} {ev.change_type.value.upper()}: {Color.BOLD}{ev.path.name}{Color.RESET} (issues: {ev.linter_issues_count}){snap_msg}")
+
+    try:
+        watcher.watch_loop(interval=interval, on_event=handle_ev)
+    except KeyboardInterrupt:
+        print(f"\n{Color.YELLOW}Stopped watcher daemon.{Color.RESET}")
+
+
 def cmd_scorecard(args):
     scorecard = QualityScorecard()
-    res = scorecard.evaluate_document()
+    html_out = getattr(args, "html", None)
+    if html_out:
+        p = scorecard.generate_html_report(output_path=html_out)
+        res = {"ok": True, "html_report": str(p)}
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}✓ Quality audit HTML report generated at: {p}{Color.RESET}")
+        return
 
+    res = scorecard.evaluate_document()
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2, ensure_ascii=False))
     else:
@@ -907,13 +1076,122 @@ def cmd_security(args):
             print(f"{Color.GREEN}✓ Added confidential keyword '{args.term}' to redaction registry{Color.RESET}")
 
 
+def cmd_report(args):
+    action = getattr(args, "report_action", "spec")
+
+    if action == "new":
+        from synapseforge.report import ReportGenerator
+        from synapseforge.report.spec import ReportType
+        gen = ReportGenerator()
+        rep_type = ReportType(getattr(args, "type", "whitepaper"))
+        res = gen.generate_report_template(
+            title=args.title,
+            topic=args.topic,
+            report_type=rep_type,
+            author=getattr(args, "author", "SynapseForge Swarm Contributors"),
+        )
+        out_path = Path(args.output) if getattr(args, "output", None) else (Path.cwd() / "sections" / "01_report_spec.md")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(res["content"], encoding="utf-8")
+        res["output_file"] = str(out_path)
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"{Color.GREEN}{Color.BOLD}✓ Report-Spec Publication Document Created:{Color.RESET} {out_path}")
+            print(f"  • Title: {res['title']}")
+            print(f"  • Quality Score: {res['audit']['total_score']}/100 (Anti-AI: {res['audit']['anti_ai_score']}, Narrative: {res['audit']['narrative_score']})")
+
+    elif action == "lint":
+        from synapseforge.report.spec import ReportSpecification
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        text = file_path.read_text(encoding="utf-8")
+        audit = ReportSpecification.audit_document(text)
+        res = {
+            "ok": True,
+            "file": str(file_path),
+            "passed": audit.passed,
+            "total_score": audit.total_score,
+            "anti_ai_score": audit.anti_ai_score,
+            "narrative_score": audit.narrative_score,
+            "structure_score": audit.structure_score,
+            "violations": audit.violations,
+            "suggestions": audit.suggestions,
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            status_color = Color.GREEN if audit.passed else Color.RED
+            print(f"\n{status_color}{Color.BOLD}Report-Spec Quality Gate: {'PASSED' if audit.passed else 'FAILED'} (Score: {audit.total_score}/100){Color.RESET}")
+            print(f"  • Anti-AI Score: {audit.anti_ai_score}/100")
+            print(f"  • Narrative Prose Score: {audit.narrative_score}/100")
+            print(f"  • Structure Score: {audit.structure_score}/100")
+            if audit.violations:
+                print(f"\n{Color.YELLOW}Violations ({len(audit.violations)}):{Color.RESET}")
+                for v in audit.violations:
+                    print(f"  • Line {v['line']}: [{v['rule_name']}] {v['snippet']} -> {v['advice']}")
+            print()
+
+    elif action == "build":
+        from synapseforge.report import ReportGenerator
+        gen = ReportGenerator()
+        inp = Path(args.file)
+        if not inp.exists():
+            print(json.dumps({"ok": False, "error": f"File not found: {args.file}"}))
+            return
+        out = Path(args.output) if getattr(args, "output", None) else (Path.cwd() / "dist" / f"{inp.stem}.pdf")
+        res = gen.compile_report_to_pdf(markdown_path=inp, output_pdf=out, title=getattr(args, "title", None))
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            if res.get("ok"):
+                print(f"{Color.GREEN}{Color.BOLD}✓ Publication-Grade PDF Compiled:{Color.RESET} {res['output_pdf']}")
+                print(f"  • Standard: {res.get('page_standard')}")
+                print(f"  • Audit Score: {res.get('audit_score')}/100 (Passed: {res.get('audit_passed')})")
+            else:
+                print(f"{Color.RED}✖ PDF Compilation Failed: {res.get('error')}{Color.RESET}")
+
+    elif action == "spec":
+        from synapseforge.report.spec import ReportStandard
+        res = {
+            "standard_name": "Report Specification (Report-Spec)",
+            "seven_prohibitions": ReportStandard.SEVEN_PROHIBITIONS,
+            "paragraph_triad_rule": ReportStandard.PARAGRAPH_TRIAD_RULE,
+            "booktabs_rule": ReportStandard.BOOKTABS_RULE,
+            "scientific_plot_rules": ReportStandard.SCIENTIFIC_PLOT_RULES,
+            "publication_pdf_layout_rules": ReportStandard.PUBLICATION_PDF_LAYOUT_RULES,
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}📋 SynapseForge Report Specification (Report-Spec) Standards:{Color.RESET}\n")
+            for p in ReportStandard.SEVEN_PROHIBITIONS:
+                print(f"  {Color.BOLD}• {p['name']}:{Color.RESET} {p['rule']}")
+            print(f"\n  {Color.BOLD}• 散文段落三位一体法:{Color.RESET} {ReportStandard.PARAGRAPH_TRIAD_RULE}")
+            print(f"  {Color.BOLD}• 出版级三线表规范:{Color.RESET} {ReportStandard.BOOKTABS_RULE}")
+            print(f"  {Color.BOLD}• 顶刊科研绘图联动:{Color.RESET} {ReportStandard.SCIENTIFIC_PLOT_RULES}")
+            print(f"  {Color.BOLD}• 出版级 PDF 排版:{Color.RESET} {ReportStandard.PUBLICATION_PDF_LAYOUT_RULES}\n")
+
+    elif action == "prompts":
+        from synapseforge.report.prompts import REPORT_SPEC_PROMPTS
+        if getattr(args, "json", False):
+            print(json.dumps(REPORT_SPEC_PROMPTS, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{Color.CYAN}{Color.BOLD}🤖 Report-Spec Built-in Multi-Agent Prompts:{Color.RESET}\n")
+            for role, info in REPORT_SPEC_PROMPTS.items():
+                print(f"  {Color.BOLD}[{role.upper()}] {info['display_name']}{Color.RESET}: {info['desc']}")
+            print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="synapseforge",
         description="SynapseForge: GitOps & Tailscale Mesh Framework for Distributed Multi-Agent Collaborative Writing",
     )
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON format for AI agents")
+    parser.add_argument("--json", dest="json_global", action=argparse.BooleanOptionalAction, default=False, help="Output machine-readable JSON format for AI agents")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # serve
@@ -963,6 +1241,23 @@ def main():
     p_review.add_argument("--json", action="store_true", help="Output JSON")
     p_review.set_defaults(func=cmd_review)
 
+    # diff
+    p_diff = subparsers.add_parser("diff", help="Semantic AST block difference analysis between documents or variants")
+    p_diff.add_argument("file1", nargs="?", default=None, help="Base document file path")
+    p_diff.add_argument("file2", nargs="?", default=None, help="Target document file path")
+    p_diff.add_argument("--variant", default=None, help="Compare file1 against a variant in variants/")
+    p_diff.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_diff.set_defaults(func=cmd_diff)
+
+    # watch
+    p_watch = subparsers.add_parser("watch", help="Continuous quality gate daemon watching sections for changes")
+    p_watch.add_argument("--interval", type=float, default=1.0, help="Polling interval in seconds")
+    p_watch.add_argument("--once", action="store_true", help="Poll once and exit immediately")
+    p_watch.add_argument("--auto-snapshot", action="store_true", help="Create an atomic checkpoint snapshot on each save")
+    p_watch.add_argument("--debounce", type=float, default=0.5, help="Debounce window in seconds")
+    p_watch.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_watch.set_defaults(func=cmd_watch)
+
     # build
     p_build = subparsers.add_parser("build", help="Build publication deliverables (HTML, Typst, PDF)")
     p_build.add_argument("--json", action="store_true", help="Output JSON")
@@ -985,6 +1280,118 @@ def main():
     p_room.set_defaults(func=cmd_room)
 
     # ==========================================
+    # LOCAL TEAM BUS (host Agent CLI collaboration)
+    # ==========================================
+    p_team = subparsers.add_parser(
+        "team",
+        help="Local collaboration bus for Codex / Grok / Antigravity on one machine",
+    )
+    p_team.set_defaults(func=handle_team)
+    team_subs = p_team.add_subparsers(dest="team_action", help="Team action")
+
+    def _team_common(p, agent=False, room=True):
+        p.add_argument("--cwd", default=None, help="Workspace root (default: cwd)")
+        p.add_argument("--json", action="store_true", help="Machine-readable JSON")
+        if room:
+            p.add_argument("--room", default=None, help="Room name (or SYNAPSEFORGE_ROOM)")
+        if agent:
+            p.add_argument("--agent", required=True, help="Seat name: codex, grok, antigravity, claude, human")
+        p.set_defaults(func=handle_team)
+        return p
+
+    p_team_join = team_subs.add_parser("join", help="Join or create a local team room")
+    _team_common(p_team_join, agent=True)
+    p_team_join.add_argument("--role", default="", help="Role label")
+    p_team_join.add_argument("--objective", default="", help="Room objective")
+
+    _team_common(team_subs.add_parser("status", help="Room dashboard: seats, tasks, locks, coordinator_silent"))
+    p_team_say = team_subs.add_parser("say", help="Post a message or human directive")
+    _team_common(p_team_say, agent=True)
+    p_team_say.add_argument("-m", "--message", required=True, help="Message body")
+    p_team_say.add_argument("--kind", default="discussion", help="discussion, proposal, directive, ...")
+    p_team_say.add_argument("--to-agent", dest="to_agent", default=None)
+
+    p_team_msg = team_subs.add_parser("messages", help="Read room messages (heartbeat)")
+    _team_common(p_team_msg, agent=True)
+    p_team_msg.add_argument("--after-id", dest="after_id", type=int, default=0)
+    p_team_msg.add_argument("--limit", type=int, default=50)
+
+    p_team_tasks = team_subs.add_parser("tasks", help="List the shared task board")
+    _team_common(p_team_tasks)
+    p_team_tasks.add_argument("--status", default=None, choices=["open", "in_progress", "blocked", "done"])
+
+    p_team_ct = team_subs.add_parser("create-task", help="Create a task (dedupes same files/title)")
+    _team_common(p_team_ct, agent=True)
+    p_team_ct.add_argument("--title", required=True)
+    p_team_ct.add_argument("--description", default="")
+    p_team_ct.add_argument("--files", default="", help="Comma-separated workspace paths")
+    p_team_ct.add_argument("--priority", type=int, default=2)
+
+    p_team_claim = team_subs.add_parser("claim-task", help="Claim a task and lock its files")
+    _team_common(p_team_claim, agent=True)
+    p_team_claim.add_argument("--task-id", dest="task_id", type=int, required=True)
+    p_team_claim.add_argument("--lock-minutes", dest="lock_minutes", type=int, default=30)
+
+    p_team_up = team_subs.add_parser("update-task", help="Update task status")
+    _team_common(p_team_up, agent=True)
+    p_team_up.add_argument("--task-id", dest="task_id", type=int, required=True)
+    p_team_up.add_argument("--status", required=True, choices=["open", "in_progress", "blocked", "done"])
+    p_team_up.add_argument("--result", default="")
+
+    p_team_lock = team_subs.add_parser("lock", help="Lock workspace files")
+    _team_common(p_team_lock, agent=True)
+    p_team_lock.add_argument("--files", required=True, help="Comma-separated paths")
+    p_team_lock.add_argument("--task-id", dest="task_id", type=int, default=None)
+    p_team_lock.add_argument("--lock-minutes", dest="lock_minutes", type=int, default=30)
+
+    p_team_unlock = team_subs.add_parser("unlock", help="Release this agent's file locks")
+    _team_common(p_team_unlock, agent=True)
+    p_team_unlock.add_argument("--files", default="", help="Optional subset of paths")
+
+    p_team_reclaim = team_subs.add_parser("reclaim", help="Drop locks whose holder went silent")
+    _team_common(p_team_reclaim, agent=True)
+
+    p_team_act = team_subs.add_parser("claim-action", help="Claim a one-shot push/submit/deploy action")
+    _team_common(p_team_act, agent=True)
+    p_team_act.add_argument("--action-key", dest="action_key", required=True)
+    p_team_act.add_argument("--ttl", type=int, default=600)
+
+    _team_common(team_subs.add_parser("rooms", help="List local rooms"), room=False)
+    _team_common(team_subs.add_parser("docs", help="List shared documents"))
+
+    p_team_share = team_subs.add_parser("share", help="Share a local document into the room")
+    _team_common(p_team_share, agent=True)
+    p_team_share.add_argument("--path", required=True)
+    p_team_share.add_argument("--title", default="")
+
+    p_team_open = team_subs.add_parser("open", help="Create/resume a room and print paste prompts for host CLIs")
+    _team_common(p_team_open, room=False)
+    p_team_open.add_argument("--document", required=True, help="Shared brief / section markdown")
+    p_team_open.add_argument("--room", default=None, help="Room name (resumes live workspace room if omitted)")
+    p_team_open.add_argument("--objective", default="")
+    p_team_open.add_argument("--new-room", dest="new_room", action="store_true", help="Do not resume an existing live room")
+    p_team_open.add_argument("--launch", action="store_true", help="Open macOS Terminal.app seats for Codex/Grok/Antigravity")
+    p_team_open.add_argument("--skip-agents", dest="skip_agents", default="", help="Comma-separated seats not to launch")
+    p_team_open.add_argument("--wait-join-seconds", dest="wait_join_seconds", type=int, default=0, help="Seconds to wait for launched seats to team_join")
+
+    p_team_paste = team_subs.add_parser("paste-prompts", help="Print join prompts for Codex/Grok/Antigravity")
+    _team_common(p_team_paste)
+
+    p_team_mcp = team_subs.add_parser("mcp", help="Run the stdio MCP server for host Agent CLIs")
+    _team_common(p_team_mcp)
+
+    p_team_wait = team_subs.add_parser("wait", help="Wait for room messages; reports coordinator_silent and stale locks")
+    _team_common(p_team_wait, agent=True)
+    p_team_wait.add_argument("--after-id", dest="after_id", type=int, default=0)
+    p_team_wait.add_argument("--timeout", type=int, default=20)
+
+    p_team_leave = team_subs.add_parser("leave", help="Leave a seat, drop this agent's locks, mark offline")
+    _team_common(p_team_leave, agent=True)
+
+    p_team_doctor = team_subs.add_parser("doctor", help="Probe MCP handshake (NDJSON + Content-Length) and host CLI binaries")
+    _team_common(p_team_doctor, room=False)
+
+    # ==========================================
     # AGENT TOOLKIT COMMANDS (For AI Subagents)
     # ==========================================
     p_agent = subparsers.add_parser("agent", help="AI Agent atomic action toolkit (list, claim, draft, audit, patch)")
@@ -992,7 +1399,7 @@ def main():
 
     # agent list
     p_ag_list = agent_subs.add_parser("list", help="List all swarm agents and their active leases")
-    p_ag_list.add_argument("--json", action="store_true", default=True, help="Output JSON (default true for agents)")
+    p_ag_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True, help="Output JSON (default true for agents)")
     p_ag_list.set_defaults(func=handle_agent_list)
 
     # agent claim
@@ -1000,14 +1407,14 @@ def main():
     p_ag_claim.add_argument("--agent", required=True, help="Agent name (e.g. Drafter-Narrative)")
     p_ag_claim.add_argument("--section", required=True, help="Section ID to claim (e.g. sec_04_consensus)")
     p_ag_claim.add_argument("--lease", type=int, default=3600, help="Lease duration in seconds")
-    p_ag_claim.add_argument("--json", action="store_true", default=True)
+    p_ag_claim.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_claim.set_defaults(func=handle_agent_claim)
 
     # agent release
     p_ag_release = agent_subs.add_parser("release", help="Release a section lease")
     p_ag_release.add_argument("--agent", required=True, help="Agent name")
     p_ag_release.add_argument("--section", required=True, help="Section ID to release")
-    p_ag_release.add_argument("--json", action="store_true", default=True)
+    p_ag_release.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_release.set_defaults(func=handle_agent_release)
 
     # agent draft
@@ -1016,13 +1423,13 @@ def main():
     p_ag_draft.add_argument("--section", required=True, help="Section ID")
     p_ag_draft.add_argument("--content", default="", help="Markdown text content")
     p_ag_draft.add_argument("--content-file", default=None, help="File containing markdown text")
-    p_ag_draft.add_argument("--json", action="store_true", default=True)
+    p_ag_draft.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_draft.set_defaults(func=handle_agent_draft)
 
     # agent audit
     p_ag_audit = agent_subs.add_parser("audit", help="Run quality gates audit with structured line issues")
     p_ag_audit.add_argument("--target", required=True, help="Target markdown file to audit")
-    p_ag_audit.add_argument("--json", action="store_true", default=True)
+    p_ag_audit.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_audit.set_defaults(func=handle_agent_audit)
 
     # agent patch
@@ -1030,23 +1437,23 @@ def main():
     p_ag_patch.add_argument("--file", required=True, help="Path to markdown file")
     p_ag_patch.add_argument("--line", type=int, required=True, help="1-indexed line number to replace")
     p_ag_patch.add_argument("--replace", required=True, help="New line content")
-    p_ag_patch.add_argument("--json", action="store_true", default=True)
+    p_ag_patch.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_patch.set_defaults(func=handle_agent_patch)
 
     # agent roles
     p_ag_roles = agent_subs.add_parser("roles", help="List all pre-designed agent roles & personas")
-    p_ag_roles.add_argument("--json", action="store_true", default=True)
+    p_ag_roles.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_roles.set_defaults(func=handle_agent_roles)
 
     # agent prompt
     p_ag_prompt = agent_subs.add_parser("prompt", help="Get pre-designed system prompt for an agent role")
     p_ag_prompt.add_argument("--role", required=True, choices=["drafter", "critic", "architect", "harmonizer", "sci_plot"], help="Role ID")
-    p_ag_prompt.add_argument("--json", action="store_true", default=True)
+    p_ag_prompt.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_prompt.set_defaults(func=handle_agent_prompt)
 
     # agent detect
     p_ag_detect = agent_subs.add_parser("detect", help="Detect installed local Agent CLIs (Antigravity, Claude Code, Codex, Grok, Aider)")
-    p_ag_detect.add_argument("--json", action="store_true", default=True)
+    p_ag_detect.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_detect.set_defaults(func=handle_agent_detect_clis)
 
     # agent run-cli
@@ -1056,7 +1463,7 @@ def main():
     p_ag_run.add_argument("--instruction", required=True, help="Task instruction prompt")
     p_ag_run.add_argument("--preset", default=None, help="Optional user prompt preset role (e.g. drafter, critic)")
     p_ag_run.add_argument("--timeout", type=int, default=120, help="Execution timeout in seconds")
-    p_ag_run.add_argument("--json", action="store_true", default=True)
+    p_ag_run.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_run.set_defaults(func=handle_agent_run_cli)
 
     # agent register-cli
@@ -1065,7 +1472,7 @@ def main():
     p_ag_reg.add_argument("--cmd", required=True, help="Command executable (e.g. agy, claude, cursor-agent)")
     p_ag_reg.add_argument("--pattern", required=True, help="Args pattern (e.g. '-p {instruction}')")
     p_ag_reg.add_argument("--desc", default=None, help="Agent description")
-    p_ag_reg.add_argument("--json", action="store_true", default=True)
+    p_ag_reg.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ag_reg.set_defaults(func=handle_agent_register_cli)
 
     # ==========================================
@@ -1077,24 +1484,25 @@ def main():
     # doc get
     p_doc_get = doc_subs.add_parser("get", help="Get section content and AST blocks in JSON")
     p_doc_get.add_argument("--section", required=True, help="Section ID or filename")
-    p_doc_get.add_argument("--json", action="store_true", default=True)
+    p_doc_get.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_doc_get.set_defaults(func=handle_doc_get)
 
     # doc stats
     p_doc_stats = doc_subs.add_parser("stats", help="Get full document metrics, word counts, and citations")
-    p_doc_stats.add_argument("--json", action="store_true", default=True)
+    p_doc_stats.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_doc_stats.set_defaults(func=handle_doc_stats)
 
     # doc scorecard
     p_doc_sc = doc_subs.add_parser("scorecard", help="Get academic quality scorecard & radar metrics")
-    p_doc_sc.add_argument("--json", action="store_true", default=False)
+    p_doc_sc.add_argument("--html", default=None, help="Export quality audit scorecard to standalone HTML report")
+    p_doc_sc.add_argument("--json", action=argparse.BooleanOptionalAction, default=None)
     p_doc_sc.set_defaults(func=cmd_scorecard)
 
     # ==========================================
     # OFFICE CLI TOOLKIT (Word .docx, Excel, PPT)
     # ==========================================
     p_office = subparsers.add_parser("office", help="Office document creation and inspection toolkit")
-    p_office.add_argument("--json", action="store_true", default=True)
+    p_office.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_office.set_defaults(func=cmd_office)
     p_office_subs = p_office.add_subparsers(dest="office_action", help="Office action")
     
@@ -1102,24 +1510,24 @@ def main():
     p_off_docx.add_argument("--input", required=True, help="Input markdown file path")
     p_off_docx.add_argument("--output", required=True, help="Output docx file path")
     p_off_docx.add_argument("--title", default="Document", help="Document title")
-    p_off_docx.add_argument("--json", action="store_true", default=True)
+    p_off_docx.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_off_docx.set_defaults(func=cmd_office)
 
     p_off_insp = p_office_subs.add_parser("inspect", help="Inspect Office document structure and metadata")
     p_off_insp.add_argument("--file", required=True, help="Path to .docx, .xlsx, or .pptx file")
-    p_off_insp.add_argument("--json", action="store_true", default=True)
+    p_off_insp.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_off_insp.set_defaults(func=cmd_office)
 
     p_off_run = p_office_subs.add_parser("run", help="Run raw officecli command")
     p_off_run.add_argument("extra_args", nargs=argparse.REMAINDER, help="Arguments passed to officecli")
-    p_off_run.add_argument("--json", action="store_true", default=True)
+    p_off_run.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_off_run.set_defaults(func=cmd_office)
 
     # ==========================================
     # SCIENTIFIC PLOT TOOLKIT (Nature/Science/IEEE)
     # ==========================================
     p_plot = subparsers.add_parser("plot", help="Publication-grade scientific figure generator (Nature/Science/IEEE)")
-    p_plot.add_argument("--json", action="store_true", default=True)
+    p_plot.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_plot.set_defaults(func=cmd_plot)
     p_plot_subs = p_plot.add_subparsers(dest="plot_action", help="Plot action")
 
@@ -1131,19 +1539,19 @@ def main():
     p_plt_curve.add_argument("--ylabel", default="Reconciliation Latency (ms)", help="Y-axis label")
     p_plt_curve.add_argument("--style", default="nature", choices=["nature", "science", "ieee"], help="Publication style palette")
     p_plt_curve.add_argument("--dpi", type=int, default=300, help="Resolution DPI")
-    p_plt_curve.add_argument("--json", action="store_true", default=True)
+    p_plt_curve.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_plt_curve.set_defaults(func=cmd_plot)
 
     p_plt_run = p_plot_subs.add_parser("run", help="Execute custom Python scientific plotting script")
     p_plt_run.add_argument("--script", required=True, help="Path to python script")
-    p_plt_run.add_argument("--json", action="store_true", default=True)
+    p_plt_run.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_plt_run.set_defaults(func=cmd_plot)
 
     # ==========================================
     # PUBLICATION PDF TOOLKIT (KaiTi + Times, 14pt)
     # ==========================================
     p_pdf = subparsers.add_parser("pdf", help="Publication-grade PDF compilation engine")
-    p_pdf.add_argument("--json", action="store_true", default=True)
+    p_pdf.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pdf.set_defaults(func=cmd_pdf)
     p_pdf_subs = p_pdf.add_subparsers(dest="pdf_action", help="PDF action")
 
@@ -1151,19 +1559,19 @@ def main():
     p_pdf_compile.add_argument("--input", required=True, help="Input Markdown file path")
     p_pdf_compile.add_argument("--output", default="dist/publication_report.pdf", help="Output PDF path")
     p_pdf_compile.add_argument("--title", default="SynapseForge Publication Report", help="Document Header Title")
-    p_pdf_compile.add_argument("--json", action="store_true", default=True)
+    p_pdf_compile.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pdf_compile.set_defaults(func=cmd_pdf)
 
     # ==========================================
     # CITE & BIBLIOGRAPHY TOOLKIT
     # ==========================================
     p_cite = subparsers.add_parser("cite", help="BibTeX citations lookup and management")
-    p_cite.add_argument("--json", action="store_true", default=True)
+    p_cite.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_cite.set_defaults(func=cmd_cite)
     p_cite_subs = p_cite.add_subparsers(dest="cite_action", help="Cite action")
 
     p_ct_list = p_cite_subs.add_parser("list", help="List all BibTeX entries in bibliography.bib")
-    p_ct_list.add_argument("--json", action="store_true", default=True)
+    p_ct_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ct_list.set_defaults(func=cmd_cite)
 
     p_ct_add = p_cite_subs.add_parser("add", help="Add new citation to bibliography.bib")
@@ -1173,14 +1581,31 @@ def main():
     p_ct_add.add_argument("--year", default="2026", help="Publication year")
     p_ct_add.add_argument("--journal", default="", help="Journal or venue name")
     p_ct_add.add_argument("--type", default="article", help="Entry type")
-    p_ct_add.add_argument("--json", action="store_true", default=True)
+    p_ct_add.add_argument("--doi", default="", help="Optional DOI")
+    p_ct_add.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ct_add.set_defaults(func=cmd_cite)
+
+    p_ct_lookup = p_cite_subs.add_parser("lookup", help="Query CrossRef API for a given DOI")
+    p_ct_lookup.add_argument("doi", help="Digital Object Identifier (DOI)")
+    p_ct_lookup.add_argument("--add", action="store_true", help="Automatically append to bibliography.bib")
+    p_ct_lookup.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_lookup.set_defaults(func=cmd_cite)
+
+    p_ct_search = p_cite_subs.add_parser("search", help="Search CrossRef literature by keyword/title")
+    p_ct_search.add_argument("query", help="Search query string")
+    p_ct_search.add_argument("--limit", type=int, default=5, help="Maximum search results")
+    p_ct_search.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_search.set_defaults(func=cmd_cite)
+
+    p_ct_val = p_cite_subs.add_parser("validate", help="Validate document citation graph against bibliography.bib")
+    p_ct_val.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_ct_val.set_defaults(func=cmd_cite)
 
     # ==========================================
     # SNAPSHOT & ROLLBACK TOOLKIT
     # ==========================================
     p_snap = subparsers.add_parser("snapshot", help="Git-backed document checkpointing and rollback")
-    p_snap.add_argument("--json", action="store_true", default=True)
+    p_snap.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_snap.set_defaults(func=cmd_snapshot)
     p_snap_subs = p_snap.add_subparsers(dest="snap_action", help="Snapshot action")
 
@@ -1188,26 +1613,26 @@ def main():
     p_sn_create.add_argument("--message", "-m", required=True, help="Commit description")
     p_sn_create.add_argument("--section", default=None, help="Specific section ID")
     p_sn_create.add_argument("--author", default="Human", help="Author name")
-    p_sn_create.add_argument("--json", action="store_true", default=True)
+    p_sn_create.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sn_create.set_defaults(func=cmd_snapshot)
 
     p_sn_list = p_snap_subs.add_parser("list", help="List checkpoint history")
     p_sn_list.add_argument("--section", default=None, help="Filter by section ID")
     p_sn_list.add_argument("--limit", type=int, default=10, help="Max entries")
-    p_sn_list.add_argument("--json", action="store_true", default=True)
+    p_sn_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sn_list.set_defaults(func=cmd_snapshot)
 
     p_sn_roll = p_snap_subs.add_parser("rollback", help="Roll back document or section to a checkpoint hash")
     p_sn_roll.add_argument("--commit", required=True, help="Commit hash (e.g. a1b2c3d or HEAD~1)")
     p_sn_roll.add_argument("--file", default=None, help="Optional specific file path")
-    p_sn_roll.add_argument("--json", action="store_true", default=True)
+    p_sn_roll.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sn_roll.set_defaults(func=cmd_snapshot)
 
     # ==========================================
     # RESEARCH INGESTION TOOLKIT
     # ==========================================
     p_ing = subparsers.add_parser("ingest", help="Ingest research literature, ArXiv, notes into context")
-    p_ing.add_argument("--json", action="store_true", default=True)
+    p_ing.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_ing.set_defaults(func=cmd_ingest)
     p_ing_subs = p_ing.add_subparsers(dest="ingest_action", help="Ingest action")
 
@@ -1217,18 +1642,18 @@ def main():
     p_in_add.add_argument("--content", default="", help="Note content")
     p_in_add.add_argument("--file", default=None, help="File to ingest")
     p_in_add.add_argument("--tags", default="", help="Comma-separated tags")
-    p_in_add.add_argument("--json", action="store_true", default=True)
+    p_in_add.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_in_add.set_defaults(func=cmd_ingest)
 
     p_in_list = p_ing_subs.add_parser("list", help="List all ingested research sources")
-    p_in_list.add_argument("--json", action="store_true", default=True)
+    p_in_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_in_list.set_defaults(func=cmd_ingest)
 
     # ==========================================
     # SCIENTIFIC FIGURE LINKER
     # ==========================================
     p_fig = subparsers.add_parser("figure", help="Bind scientific figures with narrative discussion bridges")
-    p_fig.add_argument("--json", action="store_true", default=True)
+    p_fig.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_fig.set_defaults(func=cmd_figure)
     p_fig_subs = p_fig.add_subparsers(dest="figure_action", help="Figure action")
 
@@ -1238,31 +1663,31 @@ def main():
     p_fg_ins.add_argument("--caption", required=True, help="Figure caption")
     p_fg_ins.add_argument("--num", type=int, default=1, help="Figure number")
     p_fg_ins.add_argument("--bridge", default=None, help="Discussion bridge sentence")
-    p_fg_ins.add_argument("--json", action="store_true", default=True)
+    p_fg_ins.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_fg_ins.set_defaults(func=cmd_figure)
 
     # ==========================================
     # LLM MODEL PROVIDER MESH ROUTER
     # ==========================================
     p_prov = subparsers.add_parser("provider", help="Multi-model LLM routing and GPU node latency ping")
-    p_prov.add_argument("--json", action="store_true", default=True)
+    p_prov.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_prov.set_defaults(func=cmd_provider)
     p_prov_subs = p_prov.add_subparsers(dest="provider_action", help="Provider action")
 
     p_pr_list = p_prov_subs.add_parser("list", help="List all configured LLM providers and models")
-    p_pr_list.add_argument("--json", action="store_true", default=True)
+    p_pr_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pr_list.set_defaults(func=cmd_provider)
 
     p_pr_ping = p_prov_subs.add_parser("ping", help="Ping LLM provider endpoint latency")
     p_pr_ping.add_argument("--provider-id", required=True, help="Provider ID (e.g. deepseek, ollama_local)")
-    p_pr_ping.add_argument("--json", action="store_true", default=True)
+    p_pr_ping.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pr_ping.set_defaults(func=cmd_provider)
 
     # ==========================================
     # MULTI-DOCUMENT VARIANTS & SYNTHESIS
     # ==========================================
     p_var = subparsers.add_parser("variant", help="Create independent candidate drafts and synthesize/merge them")
-    p_var.add_argument("--json", action="store_true", default=True)
+    p_var.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_var.set_defaults(func=cmd_variant)
     p_var_subs = p_var.add_subparsers(dest="variant_action", help="Variant action")
 
@@ -1272,19 +1697,19 @@ def main():
     p_vr_create.add_argument("--section", required=True, help="Target section ID")
     p_vr_create.add_argument("--base", default=None, help="Optional base file to branch from")
     p_vr_create.add_argument("--author", default="Drafter", help="Author agent name")
-    p_vr_create.add_argument("--json", action="store_true", default=True)
+    p_vr_create.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vr_create.set_defaults(func=cmd_variant)
 
     p_vr_list = p_var_subs.add_parser("list", help="List all candidate document variants")
     p_vr_list.add_argument("--section", default=None, help="Filter by section ID")
-    p_vr_list.add_argument("--json", action="store_true", default=True)
+    p_vr_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vr_list.set_defaults(func=cmd_variant)
 
     p_vr_merge = p_var_subs.add_parser("merge", help="Synthesize multiple candidate variants into master document")
     p_vr_merge.add_argument("--inputs", required=True, help="Comma-separated variant files to merge")
     p_vr_merge.add_argument("--output", required=True, help="Target merged master document path")
     p_vr_merge.add_argument("--strategy", default="harmonize", choices=["harmonize", "union", "concatenate"], help="Synthesis strategy")
-    p_vr_merge.add_argument("--json", action="store_true", default=True)
+    p_vr_merge.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vr_merge.set_defaults(func=cmd_variant)
 
     # ==========================================
@@ -1292,14 +1717,15 @@ def main():
     # ==========================================
     p_exp = subparsers.add_parser("export", help="Compile and export project to PDF, Word docx, HTML, and ZIP package")
     p_exp.add_argument("--title", default=None, help="Document Title")
-    p_exp.add_argument("--json", action="store_true", default=False)
+    p_exp.add_argument("--json", action=argparse.BooleanOptionalAction, default=None)
     p_exp.set_defaults(func=cmd_export)
 
     # ==========================================
     # ACADEMIC QUALITY SCORECARD & RADAR
     # ==========================================
     p_sc = subparsers.add_parser("scorecard", help="Compute quantitative Anti-AI, citation, and mathematical rigor scorecard")
-    p_sc.add_argument("--json", action="store_true", default=True)
+    p_sc.add_argument("--html", default=None, help="Export quality audit scorecard to standalone HTML report")
+    p_sc.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc.set_defaults(func=cmd_scorecard)
 
     # ==========================================
@@ -1310,19 +1736,19 @@ def main():
     p_notif.add_argument("--message", required=True, help="Notification body message")
     p_notif.add_argument("--channel", default="email", choices=["email", "webhook", "cli"], help="Notification channel")
     p_notif.add_argument("--email", default="361487867@qq.com", help="Recipient email")
-    p_notif.add_argument("--json", action="store_true", default=True)
+    p_notif.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_notif.set_defaults(func=cmd_notify)
 
     # ==========================================
     # USER-DEFINED CUSTOM PROMPT & PERSONA MANAGER
     # ==========================================
     p_pmt = subparsers.add_parser("prompt", help="User-defined custom agent prompts & personas manager")
-    p_pmt.add_argument("--json", action="store_true", default=True)
+    p_pmt.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pmt.set_defaults(func=cmd_user_prompts)
     pmt_subs = p_pmt.add_subparsers(dest="prompt_action", help="Prompt actions")
 
     p_pmt_list = pmt_subs.add_parser("list", help="List all user-defined custom agent prompts")
-    p_pmt_list.add_argument("--json", action="store_true", default=True)
+    p_pmt_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pmt_list.set_defaults(func=cmd_user_prompts)
 
     p_pmt_set = pmt_subs.add_parser("set", help="Create or update user custom agent prompt")
@@ -1332,85 +1758,134 @@ def main():
     p_pmt_set.add_argument("--name", default=None, help="Display name")
     p_pmt_set.add_argument("--desc", default=None, help="Role description")
     p_pmt_set.add_argument("--model", default=None, help="Preferred LLM model")
-    p_pmt_set.add_argument("--json", action="store_true", default=True)
+    p_pmt_set.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pmt_set.set_defaults(func=cmd_user_prompts)
 
     p_pmt_get = pmt_subs.add_parser("get", help="Get user custom agent prompt")
     p_pmt_get.add_argument("--role", required=True, help="Role ID")
-    p_pmt_get.add_argument("--json", action="store_true", default=True)
+    p_pmt_get.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pmt_get.set_defaults(func=cmd_user_prompts)
 
     p_pmt_del = pmt_subs.add_parser("delete", help="Delete a user custom agent prompt")
     p_pmt_del.add_argument("--role", required=True, help="Role ID")
-    p_pmt_del.add_argument("--json", action="store_true", default=True)
+    p_pmt_del.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_pmt_del.set_defaults(func=cmd_user_prompts)
 
     # ==========================================
     # CENTRALIZED WORKSPACE VAULT & FILE MANAGER
     # ==========================================
     p_vlt = subparsers.add_parser("vault", help="Centralized workspace vault & auto-copy external files manager")
-    p_vlt.add_argument("--json", action="store_true", default=True)
+    p_vlt.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vlt.set_defaults(func=cmd_vault)
     vlt_subs = p_vlt.add_subparsers(dest="vault_action", help="Vault action")
 
     p_vlt_list = vlt_subs.add_parser("list", help="List all workspace files categorized by dedicated directories")
-    p_vlt_list.add_argument("--json", action="store_true", default=True)
+    p_vlt_list.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vlt_list.set_defaults(func=cmd_vault)
 
     p_vlt_import = vlt_subs.add_parser("import", help="Auto-copy an external file into the dedicated vault")
     p_vlt_import.add_argument("--file", required=True, help="Path to external file")
     p_vlt_import.add_argument("--category", default=None, help="Target dedicated directory (sections, imports, references, figures...)")
     p_vlt_import.add_argument("--overwrite", action="store_true", default=False)
-    p_vlt_import.add_argument("--json", action="store_true", default=True)
+    p_vlt_import.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vlt_import.set_defaults(func=cmd_vault)
 
     p_vlt_init = vlt_subs.add_parser("init", help="Ensure all dedicated vault folders are initialized")
-    p_vlt_init.add_argument("--json", action="store_true", default=True)
+    p_vlt_init.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_vlt_init.set_defaults(func=cmd_vault)
 
     # ==========================================
     # CONFIDENTIALITY & CRYPTOGRAPHIC SECURITY
     # ==========================================
     p_sec = subparsers.add_parser("secure", help="Confidentiality audit, secret redaction, and at-rest AES encryption")
-    p_sec.add_argument("--json", action="store_true", default=True)
+    p_sec.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sec.set_defaults(func=cmd_security)
     sec_subs = p_sec.add_subparsers(dest="sec_action", help="Security action")
 
     p_sc_audit = sec_subs.add_parser("audit", help="Audit sections or file for exposed API keys, secrets, PII, and classified terms")
     p_sc_audit.add_argument("--path", default=None, help="Target file or folder to audit")
-    p_sc_audit.add_argument("--json", action="store_true", default=True)
+    p_sc_audit.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc_audit.set_defaults(func=cmd_security)
 
     p_sc_redact = sec_subs.add_parser("redact", help="Mask sensitive secrets with cryptographic tokens")
     p_sc_redact.add_argument("--input", required=True, help="Input markdown file")
     p_sc_redact.add_argument("--output", default=None, help="Output sanitized markdown file")
-    p_sc_redact.add_argument("--json", action="store_true", default=True)
+    p_sc_redact.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc_redact.set_defaults(func=cmd_security)
 
     p_sc_enc = sec_subs.add_parser("encrypt", help="At-rest AES-GCM stream encrypt a document with passphrase")
     p_sc_enc.add_argument("--file", required=True, help="Path to markdown document to encrypt")
     p_sc_enc.add_argument("--passphrase", required=True, help="User secret passphrase")
     p_sc_enc.add_argument("--output", default=None, help="Output .enc.json path")
-    p_sc_enc.add_argument("--json", action="store_true", default=True)
+    p_sc_enc.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc_enc.set_defaults(func=cmd_security)
 
     p_sc_dec = sec_subs.add_parser("decrypt", help="Decrypt an encrypted .enc.json document")
     p_sc_dec.add_argument("--file", required=True, help="Path to encrypted .enc.json document")
     p_sc_dec.add_argument("--passphrase", required=True, help="User secret passphrase")
     p_sc_dec.add_argument("--output", default=None, help="Output decrypted .md path")
-    p_sc_dec.add_argument("--json", action="store_true", default=True)
+    p_sc_dec.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc_dec.set_defaults(func=cmd_security)
 
     p_sc_term = sec_subs.add_parser("add-term", help="Register a confidential keyword or project codename")
     p_sc_term.add_argument("--term", required=True, help="Classified term or project codename")
-    p_sc_term.add_argument("--json", action="store_true", default=True)
+    p_sc_term.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
     p_sc_term.set_defaults(func=cmd_security)
+
+    # ==========================================
+    # REPORT SPECIFICATION & PUBLICATION ENGINE
+    # ==========================================
+    p_rep = subparsers.add_parser("report", help="Report Specification engine (Zero AI flavor, narrative prose, publication PDF)")
+    p_rep.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rep.set_defaults(func=cmd_report)
+    rep_subs = p_rep.add_subparsers(dest="report_action", help="Report action")
+
+    p_rp_new = rep_subs.add_parser("new", help="Generate a publication-grade report template adhering to Report-Spec")
+    p_rp_new.add_argument("--title", required=True, help="Report title")
+    p_rp_new.add_argument("--topic", required=True, help="Core subject or research topic")
+    p_rp_new.add_argument("--type", default="whitepaper", choices=["whitepaper", "academic_review", "industry_analysis", "tech_survey", "empirical_study"], help="Report type")
+    p_rp_new.add_argument("--output", default=None, help="Output markdown path")
+    p_rp_new.add_argument("--author", default="SynapseForge Swarm Contributors", help="Author name")
+    p_rp_new.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rp_new.set_defaults(func=cmd_report)
+
+    p_rp_lint = rep_subs.add_parser("lint", help="Audit a report against Report-Spec seven prohibitions and narrative prose")
+    p_rp_lint.add_argument("--file", required=True, help="Path to markdown document to audit")
+    p_rp_lint.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rp_lint.set_defaults(func=cmd_report)
+
+    p_rp_build = rep_subs.add_parser("build", help="Compile a Report-Spec markdown document to a publication-grade PDF")
+    p_rp_build.add_argument("--file", required=True, help="Path to markdown document")
+    p_rp_build.add_argument("--output", default=None, help="Output PDF path")
+    p_rp_build.add_argument("--title", default=None, help="Document header title")
+    p_rp_build.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rp_build.set_defaults(func=cmd_report)
+
+    p_rp_spec = rep_subs.add_parser("spec", help="Display the complete Report-Spec standards and seven prohibitions")
+    p_rp_spec.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rp_spec.set_defaults(func=cmd_report)
+
+    p_rp_prompts = rep_subs.add_parser("prompts", help="Display or export built-in Report-Spec multi-agent system prompts")
+    p_rp_prompts.add_argument("--json", action=argparse.BooleanOptionalAction, default=True)
+    p_rp_prompts.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
     if not args.command:
         print_banner()
         parser.print_help()
         return
+
+    if not hasattr(args, "func"):
+        # Subcommand groups (e.g. `agent`, `doc`) require a child action; show help instead of crashing.
+        sub_parser = subparsers.choices.get(args.command)
+        if sub_parser is not None:
+            sub_parser.print_help()
+        else:
+            parser.print_help()
+        sys.exit(1)
+
+    if getattr(args, "json", None) is None:
+        args.json = getattr(args, "json_global", False)
 
     args.func(args)
 

@@ -240,7 +240,7 @@ class SemanticConflictResolver:
 
         if ours_sec.full_content != theirs_sec.full_content:
             # Generate conflict if both modified substantially
-            if base_sec and (ours_sec.full_content != base_sec.full_content) and (theirs_sec.full_content != base_sec.full_content):
+            if base_sec is None or (ours_sec.full_content != base_sec.full_content) and (theirs_sec.full_content != base_sec.full_content):
                 conflict = ConflictDetail(
                     section_title=ours_sec.title,
                     section_slug=ours_sec.slug,
@@ -252,13 +252,16 @@ class SemanticConflictResolver:
                 )
                 conflicts.append(conflict)
                 
+                base_section_text = (
+                    f"||||||| BASE\n"
+                    f"{self._extract_body(base_sec)}\n"
+                ) if base_sec else ""
                 conflict_text = (
                     f"{heading_raw}\n\n" if heading_raw else ""
                 ) + (
                     f"<<<<<<< {self.ours_label}\n"
                     f"{self._extract_body(ours_sec)}\n"
-                    f"||||||| BASE\n"
-                    f"{self._extract_body(base_sec)}\n"
+                    f"{base_section_text}"
                     f"=======\n"
                     f"{self._extract_body(theirs_sec)}\n"
                     f">>>>>>> {self.theirs_label}"

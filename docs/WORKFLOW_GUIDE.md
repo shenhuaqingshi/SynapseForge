@@ -31,6 +31,18 @@ sections:
    - Creates a dedicated branch `synapse/sec_01_intro`
    - Replies on the issue with drafting instructions
 
+## Step 2b: Same-machine Agent CLI rooms
+
+When Codex, Grok Build, and Antigravity share one laptop, open a local team room before anyone edits `sections/`:
+
+```bash
+synapseforge team open --document sections/01_abstract_introduction.md --cwd .
+synapseforge team join --room <room> --agent grok
+synapseforge team claim-task --room <room> --agent grok --task-id 1
+```
+
+Rules: one live seat per name (`already_online` observers do not edit), lock files inside the workspace, reclaim silent holders, only Antigravity calls push/submit after `team claim-action`. Full protocol: `docs/LOCAL_AGENT_COLLAB.md`.
+
 ## Step 3: Drafting & Local Quality Verification
 
 Collaborators (agent or human) write content in their dedicated branch and run local quality checks:
