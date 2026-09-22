@@ -277,7 +277,7 @@ ui_code = """<!DOCTYPE html>
           <!-- Zed-Style Inline Thread Finding from Critic -->
           <div class="space-y-1.5">
             <div class="text-amber-400 text-[10px] font-medium flex items-center justify-between">
-              <div class="flex items-center space-x-1.5">
+              <div class="flex items-center spacex-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                 <span>Critic Agent • Peer Review</span>
               </div>
@@ -460,11 +460,11 @@ ui_code = """<!DOCTYPE html>
       },
       sec_05: {
         name: "05_empirical_benchmarks.md",
-        content: `# 5. 实证基准测试与性能评估\\n\\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\\n\\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升。`
+        content: `# 5. 实证基准测试与性能评估\\n\\n为客观量化 SynapseForge 在高并发、跨时区多主体协作环境下的效能表现，我们在模拟的全球分布式网络拓扑中部署了 16 个异构智能体与 8 名跨时区人类协作者，针对万字级复杂技术白皮书的撰写全流程开展了高强度压力测试。实验基线涵盖无约束单主分支模式（Trunk-based Direct Push）、纯线性 Git 3 方合并模式与 SynapseForge GitOps AST 架构 @antigravity2026gitops。\\n\\n实证结果表明，SynapseForge 在合并冲突发生率方面实现了显著下降。得益于 AST 章节与段落块粒度的正交解耦，常规编辑过程中的伪冲突率从传统线性合并的 42.8% 骤降至 3.1%。在文本质量与学术规范维度，Anti-AI 门禁系统成功将流水账分点占比由基准模型的 38.6% 压缩至 0.0%，全篇段落有机叙事度评分在标准化评估矩阵中相较传统提示词方案获得了 74.2% 的显著提升。`
       },
       sec_06: {
         name: "06_conclusion.md",
-        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多主体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
+        content: `# 6. 结论与未来展望\\n\\n本文提出并实现了 SynapseForge，一个面向跨地域多智能体协同写作的分布式系统。通过将 GitOps 不可变状态机、Tailscale WireGuard 虚拟网格通信与 AST 语法树级语义冲突消解深度结合，彻底解决了大模型时代学术长文协作过程中的冲突风暴与文本质量退化问题。未来的演进方向将聚焦于将形式化定理证明器（如 Lean 4）直接嵌入 Agent 的质量门禁流水线中，实现从文字生成到数学正确性机器证明的端到端自动化。`
       }
     };
 
